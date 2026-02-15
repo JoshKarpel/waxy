@@ -1,7 +1,7 @@
 use pyo3::prelude::*;
 
 /// A dimension value that can be a length, percentage, or auto.
-#[pyclass(unsendable, module = "waxy")]
+#[pyclass(unsendable, from_py_object, module = "waxy")]
 #[derive(Clone, Debug)]
 pub struct Dimension {
     inner: taffy::Dimension,
@@ -60,7 +60,7 @@ impl From<&Dimension> for taffy::Dimension {
 }
 
 /// A length or percentage value (no auto).
-#[pyclass(unsendable, module = "waxy")]
+#[pyclass(unsendable, from_py_object, module = "waxy")]
 #[derive(Clone, Debug)]
 pub struct LengthPercentage {
     inner: taffy::LengthPercentage,
@@ -106,7 +106,7 @@ impl From<&LengthPercentage> for taffy::LengthPercentage {
 }
 
 /// A length, percentage, or auto value.
-#[pyclass(unsendable, module = "waxy")]
+#[pyclass(unsendable, from_py_object, module = "waxy")]
 #[derive(Clone, Debug)]
 pub struct LengthPercentageAuto {
     inner: taffy::LengthPercentageAuto,

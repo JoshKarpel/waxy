@@ -1,7 +1,7 @@
 use pyo3::prelude::*;
 
 /// A 2D size with width and height.
-#[pyclass(module = "waxy")]
+#[pyclass(from_py_object, module = "waxy")]
 #[derive(Clone, Debug)]
 pub struct Size {
     #[pyo3(get, set)]
@@ -46,7 +46,7 @@ impl From<&Size> for taffy::Size<f32> {
 }
 
 /// A rectangle with left, right, top, bottom edges.
-#[pyclass(module = "waxy")]
+#[pyclass(from_py_object, module = "waxy")]
 #[derive(Clone, Debug)]
 pub struct Rect {
     #[pyo3(get, set)]
@@ -110,7 +110,7 @@ impl From<&Rect> for taffy::Rect<f32> {
 }
 
 /// A 2D point with x and y coordinates.
-#[pyclass(module = "waxy")]
+#[pyclass(from_py_object, module = "waxy")]
 #[derive(Clone, Debug)]
 pub struct Point {
     #[pyo3(get, set)]
@@ -149,7 +149,7 @@ impl From<&Point> for taffy::Point<f32> {
 }
 
 /// A line segment with start and end values.
-#[pyclass(module = "waxy")]
+#[pyclass(from_py_object, module = "waxy")]
 #[derive(Clone, Debug)]
 pub struct Line {
     #[pyo3(get, set)]

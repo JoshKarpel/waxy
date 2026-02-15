@@ -3,7 +3,7 @@ use pyo3::prelude::*;
 use crate::geometry::{Point, Rect, Size};
 
 /// The computed layout of a node.
-#[pyclass(module = "waxy")]
+#[pyclass(from_py_object, module = "waxy")]
 #[derive(Clone, Debug)]
 pub struct Layout {
     #[pyo3(get)]
