@@ -36,7 +36,7 @@ jobs:
         uses: astral-sh/setup-uv@v7.3.0
 
       - name: Fix
-        run: just pre-commit-args="--all-files --show-diff-on-failure" fix
+        run: just pre-commit-args="--verbose --all-files --show-diff-on-failure" fix
 
       - name: Test
         run: just test

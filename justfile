@@ -8,6 +8,10 @@ cargo-test-args := ""
 list:
     @just --list
 
+[doc("Initial repo setup after cloning")]
+setup:
+    uv run pre-commit install
+
 [doc("Build the extension module")]
 build:
     uv run maturin develop
@@ -100,12 +104,12 @@ check: fix test
 
 alias c := check
 
+[doc("Upgrade pre-commit hooks")]
+pre-commit-upgrade:
+    uv run pre-commit autoupdate
+
 [doc("Upgrade all dependencies")]
 [parallel]
 upgrade: py-upgrade rs-upgrade pre-commit-upgrade
 
 alias u := upgrade
-
-[doc("Upgrade pre-commit hooks")]
-pre-commit-upgrade:
-    uv run pre-commit autoupdate
