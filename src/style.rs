@@ -132,14 +132,10 @@ impl Style {
             });
         };
 
-        // Copy kwargs so we can remove consumed keys and detect unknown ones.
-        let kwargs = kwargs.copy()?;
-
         /// Extract a value for a field. None means "use the default" (skip).
         macro_rules! set_field {
             ($key:literal, $flag:expr, $body:expr) => {
                 if let Some(py_val) = kwargs.get_item($key)? {
-                    kwargs.del_item($key)?;
                     if !py_val.is_none() {
                         #[allow(clippy::redundant_closure_call)]
                         ($body)(py_val.extract()?);
@@ -153,7 +149,6 @@ impl Style {
         macro_rules! set_opt_field {
             ($key:literal, $flag:expr, $body:expr) => {
                 if let Some(py_val) = kwargs.get_item($key)? {
-                    kwargs.del_item($key)?;
                     #[allow(clippy::redundant_closure_call)]
                     if py_val.is_none() {
                         ($body)(None);
@@ -345,14 +340,6 @@ impl Style {
         set_field!("grid_column", F_GRID_COLUMN, |v: GridLine| {
             style.grid_column = (&v).into()
         });
-
-        // Any keys remaining in the copied dict are unknown.
-        if !kwargs.is_empty() {
-            let key: String = kwargs.keys().get_item(0)?.extract()?;
-            return Err(pyo3::exceptions::PyTypeError::new_err(format!(
-                "Style() got an unexpected keyword argument '{key}'"
-            )));
-        }
 
         Ok(Self {
             inner: style,
