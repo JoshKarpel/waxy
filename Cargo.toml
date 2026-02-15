@@ -11,5 +11,5 @@ crate-type = ["cdylib"]
 all = { level = "deny", priority = -1 }
 
 [dependencies]
-pyo3 = { version = "0.24", features = ["extension-module"] }
+pyo3 = { version = "0.28", features = ["extension-module"] }
 taffy = "0.9"

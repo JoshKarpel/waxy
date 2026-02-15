@@ -1,3 +1,5 @@
+set ignore-comments := true
+
 pre-commit-args := ""
 pytest-args := ""
 mypy-args := ""

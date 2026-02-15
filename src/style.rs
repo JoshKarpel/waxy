@@ -8,7 +8,7 @@ use crate::enums::{
 use crate::grid::{GridLine, GridTrack};
 
 /// Style properties for a layout node.
-#[pyclass(unsendable, module = "waxy")]
+#[pyclass(unsendable, from_py_object, module = "waxy")]
 #[derive(Clone, Debug)]
 pub struct Style {
     pub(crate) inner: taffy::Style,
