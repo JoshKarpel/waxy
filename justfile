@@ -16,7 +16,8 @@ setup:
 
 [doc("Build the extension module")]
 build:
-    uv run maturin develop
+    # Override target dir to avoid thrashing with cargo test/clippy (see .cargo/config.toml)
+    CARGO_TARGET_DIR=target uv run maturin develop
 
 # Python
 

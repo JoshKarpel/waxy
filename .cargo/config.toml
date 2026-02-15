@@ -1,0 +1,5 @@
+[build]
+# Separate from maturin's default `target/` to avoid cache thrashing.
+# maturin builds a cdylib with different compiler flags than cargo test/clippy,
+# so they need separate target directories.
+target-dir = "target/check"
