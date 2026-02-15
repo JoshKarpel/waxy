@@ -17,17 +17,23 @@ theme:
         icon: material/brightness-4
         name: Switch to light mode
 
+extra_css:
+  - extra.css
+
 plugins:
   - search
   - mkdocstrings:
       handlers:
         python:
+          inventories:
+            - https://docs.python.org/3/objects.inv
           options:
             show_source: false
             show_root_heading: true
             members_order: source
             heading_level: 3
             show_signature_annotations: true
+            separate_signature: true
             signature_crossrefs: true
             filters:
               - "!^_"
