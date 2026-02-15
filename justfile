@@ -1,5 +1,15 @@
 set ignore-comments := true
 
+# Export PyO3 env vars so that maturin and cargo share dependency caches in the
+# same target/ directory. Without these, maturin sets PYO3_ENVIRONMENT_SIGNATURE
+# and PYO3_PYTHON when it invokes cargo, but plain `cargo test`/`cargo clippy`
+# leave them unset. PyO3's build script watches these via rerun-if-env-changed,
+# so any mismatch invalidates the cache and triggers a full PyO3 rebuild.
+# See: https://github.com/PyO3/pyo3/issues/2724
+# See: https://github.com/PyO3/pyo3/issues/5439
+
+export PYO3_ENVIRONMENT_SIGNATURE := `uv run python -c "import struct, sys; print(f'cpython-{sys.version_info.major}.{sys.version_info.minor}-{struct.calcsize(\"P\") * 8}bit')"`
+export PYO3_PYTHON := `uv run python -c "import pathlib, sys; print(pathlib.Path(sys.executable).parent / 'python')"`
 pre-commit-args := ""
 pytest-args := ""
 mypy-args := ""
@@ -16,8 +26,7 @@ setup:
 
 [doc("Build the extension module")]
 build:
-    # Override target dir to avoid thrashing with cargo test/clippy (see .cargo/config.toml)
-    CARGO_TARGET_DIR=target uv run maturin develop
+    uv run maturin develop
 
 # Python
 

@@ -29,6 +29,8 @@ jobs:
         with:
           components: clippy, rustfmt
 
+      - uses: Swatinem/rust-cache@v2
+
       - name: Install just
         uses: extractions/setup-just@v2
 
