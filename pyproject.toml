@@ -1,0 +1,46 @@
+[build-system]
+requires = ["maturin>=1.0,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "waxy"
+version = "0.1.0"
+description = "A Pythonic wrapper around the Rust taffy UI layout library"
+requires-python = ">=3.13"
+license = "MIT"
+
+[tool.maturin]
+features = ["pyo3/extension-module"]
+python-source = "python"
+module-name = "waxy._waxy"
+
+[tool.ruff]
+line-length = 100
+fix = true
+src = ["python", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W"]
+
+[tool.mypy]
+strict = true
+files = ["python", "tests"]
+
+[tool.pytest]
+testpaths = ["tests"]
+addopts = [
+    "-v",
+    "-n", "auto",
+    "--dist", "worksteal",
+]
+
+[dependency-groups]
+dev = [
+    "maturin>=1.12.0",
+    "mypy>=1.19.1",
+    "pre-commit>=4.5.1",
+    "pytest>=9.0.2",
+    "pytest-randomly>=4.0.1",
+    "pytest-xdist>=3.8.0",
+    "ruff>=0.15.1",
+]
