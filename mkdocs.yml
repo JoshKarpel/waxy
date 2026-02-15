@@ -1,5 +1,5 @@
 site_name: Waxy
-site_description: A Pythonic wrapper around the Rust taffy UI layout library
+site_description: A Python wrapper around the Rust taffy UI layout library
 repo_url: https://github.com/JoshKarpel/waxy
 repo_name: JoshKarpel/waxy
 

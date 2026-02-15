@@ -1,6 +1,6 @@
 # Waxy
 
-A Pythonic wrapper around the Rust `taffy` UI layout library, built with PyO3/maturin.
+A Python wrapper around the Rust `taffy` UI layout library, built with PyO3/maturin.
 
 ## Key Files
 
