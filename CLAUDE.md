@@ -79,10 +79,6 @@ When adding support for a new Python version (e.g., Python 3.15):
 
 4. **Update `pyproject.toml`**: Verify that `requires-python` includes the new version (e.g., `>=3.13` already covers 3.14+).
 
-5. **Test locally**: Build and test with the new Python version using `just build` and `just test`.
-
-6. Run `just check` to ensure all tests pass.
-
 ## Taffy Version
 
 Pinned to taffy **0.9.x**. The taffy source can be inspected at:
