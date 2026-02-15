@@ -1,4 +1,4 @@
-"""Waxy: A Pythonic wrapper around the Rust taffy UI layout library."""
+"""Waxy: A Python wrapper around the Rust taffy UI layout library."""
 
 from waxy._waxy import (
     AlignContent,

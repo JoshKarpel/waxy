@@ -5,7 +5,7 @@ build-backend = "maturin"
 [project]
 name = "waxy"
 version = "0.1.0"
-description = "A Pythonic wrapper around the Rust taffy UI layout library"
+description = "A Python wrapper around the Rust taffy UI layout library"
 requires-python = ">=3.13"
 license = "MIT"
 

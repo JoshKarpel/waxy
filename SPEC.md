@@ -19,7 +19,7 @@ The initial API will be a thin wrapper that closely mirrors taffy's Rust API:
 a `TaffyTree` object, node handles, and style structs. This keeps the binding layer
 straightforward and easy to maintain in sync with upstream taffy.
 
-A higher-level, more Pythonic/declarative API may be added later as a pure-Python
+A higher-level, more declarative API may be added later as a pure-Python
 layer on top of the bindings.
 
 ## Taffy Version
