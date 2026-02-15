@@ -63,6 +63,15 @@ py-upgrade:
 rs-test:
     cargo test {{ cargo-test-args }}
 
+cargo-bench-args := ""
+
+[doc("Run Rust benchmarks")]
+[group("rust")]
+rs-bench:
+    cargo bench {{ cargo-bench-args }}
+
+alias b := rs-bench
+
 [doc("Format Rust code")]
 [group("rust")]
 rs-format:

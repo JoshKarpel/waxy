@@ -8,7 +8,7 @@ mod grid;
 mod helpers;
 mod layout;
 mod node;
-mod style;
+pub mod style;
 mod tree;
 
 #[pymodule]

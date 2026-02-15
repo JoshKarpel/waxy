@@ -5,11 +5,18 @@ edition = "2021"
 
 [lib]
 name = "_waxy"
-crate-type = ["cdylib"]
+crate-type = ["cdylib", "lib"]
 
 [lints.clippy]
 all = { level = "deny", priority = -1 }
 
 [dependencies]
-pyo3 = { version = "0.28", features = ["extension-module"] }
+pyo3 = "0.28"
 taffy = "0.9"
+
+[dev-dependencies]
+criterion = "0.5"
+
+[[bench]]
+name = "style_merge"
+harness = false
