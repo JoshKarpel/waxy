@@ -1,4 +1,5 @@
 use pyo3::prelude::*;
+use pyo3::types::PyDict;
 
 use crate::dimensions::{Dimension, LengthPercentage, LengthPercentageAuto};
 use crate::enums::{
@@ -119,339 +120,247 @@ fn auto_tracks_from_taffy(tracks: &[taffy::style::TrackSizingFunction]) -> Vec<G
 #[pymethods]
 impl Style {
     #[new]
-    #[pyo3(signature = (
-        display = None,
-        box_sizing = None,
-        overflow_x = None,
-        overflow_y = None,
-        scrollbar_width = None,
-        position = None,
-        inset_left = None,
-        inset_right = None,
-        inset_top = None,
-        inset_bottom = None,
-        size_width = None,
-        size_height = None,
-        min_size_width = None,
-        min_size_height = None,
-        max_size_width = None,
-        max_size_height = None,
-        aspect_ratio = None,
-        margin_left = None,
-        margin_right = None,
-        margin_top = None,
-        margin_bottom = None,
-        padding_left = None,
-        padding_right = None,
-        padding_top = None,
-        padding_bottom = None,
-        border_left = None,
-        border_right = None,
-        border_top = None,
-        border_bottom = None,
-        align_items = None,
-        align_self = None,
-        justify_items = None,
-        justify_self = None,
-        align_content = None,
-        justify_content = None,
-        gap_width = None,
-        gap_height = None,
-        text_align = None,
-        flex_direction = None,
-        flex_wrap = None,
-        flex_basis = None,
-        flex_grow = None,
-        flex_shrink = None,
-        grid_template_rows = None,
-        grid_template_columns = None,
-        grid_auto_rows = None,
-        grid_auto_columns = None,
-        grid_auto_flow = None,
-        grid_row = None,
-        grid_column = None,
-    ))]
-    #[allow(clippy::too_many_arguments)]
-    fn new(
-        display: Option<Display>,
-        box_sizing: Option<BoxSizing>,
-        overflow_x: Option<Overflow>,
-        overflow_y: Option<Overflow>,
-        scrollbar_width: Option<f32>,
-        position: Option<Position>,
-        inset_left: Option<LengthPercentageAuto>,
-        inset_right: Option<LengthPercentageAuto>,
-        inset_top: Option<LengthPercentageAuto>,
-        inset_bottom: Option<LengthPercentageAuto>,
-        size_width: Option<Dimension>,
-        size_height: Option<Dimension>,
-        min_size_width: Option<Dimension>,
-        min_size_height: Option<Dimension>,
-        max_size_width: Option<Dimension>,
-        max_size_height: Option<Dimension>,
-        aspect_ratio: Option<f32>,
-        margin_left: Option<LengthPercentageAuto>,
-        margin_right: Option<LengthPercentageAuto>,
-        margin_top: Option<LengthPercentageAuto>,
-        margin_bottom: Option<LengthPercentageAuto>,
-        padding_left: Option<LengthPercentage>,
-        padding_right: Option<LengthPercentage>,
-        padding_top: Option<LengthPercentage>,
-        padding_bottom: Option<LengthPercentage>,
-        border_left: Option<LengthPercentage>,
-        border_right: Option<LengthPercentage>,
-        border_top: Option<LengthPercentage>,
-        border_bottom: Option<LengthPercentage>,
-        align_items: Option<AlignItems>,
-        align_self: Option<AlignItems>,
-        justify_items: Option<AlignItems>,
-        justify_self: Option<AlignItems>,
-        align_content: Option<AlignContent>,
-        justify_content: Option<AlignContent>,
-        gap_width: Option<LengthPercentage>,
-        gap_height: Option<LengthPercentage>,
-        text_align: Option<TextAlign>,
-        flex_direction: Option<FlexDirection>,
-        flex_wrap: Option<FlexWrap>,
-        flex_basis: Option<Dimension>,
-        flex_grow: Option<f32>,
-        flex_shrink: Option<f32>,
-        grid_template_rows: Option<Vec<GridTrack>>,
-        grid_template_columns: Option<Vec<GridTrack>>,
-        grid_auto_rows: Option<Vec<GridTrack>>,
-        grid_auto_columns: Option<Vec<GridTrack>>,
-        grid_auto_flow: Option<GridAutoFlow>,
-        grid_row: Option<GridLine>,
-        grid_column: Option<GridLine>,
-    ) -> Self {
+    #[pyo3(signature = (**kwargs))]
+    fn new(kwargs: Option<&Bound<'_, PyDict>>) -> PyResult<Self> {
         let mut style = taffy::Style::DEFAULT;
         let mut set_fields: u64 = 0;
 
-        if let Some(v) = display {
-            style.display = (&v).into();
-            set_fields |= F_DISPLAY;
+        let Some(kwargs) = kwargs else {
+            return Ok(Self {
+                inner: style,
+                set_fields,
+            });
+        };
+
+        /// Extract a required (non-None) value for a field, or return a TypeError.
+        macro_rules! set_field {
+            ($key:literal, $flag:expr, $body:expr) => {
+                if let Some(py_val) = kwargs.get_item($key)? {
+                    if py_val.is_none() {
+                        return Err(pyo3::exceptions::PyTypeError::new_err(concat!(
+                            $key,
+                            " must not be None"
+                        )));
+                    }
+                    #[allow(clippy::redundant_closure_call)]
+                    ($body)(py_val.extract()?);
+                    set_fields |= $flag;
+                }
+            };
         }
-        if let Some(v) = box_sizing {
-            style.box_sizing = (&v).into();
-            set_fields |= F_BOX_SIZING;
+
+        /// Extract an optional (None-able) value for a field.
+        macro_rules! set_opt_field {
+            ($key:literal, $flag:expr, $body:expr) => {
+                if let Some(py_val) = kwargs.get_item($key)? {
+                    #[allow(clippy::redundant_closure_call)]
+                    if py_val.is_none() {
+                        ($body)(None);
+                    } else {
+                        ($body)(Some(py_val.extract()?));
+                    }
+                    set_fields |= $flag;
+                }
+            };
         }
-        if let Some(v) = overflow_x {
-            style.overflow.x = (&v).into();
-            set_fields |= F_OVERFLOW_X;
-        }
-        if let Some(v) = overflow_y {
-            style.overflow.y = (&v).into();
-            set_fields |= F_OVERFLOW_Y;
-        }
-        if let Some(v) = scrollbar_width {
-            style.scrollbar_width = v;
-            set_fields |= F_SCROLLBAR_WIDTH;
-        }
-        if let Some(v) = position {
-            style.position = (&v).into();
-            set_fields |= F_POSITION;
-        }
+
+        set_field!("display", F_DISPLAY, |v: Display| {
+            style.display = (&v).into()
+        });
+        set_field!("box_sizing", F_BOX_SIZING, |v: BoxSizing| {
+            style.box_sizing = (&v).into()
+        });
+        set_field!("overflow_x", F_OVERFLOW_X, |v: Overflow| {
+            style.overflow.x = (&v).into()
+        });
+        set_field!("overflow_y", F_OVERFLOW_Y, |v: Overflow| {
+            style.overflow.y = (&v).into()
+        });
+        set_field!("scrollbar_width", F_SCROLLBAR_WIDTH, |v: f32| {
+            style.scrollbar_width = v
+        });
+        set_field!("position", F_POSITION, |v: Position| {
+            style.position = (&v).into()
+        });
 
         // Inset
-        if let Some(v) = inset_left {
-            style.inset.left = (&v).into();
-            set_fields |= F_INSET_LEFT;
-        }
-        if let Some(v) = inset_right {
-            style.inset.right = (&v).into();
-            set_fields |= F_INSET_RIGHT;
-        }
-        if let Some(v) = inset_top {
-            style.inset.top = (&v).into();
-            set_fields |= F_INSET_TOP;
-        }
-        if let Some(v) = inset_bottom {
-            style.inset.bottom = (&v).into();
-            set_fields |= F_INSET_BOTTOM;
-        }
+        set_field!("inset_left", F_INSET_LEFT, |v: LengthPercentageAuto| {
+            style.inset.left = (&v).into()
+        });
+        set_field!("inset_right", F_INSET_RIGHT, |v: LengthPercentageAuto| {
+            style.inset.right = (&v).into()
+        });
+        set_field!("inset_top", F_INSET_TOP, |v: LengthPercentageAuto| {
+            style.inset.top = (&v).into()
+        });
+        set_field!(
+            "inset_bottom",
+            F_INSET_BOTTOM,
+            |v: LengthPercentageAuto| { style.inset.bottom = (&v).into() }
+        );
 
         // Size
-        if let Some(v) = size_width {
-            style.size.width = (&v).into();
-            set_fields |= F_SIZE_WIDTH;
-        }
-        if let Some(v) = size_height {
-            style.size.height = (&v).into();
-            set_fields |= F_SIZE_HEIGHT;
-        }
-        if let Some(v) = min_size_width {
-            style.min_size.width = (&v).into();
-            set_fields |= F_MIN_SIZE_WIDTH;
-        }
-        if let Some(v) = min_size_height {
-            style.min_size.height = (&v).into();
-            set_fields |= F_MIN_SIZE_HEIGHT;
-        }
-        if let Some(v) = max_size_width {
-            style.max_size.width = (&v).into();
-            set_fields |= F_MAX_SIZE_WIDTH;
-        }
-        if let Some(v) = max_size_height {
-            style.max_size.height = (&v).into();
-            set_fields |= F_MAX_SIZE_HEIGHT;
-        }
-        if aspect_ratio.is_some() {
-            style.aspect_ratio = aspect_ratio;
-            set_fields |= F_ASPECT_RATIO;
-        }
+        set_field!("size_width", F_SIZE_WIDTH, |v: Dimension| {
+            style.size.width = (&v).into()
+        });
+        set_field!("size_height", F_SIZE_HEIGHT, |v: Dimension| {
+            style.size.height = (&v).into()
+        });
+        set_field!("min_size_width", F_MIN_SIZE_WIDTH, |v: Dimension| {
+            style.min_size.width = (&v).into()
+        });
+        set_field!("min_size_height", F_MIN_SIZE_HEIGHT, |v: Dimension| {
+            style.min_size.height = (&v).into()
+        });
+        set_field!("max_size_width", F_MAX_SIZE_WIDTH, |v: Dimension| {
+            style.max_size.width = (&v).into()
+        });
+        set_field!("max_size_height", F_MAX_SIZE_HEIGHT, |v: Dimension| {
+            style.max_size.height = (&v).into()
+        });
+        set_opt_field!("aspect_ratio", F_ASPECT_RATIO, |v: Option<f32>| {
+            style.aspect_ratio = v
+        });
 
         // Margin
-        if let Some(v) = margin_left {
-            style.margin.left = (&v).into();
-            set_fields |= F_MARGIN_LEFT;
-        }
-        if let Some(v) = margin_right {
-            style.margin.right = (&v).into();
-            set_fields |= F_MARGIN_RIGHT;
-        }
-        if let Some(v) = margin_top {
-            style.margin.top = (&v).into();
-            set_fields |= F_MARGIN_TOP;
-        }
-        if let Some(v) = margin_bottom {
-            style.margin.bottom = (&v).into();
-            set_fields |= F_MARGIN_BOTTOM;
-        }
+        set_field!("margin_left", F_MARGIN_LEFT, |v: LengthPercentageAuto| {
+            style.margin.left = (&v).into()
+        });
+        set_field!(
+            "margin_right",
+            F_MARGIN_RIGHT,
+            |v: LengthPercentageAuto| { style.margin.right = (&v).into() }
+        );
+        set_field!("margin_top", F_MARGIN_TOP, |v: LengthPercentageAuto| {
+            style.margin.top = (&v).into()
+        });
+        set_field!(
+            "margin_bottom",
+            F_MARGIN_BOTTOM,
+            |v: LengthPercentageAuto| { style.margin.bottom = (&v).into() }
+        );
 
         // Padding
-        if let Some(v) = padding_left {
-            style.padding.left = (&v).into();
-            set_fields |= F_PADDING_LEFT;
-        }
-        if let Some(v) = padding_right {
-            style.padding.right = (&v).into();
-            set_fields |= F_PADDING_RIGHT;
-        }
-        if let Some(v) = padding_top {
-            style.padding.top = (&v).into();
-            set_fields |= F_PADDING_TOP;
-        }
-        if let Some(v) = padding_bottom {
-            style.padding.bottom = (&v).into();
-            set_fields |= F_PADDING_BOTTOM;
-        }
+        set_field!("padding_left", F_PADDING_LEFT, |v: LengthPercentage| {
+            style.padding.left = (&v).into()
+        });
+        set_field!("padding_right", F_PADDING_RIGHT, |v: LengthPercentage| {
+            style.padding.right = (&v).into()
+        });
+        set_field!("padding_top", F_PADDING_TOP, |v: LengthPercentage| {
+            style.padding.top = (&v).into()
+        });
+        set_field!(
+            "padding_bottom",
+            F_PADDING_BOTTOM,
+            |v: LengthPercentage| { style.padding.bottom = (&v).into() }
+        );
 
         // Border
-        if let Some(v) = border_left {
-            style.border.left = (&v).into();
-            set_fields |= F_BORDER_LEFT;
-        }
-        if let Some(v) = border_right {
-            style.border.right = (&v).into();
-            set_fields |= F_BORDER_RIGHT;
-        }
-        if let Some(v) = border_top {
-            style.border.top = (&v).into();
-            set_fields |= F_BORDER_TOP;
-        }
-        if let Some(v) = border_bottom {
-            style.border.bottom = (&v).into();
-            set_fields |= F_BORDER_BOTTOM;
-        }
+        set_field!("border_left", F_BORDER_LEFT, |v: LengthPercentage| {
+            style.border.left = (&v).into()
+        });
+        set_field!("border_right", F_BORDER_RIGHT, |v: LengthPercentage| {
+            style.border.right = (&v).into()
+        });
+        set_field!("border_top", F_BORDER_TOP, |v: LengthPercentage| {
+            style.border.top = (&v).into()
+        });
+        set_field!("border_bottom", F_BORDER_BOTTOM, |v: LengthPercentage| {
+            style.border.bottom = (&v).into()
+        });
 
-        // Alignment
-        if let Some(v) = align_items {
-            style.align_items = Some((&v).into());
-            set_fields |= F_ALIGN_ITEMS;
-        }
-        if let Some(v) = align_self {
-            style.align_self = Some((&v).into());
-            set_fields |= F_ALIGN_SELF;
-        }
-        if let Some(v) = justify_items {
-            style.justify_items = Some((&v).into());
-            set_fields |= F_JUSTIFY_ITEMS;
-        }
-        if let Some(v) = justify_self {
-            style.justify_self = Some((&v).into());
-            set_fields |= F_JUSTIFY_SELF;
-        }
-        if let Some(v) = align_content {
-            style.align_content = Some((&v).into());
-            set_fields |= F_ALIGN_CONTENT;
-        }
-        if let Some(v) = justify_content {
-            style.justify_content = Some((&v).into());
-            set_fields |= F_JUSTIFY_CONTENT;
-        }
+        // Alignment (these accept None to explicitly clear)
+        set_opt_field!("align_items", F_ALIGN_ITEMS, |v: Option<AlignItems>| {
+            style.align_items = opt_align_items_to_taffy(&v)
+        });
+        set_opt_field!("align_self", F_ALIGN_SELF, |v: Option<AlignItems>| {
+            style.align_self = opt_align_items_to_taffy(&v)
+        });
+        set_opt_field!(
+            "justify_items",
+            F_JUSTIFY_ITEMS,
+            |v: Option<AlignItems>| { style.justify_items = opt_align_items_to_taffy(&v) }
+        );
+        set_opt_field!(
+            "justify_self",
+            F_JUSTIFY_SELF,
+            |v: Option<AlignItems>| { style.justify_self = opt_align_items_to_taffy(&v) }
+        );
+        set_opt_field!(
+            "align_content",
+            F_ALIGN_CONTENT,
+            |v: Option<AlignContent>| { style.align_content = opt_align_content_to_taffy(&v) }
+        );
+        set_opt_field!(
+            "justify_content",
+            F_JUSTIFY_CONTENT,
+            |v: Option<AlignContent>| { style.justify_content = opt_align_content_to_taffy(&v) }
+        );
 
         // Gap
-        if let Some(v) = gap_width {
-            style.gap.width = (&v).into();
-            set_fields |= F_GAP_WIDTH;
-        }
-        if let Some(v) = gap_height {
-            style.gap.height = (&v).into();
-            set_fields |= F_GAP_HEIGHT;
-        }
+        set_field!("gap_width", F_GAP_WIDTH, |v: LengthPercentage| {
+            style.gap.width = (&v).into()
+        });
+        set_field!("gap_height", F_GAP_HEIGHT, |v: LengthPercentage| {
+            style.gap.height = (&v).into()
+        });
 
         // Block
-        if let Some(v) = text_align {
-            style.text_align = (&v).into();
-            set_fields |= F_TEXT_ALIGN;
-        }
+        set_field!("text_align", F_TEXT_ALIGN, |v: TextAlign| {
+            style.text_align = (&v).into()
+        });
 
         // Flexbox
-        if let Some(v) = flex_direction {
-            style.flex_direction = (&v).into();
-            set_fields |= F_FLEX_DIRECTION;
-        }
-        if let Some(v) = flex_wrap {
-            style.flex_wrap = (&v).into();
-            set_fields |= F_FLEX_WRAP;
-        }
-        if let Some(v) = flex_basis {
-            style.flex_basis = (&v).into();
-            set_fields |= F_FLEX_BASIS;
-        }
-        if let Some(v) = flex_grow {
-            style.flex_grow = v;
-            set_fields |= F_FLEX_GROW;
-        }
-        if let Some(v) = flex_shrink {
-            style.flex_shrink = v;
-            set_fields |= F_FLEX_SHRINK;
-        }
+        set_field!("flex_direction", F_FLEX_DIRECTION, |v: FlexDirection| {
+            style.flex_direction = (&v).into()
+        });
+        set_field!("flex_wrap", F_FLEX_WRAP, |v: FlexWrap| {
+            style.flex_wrap = (&v).into()
+        });
+        set_field!("flex_basis", F_FLEX_BASIS, |v: Dimension| {
+            style.flex_basis = (&v).into()
+        });
+        set_field!("flex_grow", F_FLEX_GROW, |v: f32| style.flex_grow = v);
+        set_field!("flex_shrink", F_FLEX_SHRINK, |v: f32| {
+            style.flex_shrink = v
+        });
 
         // Grid
-        if let Some(v) = grid_template_rows {
-            style.grid_template_rows = tracks_to_taffy(&v);
-            set_fields |= F_GRID_TEMPLATE_ROWS;
-        }
-        if let Some(v) = grid_template_columns {
-            style.grid_template_columns = tracks_to_taffy(&v);
-            set_fields |= F_GRID_TEMPLATE_COLUMNS;
-        }
-        if let Some(v) = grid_auto_rows {
-            style.grid_auto_rows = auto_tracks_to_taffy(&v);
-            set_fields |= F_GRID_AUTO_ROWS;
-        }
-        if let Some(v) = grid_auto_columns {
-            style.grid_auto_columns = auto_tracks_to_taffy(&v);
-            set_fields |= F_GRID_AUTO_COLUMNS;
-        }
-        if let Some(v) = grid_auto_flow {
-            style.grid_auto_flow = (&v).into();
-            set_fields |= F_GRID_AUTO_FLOW;
-        }
-        if let Some(v) = grid_row {
-            style.grid_row = (&v).into();
-            set_fields |= F_GRID_ROW;
-        }
-        if let Some(v) = grid_column {
-            style.grid_column = (&v).into();
-            set_fields |= F_GRID_COLUMN;
-        }
+        set_field!(
+            "grid_template_rows",
+            F_GRID_TEMPLATE_ROWS,
+            |v: Vec<GridTrack>| { style.grid_template_rows = tracks_to_taffy(&v) }
+        );
+        set_field!(
+            "grid_template_columns",
+            F_GRID_TEMPLATE_COLUMNS,
+            |v: Vec<GridTrack>| { style.grid_template_columns = tracks_to_taffy(&v) }
+        );
+        set_field!(
+            "grid_auto_rows",
+            F_GRID_AUTO_ROWS,
+            |v: Vec<GridTrack>| { style.grid_auto_rows = auto_tracks_to_taffy(&v) }
+        );
+        set_field!(
+            "grid_auto_columns",
+            F_GRID_AUTO_COLUMNS,
+            |v: Vec<GridTrack>| { style.grid_auto_columns = auto_tracks_to_taffy(&v) }
+        );
+        set_field!("grid_auto_flow", F_GRID_AUTO_FLOW, |v: GridAutoFlow| {
+            style.grid_auto_flow = (&v).into()
+        });
+        set_field!("grid_row", F_GRID_ROW, |v: GridLine| {
+            style.grid_row = (&v).into()
+        });
+        set_field!("grid_column", F_GRID_COLUMN, |v: GridLine| {
+            style.grid_column = (&v).into()
+        });
 
-        Self {
+        Ok(Self {
             inner: style,
             set_fields,
-        }
+        })
     }
 
     // --- Getters and Setters ---

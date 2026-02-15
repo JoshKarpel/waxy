@@ -168,6 +168,22 @@ def test_style_or_default_value_overrides_when_explicit() -> None:
     assert result.flex_grow == 0.0
 
 
+def test_style_or_explicit_none_clears_field() -> None:
+    """Passing None explicitly should clear the field in the merged result."""
+    a = waxy.Style(align_items=waxy.AlignItems.Center)
+    b = waxy.Style(align_items=None)
+    result = a | b
+    assert result.align_items is None
+
+
+def test_style_or_explicit_none_aspect_ratio() -> None:
+    """Passing aspect_ratio=None explicitly should clear it."""
+    a = waxy.Style(aspect_ratio=1.5)
+    b = waxy.Style(aspect_ratio=None)
+    result = a | b
+    assert result.aspect_ratio is None
+
+
 def test_style_or_grid_tracks() -> None:
     a = waxy.Style(
         grid_template_columns=[waxy.GridTrack.length(100.0)],
