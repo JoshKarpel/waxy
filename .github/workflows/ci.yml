@@ -29,6 +29,13 @@ jobs:
         with:
           components: clippy, rustfmt
 
+      - uses: Swatinem/rust-cache@v2
+        with:
+          # Cache both target dirs: maturin's `target/` and cargo test/clippy's `target/check/`
+          workspaces: |
+            . -> target
+            . -> target/check
+
       - name: Install just
         uses: extractions/setup-just@v2
 
