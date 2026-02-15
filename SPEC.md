@@ -9,12 +9,14 @@ For more information about the `taffy` library, visit these links:
 
 For Python tooling, we will use:
 
+- [`uv`](https://docs.astral.sh/uv/) for Python virtual environment and package management
 - [`pytest`](https://docs.pytest.org/en/stable/) for testing
 - [`mypy`](https://mypy.readthedocs.io/en/stable/) for type checking
 - [`ruff`](https://docs.astral.sh/ruff/) for linting and formatting
 
 For Rust tooling, we will use:
-- `cargo` for building and testing the Rust code (as usual)
+
+- [`cargo`](https://doc.rust-lang.org/cargo/) for building and testing the Rust code
 
 To build the bindings between Python and Rust, we use the `pyo3`/`maturin` toolchain:
  
