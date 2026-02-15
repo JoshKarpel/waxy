@@ -132,19 +132,19 @@ impl Style {
             });
         };
 
-        /// Extract a required (non-None) value for a field, or return a TypeError.
+        // Copy kwargs so we can remove consumed keys and detect unknown ones.
+        let kwargs = kwargs.copy()?;
+
+        /// Extract a value for a field. None means "use the default" (skip).
         macro_rules! set_field {
             ($key:literal, $flag:expr, $body:expr) => {
                 if let Some(py_val) = kwargs.get_item($key)? {
-                    if py_val.is_none() {
-                        return Err(pyo3::exceptions::PyTypeError::new_err(concat!(
-                            $key,
-                            " must not be None"
-                        )));
+                    kwargs.del_item($key)?;
+                    if !py_val.is_none() {
+                        #[allow(clippy::redundant_closure_call)]
+                        ($body)(py_val.extract()?);
+                        set_fields |= $flag;
                     }
-                    #[allow(clippy::redundant_closure_call)]
-                    ($body)(py_val.extract()?);
-                    set_fields |= $flag;
                 }
             };
         }
@@ -153,6 +153,7 @@ impl Style {
         macro_rules! set_opt_field {
             ($key:literal, $flag:expr, $body:expr) => {
                 if let Some(py_val) = kwargs.get_item($key)? {
+                    kwargs.del_item($key)?;
                     #[allow(clippy::redundant_closure_call)]
                     if py_val.is_none() {
                         ($body)(None);
@@ -193,11 +194,9 @@ impl Style {
         set_field!("inset_top", F_INSET_TOP, |v: LengthPercentageAuto| {
             style.inset.top = (&v).into()
         });
-        set_field!(
-            "inset_bottom",
-            F_INSET_BOTTOM,
-            |v: LengthPercentageAuto| { style.inset.bottom = (&v).into() }
-        );
+        set_field!("inset_bottom", F_INSET_BOTTOM, |v: LengthPercentageAuto| {
+            style.inset.bottom = (&v).into()
+        });
 
         // Size
         set_field!("size_width", F_SIZE_WIDTH, |v: Dimension| {
@@ -226,11 +225,9 @@ impl Style {
         set_field!("margin_left", F_MARGIN_LEFT, |v: LengthPercentageAuto| {
             style.margin.left = (&v).into()
         });
-        set_field!(
-            "margin_right",
-            F_MARGIN_RIGHT,
-            |v: LengthPercentageAuto| { style.margin.right = (&v).into() }
-        );
+        set_field!("margin_right", F_MARGIN_RIGHT, |v: LengthPercentageAuto| {
+            style.margin.right = (&v).into()
+        });
         set_field!("margin_top", F_MARGIN_TOP, |v: LengthPercentageAuto| {
             style.margin.top = (&v).into()
         });
@@ -250,11 +247,9 @@ impl Style {
         set_field!("padding_top", F_PADDING_TOP, |v: LengthPercentage| {
             style.padding.top = (&v).into()
         });
-        set_field!(
-            "padding_bottom",
-            F_PADDING_BOTTOM,
-            |v: LengthPercentage| { style.padding.bottom = (&v).into() }
-        );
+        set_field!("padding_bottom", F_PADDING_BOTTOM, |v: LengthPercentage| {
+            style.padding.bottom = (&v).into()
+        });
 
         // Border
         set_field!("border_left", F_BORDER_LEFT, |v: LengthPercentage| {
@@ -277,26 +272,22 @@ impl Style {
         set_opt_field!("align_self", F_ALIGN_SELF, |v: Option<AlignItems>| {
             style.align_self = opt_align_items_to_taffy(&v)
         });
-        set_opt_field!(
-            "justify_items",
-            F_JUSTIFY_ITEMS,
-            |v: Option<AlignItems>| { style.justify_items = opt_align_items_to_taffy(&v) }
-        );
-        set_opt_field!(
-            "justify_self",
-            F_JUSTIFY_SELF,
-            |v: Option<AlignItems>| { style.justify_self = opt_align_items_to_taffy(&v) }
-        );
-        set_opt_field!(
-            "align_content",
-            F_ALIGN_CONTENT,
-            |v: Option<AlignContent>| { style.align_content = opt_align_content_to_taffy(&v) }
-        );
-        set_opt_field!(
-            "justify_content",
-            F_JUSTIFY_CONTENT,
-            |v: Option<AlignContent>| { style.justify_content = opt_align_content_to_taffy(&v) }
-        );
+        set_opt_field!("justify_items", F_JUSTIFY_ITEMS, |v: Option<AlignItems>| {
+            style.justify_items = opt_align_items_to_taffy(&v)
+        });
+        set_opt_field!("justify_self", F_JUSTIFY_SELF, |v: Option<AlignItems>| {
+            style.justify_self = opt_align_items_to_taffy(&v)
+        });
+        set_opt_field!("align_content", F_ALIGN_CONTENT, |v: Option<
+            AlignContent,
+        >| {
+            style.align_content = opt_align_content_to_taffy(&v)
+        });
+        set_opt_field!("justify_content", F_JUSTIFY_CONTENT, |v: Option<
+            AlignContent,
+        >| {
+            style.justify_content = opt_align_content_to_taffy(&v)
+        });
 
         // Gap
         set_field!("gap_width", F_GAP_WIDTH, |v: LengthPercentage| {
@@ -327,26 +318,24 @@ impl Style {
         });
 
         // Grid
-        set_field!(
-            "grid_template_rows",
-            F_GRID_TEMPLATE_ROWS,
-            |v: Vec<GridTrack>| { style.grid_template_rows = tracks_to_taffy(&v) }
-        );
+        set_field!("grid_template_rows", F_GRID_TEMPLATE_ROWS, |v: Vec<
+            GridTrack,
+        >| {
+            style.grid_template_rows = tracks_to_taffy(&v)
+        });
         set_field!(
             "grid_template_columns",
             F_GRID_TEMPLATE_COLUMNS,
             |v: Vec<GridTrack>| { style.grid_template_columns = tracks_to_taffy(&v) }
         );
-        set_field!(
-            "grid_auto_rows",
-            F_GRID_AUTO_ROWS,
-            |v: Vec<GridTrack>| { style.grid_auto_rows = auto_tracks_to_taffy(&v) }
-        );
-        set_field!(
-            "grid_auto_columns",
-            F_GRID_AUTO_COLUMNS,
-            |v: Vec<GridTrack>| { style.grid_auto_columns = auto_tracks_to_taffy(&v) }
-        );
+        set_field!("grid_auto_rows", F_GRID_AUTO_ROWS, |v: Vec<GridTrack>| {
+            style.grid_auto_rows = auto_tracks_to_taffy(&v)
+        });
+        set_field!("grid_auto_columns", F_GRID_AUTO_COLUMNS, |v: Vec<
+            GridTrack,
+        >| {
+            style.grid_auto_columns = auto_tracks_to_taffy(&v)
+        });
         set_field!("grid_auto_flow", F_GRID_AUTO_FLOW, |v: GridAutoFlow| {
             style.grid_auto_flow = (&v).into()
         });
@@ -356,6 +345,14 @@ impl Style {
         set_field!("grid_column", F_GRID_COLUMN, |v: GridLine| {
             style.grid_column = (&v).into()
         });
+
+        // Any keys remaining in the copied dict are unknown.
+        if !kwargs.is_empty() {
+            let key: String = kwargs.keys().get_item(0)?.extract()?;
+            return Err(pyo3::exceptions::PyTypeError::new_err(format!(
+                "Style() got an unexpected keyword argument '{key}'"
+            )));
+        }
 
         Ok(Self {
             inner: style,
@@ -870,156 +867,91 @@ impl Style {
         let mut result = self.clone();
         let rhs = other.set_fields;
 
-        if rhs & F_DISPLAY != 0 {
-            result.inner.display = other.inner.display;
+        macro_rules! merge {
+            // Copy field: result.inner.$($path).+ = other.inner.$($path).+
+            ($flag:expr, $($path:ident).+) => {
+                if rhs & $flag != 0 {
+                    result.inner.$($path).+ = other.inner.$($path).+;
+                }
+            };
+            // Clone field (for non-Copy types like Vec)
+            (clone $flag:expr, $($path:ident).+) => {
+                if rhs & $flag != 0 {
+                    result.inner.$($path).+ = other.inner.$($path).+.clone();
+                }
+            };
         }
-        if rhs & F_BOX_SIZING != 0 {
-            result.inner.box_sizing = other.inner.box_sizing;
-        }
-        if rhs & F_OVERFLOW_X != 0 {
-            result.inner.overflow.x = other.inner.overflow.x;
-        }
-        if rhs & F_OVERFLOW_Y != 0 {
-            result.inner.overflow.y = other.inner.overflow.y;
-        }
-        if rhs & F_SCROLLBAR_WIDTH != 0 {
-            result.inner.scrollbar_width = other.inner.scrollbar_width;
-        }
-        if rhs & F_POSITION != 0 {
-            result.inner.position = other.inner.position;
-        }
-        if rhs & F_INSET_LEFT != 0 {
-            result.inner.inset.left = other.inner.inset.left;
-        }
-        if rhs & F_INSET_RIGHT != 0 {
-            result.inner.inset.right = other.inner.inset.right;
-        }
-        if rhs & F_INSET_TOP != 0 {
-            result.inner.inset.top = other.inner.inset.top;
-        }
-        if rhs & F_INSET_BOTTOM != 0 {
-            result.inner.inset.bottom = other.inner.inset.bottom;
-        }
-        if rhs & F_SIZE_WIDTH != 0 {
-            result.inner.size.width = other.inner.size.width;
-        }
-        if rhs & F_SIZE_HEIGHT != 0 {
-            result.inner.size.height = other.inner.size.height;
-        }
-        if rhs & F_MIN_SIZE_WIDTH != 0 {
-            result.inner.min_size.width = other.inner.min_size.width;
-        }
-        if rhs & F_MIN_SIZE_HEIGHT != 0 {
-            result.inner.min_size.height = other.inner.min_size.height;
-        }
-        if rhs & F_MAX_SIZE_WIDTH != 0 {
-            result.inner.max_size.width = other.inner.max_size.width;
-        }
-        if rhs & F_MAX_SIZE_HEIGHT != 0 {
-            result.inner.max_size.height = other.inner.max_size.height;
-        }
-        if rhs & F_ASPECT_RATIO != 0 {
-            result.inner.aspect_ratio = other.inner.aspect_ratio;
-        }
-        if rhs & F_MARGIN_LEFT != 0 {
-            result.inner.margin.left = other.inner.margin.left;
-        }
-        if rhs & F_MARGIN_RIGHT != 0 {
-            result.inner.margin.right = other.inner.margin.right;
-        }
-        if rhs & F_MARGIN_TOP != 0 {
-            result.inner.margin.top = other.inner.margin.top;
-        }
-        if rhs & F_MARGIN_BOTTOM != 0 {
-            result.inner.margin.bottom = other.inner.margin.bottom;
-        }
-        if rhs & F_PADDING_LEFT != 0 {
-            result.inner.padding.left = other.inner.padding.left;
-        }
-        if rhs & F_PADDING_RIGHT != 0 {
-            result.inner.padding.right = other.inner.padding.right;
-        }
-        if rhs & F_PADDING_TOP != 0 {
-            result.inner.padding.top = other.inner.padding.top;
-        }
-        if rhs & F_PADDING_BOTTOM != 0 {
-            result.inner.padding.bottom = other.inner.padding.bottom;
-        }
-        if rhs & F_BORDER_LEFT != 0 {
-            result.inner.border.left = other.inner.border.left;
-        }
-        if rhs & F_BORDER_RIGHT != 0 {
-            result.inner.border.right = other.inner.border.right;
-        }
-        if rhs & F_BORDER_TOP != 0 {
-            result.inner.border.top = other.inner.border.top;
-        }
-        if rhs & F_BORDER_BOTTOM != 0 {
-            result.inner.border.bottom = other.inner.border.bottom;
-        }
-        if rhs & F_ALIGN_ITEMS != 0 {
-            result.inner.align_items = other.inner.align_items;
-        }
-        if rhs & F_ALIGN_SELF != 0 {
-            result.inner.align_self = other.inner.align_self;
-        }
-        if rhs & F_JUSTIFY_ITEMS != 0 {
-            result.inner.justify_items = other.inner.justify_items;
-        }
-        if rhs & F_JUSTIFY_SELF != 0 {
-            result.inner.justify_self = other.inner.justify_self;
-        }
-        if rhs & F_ALIGN_CONTENT != 0 {
-            result.inner.align_content = other.inner.align_content;
-        }
-        if rhs & F_JUSTIFY_CONTENT != 0 {
-            result.inner.justify_content = other.inner.justify_content;
-        }
-        if rhs & F_GAP_WIDTH != 0 {
-            result.inner.gap.width = other.inner.gap.width;
-        }
-        if rhs & F_GAP_HEIGHT != 0 {
-            result.inner.gap.height = other.inner.gap.height;
-        }
-        if rhs & F_TEXT_ALIGN != 0 {
-            result.inner.text_align = other.inner.text_align;
-        }
-        if rhs & F_FLEX_DIRECTION != 0 {
-            result.inner.flex_direction = other.inner.flex_direction;
-        }
-        if rhs & F_FLEX_WRAP != 0 {
-            result.inner.flex_wrap = other.inner.flex_wrap;
-        }
-        if rhs & F_FLEX_BASIS != 0 {
-            result.inner.flex_basis = other.inner.flex_basis;
-        }
-        if rhs & F_FLEX_GROW != 0 {
-            result.inner.flex_grow = other.inner.flex_grow;
-        }
-        if rhs & F_FLEX_SHRINK != 0 {
-            result.inner.flex_shrink = other.inner.flex_shrink;
-        }
-        if rhs & F_GRID_TEMPLATE_ROWS != 0 {
-            result.inner.grid_template_rows = other.inner.grid_template_rows.clone();
-        }
-        if rhs & F_GRID_TEMPLATE_COLUMNS != 0 {
-            result.inner.grid_template_columns = other.inner.grid_template_columns.clone();
-        }
-        if rhs & F_GRID_AUTO_ROWS != 0 {
-            result.inner.grid_auto_rows = other.inner.grid_auto_rows.clone();
-        }
-        if rhs & F_GRID_AUTO_COLUMNS != 0 {
-            result.inner.grid_auto_columns = other.inner.grid_auto_columns.clone();
-        }
-        if rhs & F_GRID_AUTO_FLOW != 0 {
-            result.inner.grid_auto_flow = other.inner.grid_auto_flow;
-        }
-        if rhs & F_GRID_ROW != 0 {
-            result.inner.grid_row = other.inner.grid_row.clone();
-        }
-        if rhs & F_GRID_COLUMN != 0 {
-            result.inner.grid_column = other.inner.grid_column.clone();
-        }
+
+        merge!(F_DISPLAY, display);
+        merge!(F_BOX_SIZING, box_sizing);
+        merge!(F_OVERFLOW_X, overflow.x);
+        merge!(F_OVERFLOW_Y, overflow.y);
+        merge!(F_SCROLLBAR_WIDTH, scrollbar_width);
+        merge!(F_POSITION, position);
+
+        // Inset
+        merge!(F_INSET_LEFT, inset.left);
+        merge!(F_INSET_RIGHT, inset.right);
+        merge!(F_INSET_TOP, inset.top);
+        merge!(F_INSET_BOTTOM, inset.bottom);
+
+        // Size
+        merge!(F_SIZE_WIDTH, size.width);
+        merge!(F_SIZE_HEIGHT, size.height);
+        merge!(F_MIN_SIZE_WIDTH, min_size.width);
+        merge!(F_MIN_SIZE_HEIGHT, min_size.height);
+        merge!(F_MAX_SIZE_WIDTH, max_size.width);
+        merge!(F_MAX_SIZE_HEIGHT, max_size.height);
+        merge!(F_ASPECT_RATIO, aspect_ratio);
+
+        // Margin
+        merge!(F_MARGIN_LEFT, margin.left);
+        merge!(F_MARGIN_RIGHT, margin.right);
+        merge!(F_MARGIN_TOP, margin.top);
+        merge!(F_MARGIN_BOTTOM, margin.bottom);
+
+        // Padding
+        merge!(F_PADDING_LEFT, padding.left);
+        merge!(F_PADDING_RIGHT, padding.right);
+        merge!(F_PADDING_TOP, padding.top);
+        merge!(F_PADDING_BOTTOM, padding.bottom);
+
+        // Border
+        merge!(F_BORDER_LEFT, border.left);
+        merge!(F_BORDER_RIGHT, border.right);
+        merge!(F_BORDER_TOP, border.top);
+        merge!(F_BORDER_BOTTOM, border.bottom);
+
+        // Alignment
+        merge!(F_ALIGN_ITEMS, align_items);
+        merge!(F_ALIGN_SELF, align_self);
+        merge!(F_JUSTIFY_ITEMS, justify_items);
+        merge!(F_JUSTIFY_SELF, justify_self);
+        merge!(F_ALIGN_CONTENT, align_content);
+        merge!(F_JUSTIFY_CONTENT, justify_content);
+
+        // Gap
+        merge!(F_GAP_WIDTH, gap.width);
+        merge!(F_GAP_HEIGHT, gap.height);
+
+        // Block
+        merge!(F_TEXT_ALIGN, text_align);
+
+        // Flexbox
+        merge!(F_FLEX_DIRECTION, flex_direction);
+        merge!(F_FLEX_WRAP, flex_wrap);
+        merge!(F_FLEX_BASIS, flex_basis);
+        merge!(F_FLEX_GROW, flex_grow);
+        merge!(F_FLEX_SHRINK, flex_shrink);
+
+        // Grid
+        merge!(clone F_GRID_TEMPLATE_ROWS, grid_template_rows);
+        merge!(clone F_GRID_TEMPLATE_COLUMNS, grid_template_columns);
+        merge!(clone F_GRID_AUTO_ROWS, grid_auto_rows);
+        merge!(clone F_GRID_AUTO_COLUMNS, grid_auto_columns);
+        merge!(F_GRID_AUTO_FLOW, grid_auto_flow);
+        merge!(clone F_GRID_ROW, grid_row);
+        merge!(clone F_GRID_COLUMN, grid_column);
 
         // Merge the set_fields bitmask: result has everything self had plus everything other set.
         result.set_fields |= rhs;

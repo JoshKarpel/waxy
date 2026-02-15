@@ -1,3 +1,5 @@
+import pytest
+
 import waxy
 
 
@@ -88,6 +90,16 @@ def test_style_grid() -> None:
     assert s.display == waxy.Display.Grid
     cols = s.grid_template_columns
     assert len(cols) == 2
+
+
+def test_style_rejects_unknown_kwargs() -> None:
+    with pytest.raises(TypeError, match="unexpected keyword argument 'displya'"):
+        waxy.Style(displya=waxy.Display.Flex)  # type: ignore[call-arg]
+
+
+def test_style_none_uses_default() -> None:
+    s = waxy.Style(display=None)
+    assert s.display == waxy.Display.Flex  # taffy default
 
 
 def test_style_or_rhs_overrides_lhs() -> None:
