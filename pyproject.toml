@@ -16,15 +16,19 @@ module-name = "wax._wax"
 
 [tool.ruff]
 line-length = 100
+fix = true
+src = ["python", "tests"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "W"]
 
 [tool.mypy]
 strict = true
+files = ["python", "tests"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+addopts = "-v"
 
 [dependency-groups]
 dev = [
@@ -32,5 +36,7 @@ dev = [
     "mypy>=1.19.1",
     "pre-commit>=4.5.1",
     "pytest>=9.0.2",
+    "pytest-randomly>=4.0.1",
+    "pytest-xdist>=3.8.0",
     "ruff>=0.15.1",
 ]

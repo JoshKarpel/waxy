@@ -128,14 +128,18 @@ def test_nested_layout():
     """Nested flex containers."""
     tree = wax.TaffyTree()
 
-    leaf1 = tree.new_leaf(wax.Style(
-        size_width=wax.Dimension.length(50.0),
-        size_height=wax.Dimension.length(50.0),
-    ))
-    leaf2 = tree.new_leaf(wax.Style(
-        size_width=wax.Dimension.length(50.0),
-        size_height=wax.Dimension.length(50.0),
-    ))
+    leaf1 = tree.new_leaf(
+        wax.Style(
+            size_width=wax.Dimension.length(50.0),
+            size_height=wax.Dimension.length(50.0),
+        )
+    )
+    leaf2 = tree.new_leaf(
+        wax.Style(
+            size_width=wax.Dimension.length(50.0),
+            size_height=wax.Dimension.length(50.0),
+        )
+    )
 
     inner = tree.new_with_children(
         wax.Style(
@@ -145,10 +149,12 @@ def test_nested_layout():
         [leaf1, leaf2],
     )
 
-    outer_leaf = tree.new_leaf(wax.Style(
-        size_width=wax.Dimension.length(100.0),
-        size_height=wax.Dimension.length(100.0),
-    ))
+    outer_leaf = tree.new_leaf(
+        wax.Style(
+            size_width=wax.Dimension.length(100.0),
+            size_height=wax.Dimension.length(100.0),
+        )
+    )
 
     root = tree.new_with_children(
         wax.Style(
@@ -205,13 +211,15 @@ def test_absolute_positioning():
     """Absolute positioning removes from flow."""
     tree = wax.TaffyTree()
 
-    abs_child = tree.new_leaf(wax.Style(
-        position=wax.Position.Absolute,
-        size_width=wax.Dimension.length(50.0),
-        size_height=wax.Dimension.length(50.0),
-        inset_left=wax.LengthPercentageAuto.length(10.0),
-        inset_top=wax.LengthPercentageAuto.length(10.0),
-    ))
+    abs_child = tree.new_leaf(
+        wax.Style(
+            position=wax.Position.Absolute,
+            size_width=wax.Dimension.length(50.0),
+            size_height=wax.Dimension.length(50.0),
+            inset_left=wax.LengthPercentageAuto.length(10.0),
+            inset_top=wax.LengthPercentageAuto.length(10.0),
+        )
+    )
 
     parent = tree.new_with_children(
         wax.Style(

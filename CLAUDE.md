@@ -36,12 +36,13 @@ The Rust source (`src/`) exposes a flat PyO3 module `_wax`, which Python (`pytho
 
 ## Commands
 
-- `just test-all` — build + test + lint + clippy + fmt check
+- `just check` (alias `c`) — the everything command: fix, test, typecheck, then pre-commit hooks
+- `just fix` (alias `f`) — `git add --update` + `pre-commit run` (format, lint, and pre-commit hooks)
+- `just test` (alias `t`) — py-test (mypy + pytest) + rs-test (cargo test) in parallel
 - `just build` — `uv run maturin develop`
-- `just test` — `uv run pytest tests/ -v`
-- `just lint` — `uv run ruff check python/ tests/`
-- `just clippy` — `cargo clippy -- -D warnings`
-- `just fmt` — `cargo fmt`
+- `just lint` — py-lint (ruff check) + rs-lint (clippy --fix)
+- `just format` — py-format (ruff format) + rs-format (cargo fmt)
+- `just upgrade` (alias `u`) — upgrade Python, Rust, and pre-commit dependencies
 
 ## Adding a New Taffy Type or Field
 
@@ -51,7 +52,7 @@ The Rust source (`src/`) exposes a flat PyO3 module `_wax`, which Python (`pytho
 4. Add the export to `python/wax/__init__.py`
 5. Add the type signature to `python/wax/__init__.pyi`
 6. Add tests in `tests/`
-7. Run `just test-all`
+7. Run `just check`
 
 ## Taffy Version
 

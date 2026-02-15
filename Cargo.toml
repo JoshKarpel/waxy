@@ -7,6 +7,9 @@ edition = "2021"
 name = "_wax"
 crate-type = ["cdylib"]
 
+[lints.clippy]
+all = { level = "deny", priority = -1 }
+
 [dependencies]
 pyo3 = { version = "0.24", features = ["extension-module"] }
 taffy = "0.9"
