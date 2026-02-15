@@ -1,7 +1,7 @@
 use pyo3::prelude::*;
 
 /// How the node should be displayed.
-#[pyclass(eq, eq_int)]
+#[pyclass(eq, eq_int, module = "waxy")]
 #[derive(Clone, Debug, PartialEq)]
 pub enum Display {
     Block = 0,
@@ -34,7 +34,7 @@ impl From<&Display> for taffy::Display {
 }
 
 /// How the node should be positioned.
-#[pyclass(eq, eq_int)]
+#[pyclass(eq, eq_int, module = "waxy")]
 #[derive(Clone, Debug, PartialEq)]
 pub enum Position {
     Relative = 0,
@@ -60,7 +60,7 @@ impl From<&Position> for taffy::Position {
 }
 
 /// The direction of a flex container's main axis.
-#[pyclass(eq, eq_int)]
+#[pyclass(eq, eq_int, module = "waxy")]
 #[derive(Clone, Debug, PartialEq)]
 pub enum FlexDirection {
     Row = 0,
@@ -92,7 +92,7 @@ impl From<&FlexDirection> for taffy::FlexDirection {
 }
 
 /// Whether flex items wrap.
-#[pyclass(eq, eq_int)]
+#[pyclass(eq, eq_int, module = "waxy")]
 #[derive(Clone, Debug, PartialEq)]
 pub enum FlexWrap {
     NoWrap = 0,
@@ -121,7 +121,7 @@ impl From<&FlexWrap> for taffy::FlexWrap {
 }
 
 /// Alignment of items along the cross axis.
-#[pyclass(eq, eq_int)]
+#[pyclass(eq, eq_int, module = "waxy")]
 #[derive(Clone, Debug, PartialEq)]
 pub enum AlignItems {
     Start = 0,
@@ -162,7 +162,7 @@ impl From<&AlignItems> for taffy::AlignItems {
 }
 
 /// Alignment of content within the container.
-#[pyclass(eq, eq_int)]
+#[pyclass(eq, eq_int, module = "waxy")]
 #[derive(Clone, Debug, PartialEq)]
 pub enum AlignContent {
     Start = 0,
@@ -209,7 +209,7 @@ impl From<&AlignContent> for taffy::AlignContent {
 }
 
 /// How content overflows its container.
-#[pyclass(eq, eq_int)]
+#[pyclass(eq, eq_int, module = "waxy")]
 #[derive(Clone, Debug, PartialEq)]
 pub enum Overflow {
     Visible = 0,
@@ -241,7 +241,7 @@ impl From<&Overflow> for taffy::Overflow {
 }
 
 /// How grid items are auto-placed.
-#[pyclass(eq, eq_int)]
+#[pyclass(eq, eq_int, module = "waxy")]
 #[derive(Clone, Debug, PartialEq)]
 pub enum GridAutoFlow {
     Row = 0,
@@ -273,7 +273,7 @@ impl From<&GridAutoFlow> for taffy::GridAutoFlow {
 }
 
 /// Box sizing model.
-#[pyclass(eq, eq_int)]
+#[pyclass(eq, eq_int, module = "waxy")]
 #[derive(Clone, Debug, PartialEq)]
 pub enum BoxSizing {
     BorderBox = 0,
@@ -299,7 +299,7 @@ impl From<&BoxSizing> for taffy::BoxSizing {
 }
 
 /// Text alignment.
-#[pyclass(eq, eq_int)]
+#[pyclass(eq, eq_int, module = "waxy")]
 #[derive(Clone, Debug, PartialEq)]
 pub enum TextAlign {
     Auto = 0,
@@ -331,7 +331,7 @@ impl From<&TextAlign> for taffy::TextAlign {
 }
 
 /// Available space for layout.
-#[pyclass(unsendable)]
+#[pyclass(unsendable, module = "waxy")]
 #[derive(Clone, Debug)]
 pub struct AvailableSpace {
     inner: taffy::AvailableSpace,

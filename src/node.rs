@@ -1,7 +1,7 @@
 use pyo3::prelude::*;
 
 /// A handle to a node in the layout tree.
-#[pyclass]
+#[pyclass(module = "waxy")]
 #[derive(Clone, Debug)]
 pub struct NodeId {
     pub(crate) inner: taffy::NodeId,

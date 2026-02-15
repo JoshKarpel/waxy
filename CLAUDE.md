@@ -61,18 +61,6 @@ All test/check commands accept override variables from the command line:
 6. Add tests in `tests/`
 7. Run `just check`
 
-## Build Caching
-
-`cargo test`, `cargo clippy`, and `maturin develop` use incompatible compiler flags (PyO3 rebuilds across modes). To prevent cache thrashing, each uses a separate target directory:
-
-| Tool | Target directory |
-|------|-----------------|
-| `maturin develop` | `target/` (default) |
-| `cargo test` | `target/test/` |
-| `cargo clippy` | `target/clippy/` |
-
-This is set via `CARGO_TARGET_DIR` in the justfile. First build of each is slow; subsequent builds are cached.
-
 ## Taffy Version
 
 Pinned to taffy **0.9.x**. The taffy source can be inspected at:

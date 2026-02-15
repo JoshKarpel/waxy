@@ -7,7 +7,7 @@ use taffy::style::{
 };
 
 /// A track sizing function for grid layouts (minmax(min, max)).
-#[pyclass(unsendable)]
+#[pyclass(unsendable, module = "waxy")]
 #[derive(Clone, Debug)]
 pub struct GridTrack {
     pub(crate) inner: TrackSizingFunction,
@@ -121,7 +121,7 @@ impl GridTrack {
 }
 
 /// Min track sizing function (for use with GridTrack.minmax).
-#[pyclass(unsendable)]
+#[pyclass(unsendable, module = "waxy")]
 #[derive(Clone, Debug)]
 pub struct GridTrackMin {
     pub(crate) inner: MinTrackSizingFunction,
@@ -129,6 +129,7 @@ pub struct GridTrackMin {
 
 #[pymethods]
 impl GridTrackMin {
+    /// Create a fixed min size from a length in pixels.
     #[staticmethod]
     fn length(value: f32) -> Self {
         Self {
@@ -136,6 +137,7 @@ impl GridTrackMin {
         }
     }
 
+    /// Create a fixed min size from a percentage.
     #[staticmethod]
     fn percent(value: f32) -> Self {
         Self {
@@ -143,6 +145,7 @@ impl GridTrackMin {
         }
     }
 
+    /// Create an auto min size.
     #[staticmethod]
     fn auto() -> Self {
         Self {
@@ -150,6 +153,7 @@ impl GridTrackMin {
         }
     }
 
+    /// Create a min-content min size.
     #[staticmethod]
     fn min_content() -> Self {
         Self {
@@ -157,6 +161,7 @@ impl GridTrackMin {
         }
     }
 
+    /// Create a max-content min size.
     #[staticmethod]
     fn max_content() -> Self {
         Self {
@@ -166,7 +171,7 @@ impl GridTrackMin {
 }
 
 /// Max track sizing function (for use with GridTrack.minmax).
-#[pyclass(unsendable)]
+#[pyclass(unsendable, module = "waxy")]
 #[derive(Clone, Debug)]
 pub struct GridTrackMax {
     pub(crate) inner: MaxTrackSizingFunction,
@@ -174,6 +179,7 @@ pub struct GridTrackMax {
 
 #[pymethods]
 impl GridTrackMax {
+    /// Create a fixed max size from a length in pixels.
     #[staticmethod]
     fn length(value: f32) -> Self {
         Self {
@@ -181,6 +187,7 @@ impl GridTrackMax {
         }
     }
 
+    /// Create a fixed max size from a percentage.
     #[staticmethod]
     fn percent(value: f32) -> Self {
         Self {
@@ -188,6 +195,7 @@ impl GridTrackMax {
         }
     }
 
+    /// Create an auto max size.
     #[staticmethod]
     fn auto() -> Self {
         Self {
@@ -195,6 +203,7 @@ impl GridTrackMax {
         }
     }
 
+    /// Create a min-content max size.
     #[staticmethod]
     fn min_content() -> Self {
         Self {
@@ -202,6 +211,7 @@ impl GridTrackMax {
         }
     }
 
+    /// Create a max-content max size.
     #[staticmethod]
     fn max_content() -> Self {
         Self {
@@ -209,6 +219,7 @@ impl GridTrackMax {
         }
     }
 
+    /// Create a fractional max size (fr unit).
     #[staticmethod]
     fn fr(value: f32) -> Self {
         Self {
@@ -216,6 +227,7 @@ impl GridTrackMax {
         }
     }
 
+    /// Create a fit-content max size with a pixel limit.
     #[staticmethod]
     fn fit_content_px(limit: f32) -> Self {
         Self {
@@ -223,6 +235,7 @@ impl GridTrackMax {
         }
     }
 
+    /// Create a fit-content max size with a percentage limit.
     #[staticmethod]
     fn fit_content_percent(limit: f32) -> Self {
         Self {
@@ -232,7 +245,7 @@ impl GridTrackMax {
 }
 
 /// Grid placement for a child item.
-#[pyclass(unsendable)]
+#[pyclass(unsendable, module = "waxy")]
 #[derive(Clone, Debug)]
 pub struct GridPlacement {
     pub(crate) inner: TaffyGridPlacement,
@@ -282,7 +295,7 @@ impl From<&GridPlacement> for TaffyGridPlacement {
 }
 
 /// A line with start and end grid placements.
-#[pyclass(unsendable)]
+#[pyclass(unsendable, module = "waxy")]
 #[derive(Clone, Debug)]
 pub struct GridLine {
     #[pyo3(get, set)]
