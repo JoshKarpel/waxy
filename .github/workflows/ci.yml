@@ -19,9 +19,9 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
-      - uses: actions/checkout@v4.3.1
+      - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5.6.0
+      - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
 
@@ -30,10 +30,10 @@ jobs:
           components: clippy, rustfmt
 
       - name: Install just
-        uses: extractions/setup-just@v2.0.0
+        uses: extractions/setup-just@v2
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v7.3.0
+        uses: astral-sh/setup-uv@v7
 
       - name: Fix
         run: just pre-commit-args="--verbose --all-files --show-diff-on-failure" fix
