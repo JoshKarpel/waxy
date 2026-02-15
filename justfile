@@ -49,7 +49,7 @@ py-upgrade:
 [doc("Run Rust tests")]
 [group("rust")]
 rs-test:
-    cargo test {{ cargo-test-args }}
+    CARGO_TARGET_DIR=target/test cargo test {{ cargo-test-args }}
 
 [doc("Format Rust code")]
 [group("rust")]
@@ -59,7 +59,7 @@ rs-format:
 [doc("Run clippy with auto-fix")]
 [group("rust")]
 rs-lint:
-    cargo clippy --fix --allow-dirty
+    CARGO_TARGET_DIR=target/clippy cargo clippy --fix --allow-dirty
 
 [doc("Clean Rust build artifacts")]
 [group("rust")]
