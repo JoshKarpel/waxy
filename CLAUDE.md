@@ -36,7 +36,7 @@ The Rust source (`src/`) exposes a flat PyO3 module `_waxy`, which Python (`pyth
 
 ## Commands
 
-**Always run `just check` before committing.** It runs formatting, linting, pre-commit hooks, tests, and docs — if it passes, CI will too.
+**Always run `just check` before committing.** It runs formatting, linting, pre-commit hooks, tests, docs, etc.
 
 - `just check` (alias `c`) — the everything command: fix, test, typecheck, then pre-commit hooks
 - `just fix` (alias `f`) — `git add --update` + `pre-commit run` (format, lint, and pre-commit hooks)
