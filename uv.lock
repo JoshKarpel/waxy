@@ -365,7 +365,7 @@ wheels = [
 ]
 
 [[package]]
-name = "wax"
+name = "waxy"
 version = "0.1.0"
 source = { editable = "." }
 

@@ -1,24 +1,24 @@
 import pytest
 
-import wax
+import waxy
 
 ENUM_VARIANTS: list[tuple[type, list[str]]] = [
-    (wax.Display, ["Block", "Flex", "Grid", "Nil"]),
-    (wax.Position, ["Relative", "Absolute"]),
-    (wax.FlexDirection, ["Row", "Column", "RowReverse", "ColumnReverse"]),
-    (wax.FlexWrap, ["NoWrap", "Wrap", "WrapReverse"]),
+    (waxy.Display, ["Block", "Flex", "Grid", "Nil"]),
+    (waxy.Position, ["Relative", "Absolute"]),
+    (waxy.FlexDirection, ["Row", "Column", "RowReverse", "ColumnReverse"]),
+    (waxy.FlexWrap, ["NoWrap", "Wrap", "WrapReverse"]),
     (
-        wax.AlignItems,
+        waxy.AlignItems,
         ["Start", "End", "FlexStart", "FlexEnd", "Center", "Baseline", "Stretch"],
     ),
     (
-        wax.AlignContent,
+        waxy.AlignContent,
         ["Start", "End", "Center", "Stretch", "SpaceBetween", "SpaceEvenly", "SpaceAround"],
     ),
-    (wax.Overflow, ["Visible", "Clip", "Hidden", "Scroll"]),
-    (wax.GridAutoFlow, ["Row", "Column", "RowDense", "ColumnDense"]),
-    (wax.BoxSizing, ["BorderBox", "ContentBox"]),
-    (wax.TextAlign, ["Auto", "LegacyLeft", "LegacyRight", "LegacyCenter"]),
+    (waxy.Overflow, ["Visible", "Clip", "Hidden", "Scroll"]),
+    (waxy.GridAutoFlow, ["Row", "Column", "RowDense", "ColumnDense"]),
+    (waxy.BoxSizing, ["BorderBox", "ContentBox"]),
+    (waxy.TextAlign, ["Auto", "LegacyLeft", "LegacyRight", "LegacyCenter"]),
 ]
 
 
@@ -35,9 +35,9 @@ def test_enum_variants(enum_class: type, variants: list[str]) -> None:
 @pytest.mark.parametrize(
     ("factory", "is_definite"),
     [
-        (lambda: wax.AvailableSpace.definite(100.0), True),
-        (lambda: wax.AvailableSpace.min_content(), False),
-        (lambda: wax.AvailableSpace.max_content(), False),
+        (lambda: waxy.AvailableSpace.definite(100.0), True),
+        (lambda: waxy.AvailableSpace.min_content(), False),
+        (lambda: waxy.AvailableSpace.max_content(), False),
     ],
     ids=["definite", "min_content", "max_content"],
 )
@@ -46,5 +46,5 @@ def test_available_space(factory, is_definite: bool) -> None:  # type: ignore[no
 
 
 def test_enum_equality() -> None:
-    assert wax.Display.Flex == wax.Display.Flex
-    assert wax.Display.Flex != wax.Display.Grid
+    assert waxy.Display.Flex == waxy.Display.Flex
+    assert waxy.Display.Flex != waxy.Display.Grid

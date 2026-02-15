@@ -1,17 +1,17 @@
 import pytest
 
-import wax
+import waxy
 
 EXCEPTION_SUBCLASSES = [
-    wax.ChildIndexOutOfBounds,
-    wax.InvalidParentNode,
-    wax.InvalidChildNode,
-    wax.InvalidInputNode,
+    waxy.ChildIndexOutOfBounds,
+    waxy.InvalidParentNode,
+    waxy.InvalidChildNode,
+    waxy.InvalidInputNode,
 ]
 
 
 def test_exception_base() -> None:
-    assert issubclass(wax.TaffyException, Exception)
+    assert issubclass(waxy.TaffyException, Exception)
 
 
 @pytest.mark.parametrize(
@@ -20,19 +20,19 @@ def test_exception_base() -> None:
     ids=[cls.__name__ for cls in EXCEPTION_SUBCLASSES],
 )
 def test_exception_hierarchy(exc_class: type) -> None:
-    assert issubclass(exc_class, wax.TaffyException)
+    assert issubclass(exc_class, waxy.TaffyException)
 
 
 def test_child_index_out_of_bounds() -> None:
-    tree = wax.TaffyTree()
-    parent = tree.new_leaf(wax.Style())
-    with pytest.raises(wax.ChildIndexOutOfBounds):
+    tree = waxy.TaffyTree()
+    parent = tree.new_leaf(waxy.Style())
+    with pytest.raises(waxy.ChildIndexOutOfBounds):
         tree.child_at_index(parent, 0)
 
 
 def test_invalid_parent_node() -> None:
-    tree = wax.TaffyTree()
-    node = tree.new_leaf(wax.Style())
+    tree = waxy.TaffyTree()
+    node = tree.new_leaf(waxy.Style())
     tree.remove(node)
     # taffy panics on invalid node access (slotmap behavior)
     with pytest.raises(BaseException):  # PanicException
@@ -40,7 +40,7 @@ def test_invalid_parent_node() -> None:
 
 
 def test_catch_base_exception() -> None:
-    tree = wax.TaffyTree()
-    parent = tree.new_leaf(wax.Style())
-    with pytest.raises(wax.TaffyException):
+    tree = waxy.TaffyTree()
+    parent = tree.new_leaf(waxy.Style())
+    with pytest.raises(waxy.TaffyException):
         tree.child_at_index(parent, 99)

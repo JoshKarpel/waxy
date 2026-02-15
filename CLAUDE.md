@@ -1,4 +1,4 @@
-# Wax
+# Waxy
 
 A Pythonic wrapper around the Rust `taffy` UI layout library, built with PyO3/maturin.
 
@@ -8,7 +8,7 @@ A Pythonic wrapper around the Rust `taffy` UI layout library, built with PyO3/ma
 
 ## Architecture
 
-The Rust source (`src/`) exposes a flat PyO3 module `_wax`, which Python (`python/wax/__init__.py`) re-exports. Each Rust file maps to a domain:
+The Rust source (`src/`) exposes a flat PyO3 module `_waxy`, which Python (`python/waxy/__init__.py`) re-exports. Each Rust file maps to a domain:
 
 | File | Contents |
 |------|----------|
@@ -56,8 +56,8 @@ All test/check commands accept override variables from the command line:
 1. Add the Rust wrapper in the appropriate `src/*.rs` file
 2. Add `From` conversions in both directions (taffy ↔ wrapper)
 3. Register the class/function in that file's `register()` function
-4. Add the export to `python/wax/__init__.py`
-5. Add the type signature to `python/wax/__init__.pyi`
+4. Add the export to `python/waxy/__init__.py`
+5. Add the type signature to `python/waxy/__init__.pyi`
 6. Add tests in `tests/`
 7. Run `just check`
 

@@ -1,10 +1,10 @@
 [package]
-name = "wax"
+name = "waxy"
 version = "0.1.0"
 edition = "2021"
 
 [lib]
-name = "_wax"
+name = "_waxy"
 crate-type = ["cdylib"]
 
 [lints.clippy]

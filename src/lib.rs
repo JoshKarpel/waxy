@@ -12,7 +12,7 @@ mod style;
 mod tree;
 
 #[pymodule]
-fn _wax(m: &Bound<'_, PyModule>) -> PyResult<()> {
+fn _waxy(m: &Bound<'_, PyModule>) -> PyResult<()> {
     errors::register(m)?;
     geometry::register(m)?;
     dimensions::register(m)?;

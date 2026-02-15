@@ -4,31 +4,31 @@ use pyo3::prelude::*;
 use taffy::TaffyError;
 
 create_exception!(
-    wax,
+    waxy,
     TaffyException,
     PyException,
     "Base exception for all taffy errors."
 );
 create_exception!(
-    wax,
+    waxy,
     ChildIndexOutOfBounds,
     TaffyException,
     "Child index is out of bounds."
 );
 create_exception!(
-    wax,
+    waxy,
     InvalidParentNode,
     TaffyException,
     "Parent node is invalid."
 );
 create_exception!(
-    wax,
+    waxy,
     InvalidChildNode,
     TaffyException,
     "Child node is invalid."
 );
 create_exception!(
-    wax,
+    waxy,
     InvalidInputNode,
     TaffyException,
     "Input node is invalid."

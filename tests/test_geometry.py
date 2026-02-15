@@ -1,12 +1,12 @@
 import pytest
 
-import wax
+import waxy
 
 GEOMETRY_TYPES: list[tuple[type, list[str], list[float]]] = [
-    (wax.Size, ["width", "height"], [10.0, 20.0]),
-    (wax.Rect, ["left", "right", "top", "bottom"], [1.0, 2.0, 3.0, 4.0]),
-    (wax.Point, ["x", "y"], [5.0, 10.0]),
-    (wax.Line, ["start", "end"], [1.0, 2.0]),
+    (waxy.Size, ["width", "height"], [10.0, 20.0]),
+    (waxy.Rect, ["left", "right", "top", "bottom"], [1.0, 2.0, 3.0, 4.0]),
+    (waxy.Point, ["x", "y"], [5.0, 10.0]),
+    (waxy.Line, ["start", "end"], [1.0, 2.0]),
 ]
 
 
@@ -44,7 +44,7 @@ def test_geometry_eq(cls: type, attrs: list[str], values: list[float]) -> None:
 
 
 def test_size_setters() -> None:
-    s = wax.Size()
+    s = waxy.Size()
     s.width = 5.0
     s.height = 15.0
     assert s.width == 5.0
@@ -52,4 +52,4 @@ def test_size_setters() -> None:
 
 
 def test_size_repr() -> None:
-    assert "Size" in repr(wax.Size(1.0, 2.0))
+    assert "Size" in repr(waxy.Size(1.0, 2.0))

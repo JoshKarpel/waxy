@@ -1,4 +1,4 @@
-# Wax
+# Waxy
 
 ## Goal
 

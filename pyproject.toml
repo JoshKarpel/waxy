@@ -3,7 +3,7 @@ requires = ["maturin>=1.0,<2.0"]
 build-backend = "maturin"
 
 [project]
-name = "wax"
+name = "waxy"
 version = "0.1.0"
 description = "A Pythonic wrapper around the Rust taffy UI layout library"
 requires-python = ">=3.13"
@@ -12,7 +12,7 @@ license = "MIT"
 [tool.maturin]
 features = ["pyo3/extension-module"]
 python-source = "python"
-module-name = "wax._wax"
+module-name = "waxy._waxy"
 
 [tool.ruff]
 line-length = 100
