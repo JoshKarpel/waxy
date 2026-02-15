@@ -465,6 +465,7 @@ class Style:
     grid_column: GridLine
 
     def __repr__(self) -> str: ...
+    def __or__(self, other: Style) -> Style: ...
 
 # Tree
 
