@@ -5,7 +5,7 @@ edition = "2021"
 
 [lib]
 name = "_waxy"
-crate-type = ["cdylib"]
+crate-type = ["cdylib", "rlib"]
 
 [lints.clippy]
 all = { level = "deny", priority = -1 }
