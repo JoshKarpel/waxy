@@ -1,7 +1,7 @@
 import wax
 
 
-def test_style_default():
+def test_style_default() -> None:
     s = wax.Style()
     assert s.display == wax.Display.Flex  # taffy default
     assert s.position == wax.Position.Relative
@@ -9,18 +9,18 @@ def test_style_default():
     assert s.flex_shrink == 1.0
 
 
-def test_style_display():
+def test_style_display() -> None:
     s = wax.Style(display=wax.Display.Grid)
     assert s.display == wax.Display.Grid
 
 
-def test_style_set_display():
+def test_style_set_display() -> None:
     s = wax.Style()
     s.display = wax.Display.Block
     assert s.display == wax.Display.Block
 
 
-def test_style_flex_properties():
+def test_style_flex_properties() -> None:
     s = wax.Style(
         flex_direction=wax.FlexDirection.Column,
         flex_wrap=wax.FlexWrap.Wrap,
@@ -33,7 +33,7 @@ def test_style_flex_properties():
     assert s.flex_shrink == 0.5
 
 
-def test_style_size():
+def test_style_size() -> None:
     s = wax.Style(
         size_width=wax.Dimension.length(100.0),
         size_height=wax.Dimension.percent(0.5),
@@ -42,7 +42,7 @@ def test_style_size():
     assert s.size_height == wax.Dimension.percent(0.5)
 
 
-def test_style_padding():
+def test_style_padding() -> None:
     s = wax.Style(
         padding_left=wax.LengthPercentage.length(10.0),
         padding_right=wax.LengthPercentage.length(10.0),
@@ -53,7 +53,7 @@ def test_style_padding():
     assert s.padding_top == wax.LengthPercentage.length(5.0)
 
 
-def test_style_margin():
+def test_style_margin() -> None:
     s = wax.Style(
         margin_left=wax.LengthPercentageAuto.length(10.0),
         margin_right=wax.LengthPercentageAuto.auto(),
@@ -62,7 +62,7 @@ def test_style_margin():
     assert s.margin_right.is_auto()
 
 
-def test_style_alignment():
+def test_style_alignment() -> None:
     s = wax.Style(
         align_items=wax.AlignItems.Center,
         justify_content=wax.AlignContent.SpaceBetween,
@@ -71,13 +71,13 @@ def test_style_alignment():
     assert s.justify_content == wax.AlignContent.SpaceBetween
 
 
-def test_style_alignment_none():
+def test_style_alignment_none() -> None:
     s = wax.Style()
     assert s.align_items is None
     assert s.align_content is None
 
 
-def test_style_grid():
+def test_style_grid() -> None:
     s = wax.Style(
         display=wax.Display.Grid,
         grid_template_columns=[
@@ -90,6 +90,6 @@ def test_style_grid():
     assert len(cols) == 2
 
 
-def test_style_repr():
+def test_style_repr() -> None:
     s = wax.Style()
     assert "Style" in repr(s)

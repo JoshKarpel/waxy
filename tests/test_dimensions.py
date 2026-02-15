@@ -1,64 +1,111 @@
+import pytest
+
 import wax
 
 
-def test_dimension_length():
-    d = wax.Dimension.length(100.0)
-    assert not d.is_auto()
+@pytest.mark.parametrize(
+    ("factory", "is_auto"),
+    [
+        (lambda: wax.Dimension.length(100.0), False),
+        (lambda: wax.Dimension.percent(0.5), False),
+        (lambda: wax.Dimension.auto(), True),
+    ],
+    ids=["length", "percent", "auto"],
+)
+def test_dimension_is_auto(factory, is_auto: bool) -> None:  # type: ignore[no-untyped-def]
+    assert factory().is_auto() == is_auto
 
 
-def test_dimension_percent():
-    d = wax.Dimension.percent(0.5)
-    assert not d.is_auto()
+@pytest.mark.parametrize(
+    ("a", "b", "equal"),
+    [
+        (lambda: wax.Dimension.length(10.0), lambda: wax.Dimension.length(10.0), True),
+        (lambda: wax.Dimension.length(10.0), lambda: wax.Dimension.length(20.0), False),
+        (lambda: wax.Dimension.auto(), lambda: wax.Dimension.auto(), True),
+        (lambda: wax.Dimension.auto(), lambda: wax.Dimension.length(0.0), False),
+    ],
+    ids=["length_eq", "length_ne", "auto_eq", "auto_ne_length"],
+)
+def test_dimension_eq(a, b, equal: bool) -> None:  # type: ignore[no-untyped-def]
+    assert (a() == b()) == equal
 
 
-def test_dimension_auto():
-    d = wax.Dimension.auto()
-    assert d.is_auto()
-
-
-def test_dimension_eq():
-    assert wax.Dimension.length(10.0) == wax.Dimension.length(10.0)
-    assert wax.Dimension.length(10.0) != wax.Dimension.length(20.0)
-    assert wax.Dimension.auto() == wax.Dimension.auto()
-    assert wax.Dimension.auto() != wax.Dimension.length(0.0)
-
-
-def test_dimension_repr():
+def test_dimension_repr() -> None:
     assert repr(wax.Dimension.auto())
 
 
-def test_length_percentage():
-    lp = wax.LengthPercentage.length(50.0)
-    assert repr(lp)
+@pytest.mark.parametrize(
+    ("factory", "has_repr"),
+    [
+        (lambda: wax.LengthPercentage.length(50.0), True),
+        (lambda: wax.LengthPercentage.percent(0.5), True),
+    ],
+    ids=["length", "percent"],
+)
+def test_length_percentage(factory, has_repr: bool) -> None:  # type: ignore[no-untyped-def]
+    assert bool(repr(factory())) == has_repr
 
 
-def test_length_percentage_percent():
-    lp = wax.LengthPercentage.percent(0.5)
-    assert repr(lp)
+@pytest.mark.parametrize(
+    ("a", "b", "equal"),
+    [
+        (
+            lambda: wax.LengthPercentage.length(10.0),
+            lambda: wax.LengthPercentage.length(10.0),
+            True,
+        ),
+        (
+            lambda: wax.LengthPercentage.length(10.0),
+            lambda: wax.LengthPercentage.percent(10.0),
+            False,
+        ),
+    ],
+    ids=["length_eq", "length_ne_percent"],
+)
+def test_length_percentage_eq(a, b, equal: bool) -> None:  # type: ignore[no-untyped-def]
+    assert (a() == b()) == equal
 
 
-def test_length_percentage_eq():
-    assert wax.LengthPercentage.length(10.0) == wax.LengthPercentage.length(10.0)
-    assert wax.LengthPercentage.length(10.0) != wax.LengthPercentage.percent(10.0)
+@pytest.mark.parametrize(
+    ("factory", "is_auto"),
+    [
+        (lambda: wax.LengthPercentageAuto.auto(), True),
+        (lambda: wax.LengthPercentageAuto.length(50.0), False),
+    ],
+    ids=["auto", "length"],
+)
+def test_length_percentage_auto_is_auto(factory, is_auto: bool) -> None:  # type: ignore[no-untyped-def]
+    assert factory().is_auto() == is_auto
 
 
-def test_length_percentage_auto():
-    lpa = wax.LengthPercentageAuto.auto()
-    assert lpa.is_auto()
+@pytest.mark.parametrize(
+    ("a", "b", "equal"),
+    [
+        (lambda: wax.LengthPercentageAuto.auto(), lambda: wax.LengthPercentageAuto.auto(), True),
+        (
+            lambda: wax.LengthPercentageAuto.length(10.0),
+            lambda: wax.LengthPercentageAuto.length(10.0),
+            True,
+        ),
+    ],
+    ids=["auto_eq", "length_eq"],
+)
+def test_length_percentage_auto_eq(a, b, equal: bool) -> None:  # type: ignore[no-untyped-def]
+    assert (a() == b()) == equal
 
 
-def test_length_percentage_auto_length():
-    lpa = wax.LengthPercentageAuto.length(50.0)
-    assert not lpa.is_auto()
+@pytest.mark.parametrize(
+    ("factory", "is_auto"),
+    [
+        (wax.auto, True),
+        (lambda: wax.length(10.0), False),
+        (lambda: wax.percent(0.5), False),
+    ],
+    ids=["auto", "length", "percent"],
+)
+def test_helpers_is_auto(factory, is_auto: bool) -> None:  # type: ignore[no-untyped-def]
+    assert factory().is_auto() == is_auto
 
 
-def test_length_percentage_auto_eq():
-    assert wax.LengthPercentageAuto.auto() == wax.LengthPercentageAuto.auto()
-    assert wax.LengthPercentageAuto.length(10.0) == wax.LengthPercentageAuto.length(10.0)
-
-
-def test_helpers():
-    assert wax.auto().is_auto()
-    assert not wax.length(10.0).is_auto()
-    assert not wax.percent(0.5).is_auto()
+def test_helpers_zero() -> None:
     assert repr(wax.zero())

@@ -26,9 +26,13 @@ select = ["E", "F", "I", "W"]
 strict = true
 files = ["python", "tests"]
 
-[tool.pytest.ini_options]
+[tool.pytest]
 testpaths = ["tests"]
-addopts = "-v"
+addopts = [
+    "-v",
+    "-n", "auto",
+    "--dist", "worksteal",
+]
 
 [dependency-groups]
 dev = [

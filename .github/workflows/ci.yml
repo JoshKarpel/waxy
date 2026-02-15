@@ -35,8 +35,8 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v7.3.0
 
-      - name: Check
-        run: just pre-commit-args="--all-files --show-diff-on-failure" check
+      - name: Fix
+        run: just pre-commit-args="--all-files --show-diff-on-failure" fix
 
       - name: Test
         run: just test

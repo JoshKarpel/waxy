@@ -1,4 +1,7 @@
 pre-commit-args := ""
+pytest-args := ""
+mypy-args := ""
+cargo-test-args := ""
 
 [default]
 [doc("List available recipes")]
@@ -14,8 +17,8 @@ build:
 [doc("Type-check and test Python")]
 [group("python")]
 py-test: build
-    uv run mypy
-    uv run pytest
+    uv run mypy {{ mypy-args }}
+    uv run pytest {{ pytest-args }}
 
 [doc("Lint and auto-fix Python code")]
 [group("python")]
@@ -42,7 +45,7 @@ py-upgrade:
 [doc("Run Rust tests")]
 [group("rust")]
 rs-test:
-    cargo test
+    cargo test {{ cargo-test-args }}
 
 [doc("Format Rust code")]
 [group("rust")]

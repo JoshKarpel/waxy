@@ -1,24 +1,24 @@
 import wax
 
 
-def test_create_tree():
+def test_create_tree() -> None:
     tree = wax.TaffyTree()
     assert tree.total_node_count() == 0
 
 
-def test_with_capacity():
+def test_with_capacity() -> None:
     tree = wax.TaffyTree.with_capacity(10)
     assert tree.total_node_count() == 0
 
 
-def test_new_leaf():
+def test_new_leaf() -> None:
     tree = wax.TaffyTree()
     node = tree.new_leaf(wax.Style())
     assert tree.total_node_count() == 1
     assert isinstance(node, wax.NodeId)
 
 
-def test_new_with_children():
+def test_new_with_children() -> None:
     tree = wax.TaffyTree()
     child1 = tree.new_leaf(wax.Style())
     child2 = tree.new_leaf(wax.Style())
@@ -28,7 +28,7 @@ def test_new_with_children():
     assert len(children) == 2
 
 
-def test_add_child():
+def test_add_child() -> None:
     tree = wax.TaffyTree()
     parent = tree.new_leaf(wax.Style())
     child = tree.new_leaf(wax.Style())
@@ -36,7 +36,7 @@ def test_add_child():
     assert tree.child_count(parent) == 1
 
 
-def test_remove_child():
+def test_remove_child() -> None:
     tree = wax.TaffyTree()
     child = tree.new_leaf(wax.Style())
     parent = tree.new_with_children(wax.Style(), [child])
@@ -44,7 +44,7 @@ def test_remove_child():
     assert tree.child_count(parent) == 0
 
 
-def test_set_children():
+def test_set_children() -> None:
     tree = wax.TaffyTree()
     parent = tree.new_leaf(wax.Style())
     c1 = tree.new_leaf(wax.Style())
@@ -53,7 +53,7 @@ def test_set_children():
     assert tree.child_count(parent) == 2
 
 
-def test_child_at_index():
+def test_child_at_index() -> None:
     tree = wax.TaffyTree()
     c1 = tree.new_leaf(wax.Style())
     c2 = tree.new_leaf(wax.Style())
@@ -62,7 +62,7 @@ def test_child_at_index():
     assert tree.child_at_index(parent, 1) == c2
 
 
-def test_parent():
+def test_parent() -> None:
     tree = wax.TaffyTree()
     child = tree.new_leaf(wax.Style())
     parent = tree.new_with_children(wax.Style(), [child])
@@ -70,14 +70,14 @@ def test_parent():
     assert tree.parent(parent) is None
 
 
-def test_remove_node():
+def test_remove_node() -> None:
     tree = wax.TaffyTree()
     node = tree.new_leaf(wax.Style())
     tree.remove(node)
     assert tree.total_node_count() == 0
 
 
-def test_clear():
+def test_clear() -> None:
     tree = wax.TaffyTree()
     tree.new_leaf(wax.Style())
     tree.new_leaf(wax.Style())
@@ -85,7 +85,7 @@ def test_clear():
     assert tree.total_node_count() == 0
 
 
-def test_set_and_get_style():
+def test_set_and_get_style() -> None:
     tree = wax.TaffyTree()
     node = tree.new_leaf(wax.Style(flex_grow=1.0))
     style = tree.style(node)
@@ -96,7 +96,7 @@ def test_set_and_get_style():
     assert style.flex_grow == 2.0
 
 
-def test_dirty():
+def test_dirty() -> None:
     tree = wax.TaffyTree()
     node = tree.new_leaf(wax.Style(size_width=wax.Dimension.length(100.0)))
     assert tree.dirty(node)
@@ -106,7 +106,7 @@ def test_dirty():
     assert tree.dirty(node)
 
 
-def test_compute_layout():
+def test_compute_layout() -> None:
     tree = wax.TaffyTree()
     style = wax.Style(
         size_width=wax.Dimension.length(100.0),
@@ -121,7 +121,7 @@ def test_compute_layout():
     assert layout.location.y == 0.0
 
 
-def test_compute_layout_with_available_space():
+def test_compute_layout_with_available_space() -> None:
     tree = wax.TaffyTree()
     style = wax.Style(
         size_width=wax.Dimension.length(100.0),
@@ -138,7 +138,7 @@ def test_compute_layout_with_available_space():
     assert layout.size.height == 50.0
 
 
-def test_rounding():
+def test_rounding() -> None:
     tree = wax.TaffyTree()
     style = wax.Style(
         size_width=wax.Dimension.length(10.5),
@@ -159,7 +159,7 @@ def test_rounding():
     assert layout.size.width == 10.5
 
 
-def test_node_id_eq_and_hash():
+def test_node_id_eq_and_hash() -> None:
     tree = wax.TaffyTree()
     n1 = tree.new_leaf(wax.Style())
     n2 = tree.new_leaf(wax.Style())
@@ -171,7 +171,7 @@ def test_node_id_eq_and_hash():
     assert len(node_set) == 2
 
 
-def test_replace_child():
+def test_replace_child() -> None:
     tree = wax.TaffyTree()
     c1 = tree.new_leaf(wax.Style())
     c2 = tree.new_leaf(wax.Style())
@@ -180,7 +180,7 @@ def test_replace_child():
     assert tree.child_at_index(parent, 0) == c2
 
 
-def test_repr():
+def test_repr() -> None:
     tree = wax.TaffyTree()
     assert "TaffyTree" in repr(tree)
     node = tree.new_leaf(wax.Style())

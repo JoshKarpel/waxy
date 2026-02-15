@@ -2,23 +2,35 @@ import pytest
 
 import wax
 
+EXCEPTION_SUBCLASSES = [
+    wax.ChildIndexOutOfBounds,
+    wax.InvalidParentNode,
+    wax.InvalidChildNode,
+    wax.InvalidInputNode,
+]
 
-def test_exception_hierarchy():
+
+def test_exception_base() -> None:
     assert issubclass(wax.TaffyException, Exception)
-    assert issubclass(wax.ChildIndexOutOfBounds, wax.TaffyException)
-    assert issubclass(wax.InvalidParentNode, wax.TaffyException)
-    assert issubclass(wax.InvalidChildNode, wax.TaffyException)
-    assert issubclass(wax.InvalidInputNode, wax.TaffyException)
 
 
-def test_child_index_out_of_bounds():
+@pytest.mark.parametrize(
+    "exc_class",
+    EXCEPTION_SUBCLASSES,
+    ids=[cls.__name__ for cls in EXCEPTION_SUBCLASSES],
+)
+def test_exception_hierarchy(exc_class: type) -> None:
+    assert issubclass(exc_class, wax.TaffyException)
+
+
+def test_child_index_out_of_bounds() -> None:
     tree = wax.TaffyTree()
     parent = tree.new_leaf(wax.Style())
     with pytest.raises(wax.ChildIndexOutOfBounds):
         tree.child_at_index(parent, 0)
 
 
-def test_invalid_parent_node():
+def test_invalid_parent_node() -> None:
     tree = wax.TaffyTree()
     node = tree.new_leaf(wax.Style())
     tree.remove(node)
@@ -27,7 +39,7 @@ def test_invalid_parent_node():
         tree.children(node)
 
 
-def test_catch_base_exception():
+def test_catch_base_exception() -> None:
     tree = wax.TaffyTree()
     parent = tree.new_leaf(wax.Style())
     with pytest.raises(wax.TaffyException):

@@ -1,7 +1,7 @@
 import wax
 
 
-def test_flexbox_row():
+def test_flexbox_row() -> None:
     """Three children in a row, each 100px wide in a 300px container."""
     tree = wax.TaffyTree()
 
@@ -39,7 +39,7 @@ def test_flexbox_row():
     assert l3.size.width == 100.0
 
 
-def test_flexbox_column():
+def test_flexbox_column() -> None:
     """Children stacked in a column."""
     tree = wax.TaffyTree()
 
@@ -69,7 +69,7 @@ def test_flexbox_column():
     assert l2.location.y == 30.0
 
 
-def test_flex_grow():
+def test_flex_grow() -> None:
     """Two children with flex_grow in a 300px container."""
     tree = wax.TaffyTree()
 
@@ -94,7 +94,7 @@ def test_flex_grow():
     assert l2.size.width == 200.0  # 2/3 of 300
 
 
-def test_grid_layout():
+def test_grid_layout() -> None:
     """Simple 2-column grid layout."""
     tree = wax.TaffyTree()
 
@@ -124,7 +124,7 @@ def test_grid_layout():
     assert l2.size.width == 100.0
 
 
-def test_nested_layout():
+def test_nested_layout() -> None:
     """Nested flex containers."""
     tree = wax.TaffyTree()
 
@@ -179,7 +179,7 @@ def test_nested_layout():
     assert leaf2_layout.location.y == 50.0
 
 
-def test_padding_and_border():
+def test_padding_and_border() -> None:
     """Padding and border affect content box."""
     tree = wax.TaffyTree()
 
@@ -207,7 +207,7 @@ def test_padding_and_border():
     assert child_layout.location.y == 5.0
 
 
-def test_absolute_positioning():
+def test_absolute_positioning() -> None:
     """Absolute positioning removes from flow."""
     tree = wax.TaffyTree()
 

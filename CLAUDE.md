@@ -44,6 +44,13 @@ The Rust source (`src/`) exposes a flat PyO3 module `_wax`, which Python (`pytho
 - `just format` — py-format (ruff format) + rs-format (cargo fmt)
 - `just upgrade` (alias `u`) — upgrade Python, Rust, and pre-commit dependencies
 
+All test/check commands accept override variables from the command line:
+
+- `just pytest-args="-k test_style" test`
+- `just mypy-args="--no-strict" py-test`
+- `just cargo-test-args="-- --nocapture" rs-test`
+- `just pre-commit-args="--all-files" fix`
+
 ## Adding a New Taffy Type or Field
 
 1. Add the Rust wrapper in the appropriate `src/*.rs` file
