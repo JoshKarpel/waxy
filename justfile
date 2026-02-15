@@ -7,9 +7,9 @@ set ignore-comments := true
 # so any mismatch invalidates the cache and triggers a full PyO3 rebuild.
 # See: https://github.com/PyO3/pyo3/issues/2724
 # See: https://github.com/PyO3/pyo3/issues/5439
+
 export PYO3_ENVIRONMENT_SIGNATURE := `uv run python -c "import struct, sys; print(f'cpython-{sys.version_info.major}.{sys.version_info.minor}-{struct.calcsize(\"P\") * 8}bit')"`
 export PYO3_PYTHON := `uv run python -c "import pathlib, sys; print(pathlib.Path(sys.executable).parent / 'python')"`
-
 pre-commit-args := ""
 pytest-args := ""
 mypy-args := ""
