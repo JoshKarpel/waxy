@@ -14,7 +14,8 @@ setup:
 
 [doc("Build the extension module")]
 build:
-    uv run maturin develop
+    # Override target dir to avoid thrashing with cargo test/clippy (see .cargo/config.toml)
+    CARGO_TARGET_DIR=target uv run maturin develop
 
 # Python
 
@@ -49,7 +50,7 @@ py-upgrade:
 [doc("Run Rust tests")]
 [group("rust")]
 rs-test:
-    CARGO_TARGET_DIR=target/test cargo test {{ cargo-test-args }}
+    cargo test {{ cargo-test-args }}
 
 [doc("Format Rust code")]
 [group("rust")]
@@ -59,7 +60,7 @@ rs-format:
 [doc("Run clippy with auto-fix")]
 [group("rust")]
 rs-lint:
-    CARGO_TARGET_DIR=target/clippy cargo clippy --fix --allow-dirty
+    cargo clippy --fix --allow-dirty
 
 [doc("Clean Rust build artifacts")]
 [group("rust")]
@@ -70,6 +71,22 @@ rs-clean:
 [group("rust")]
 rs-upgrade:
     cargo update
+
+# Docs
+
+[doc("Build docs")]
+[group("docs")]
+docs-build: build
+    uv run mkdocs build --strict
+
+alias db := docs-build
+
+[doc("Serve docs dev server")]
+[group("docs")]
+docs-serve: build
+    uv run mkdocs serve --strict
+
+alias ds := docs-serve
 
 # Combined
 
@@ -99,8 +116,8 @@ fix:
 
 alias f := fix
 
-[doc("Run all checks (formatting, linting, type-checking, testing, etc.)")]
-check: fix test
+[doc("Run all checks (formatting, linting, type-checking, testing, docs, etc.)")]
+check: fix test docs-build
 
 alias c := check
 

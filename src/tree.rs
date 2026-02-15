@@ -9,7 +9,7 @@ use crate::node::NodeId;
 use crate::style::Style;
 
 /// A tree of layout nodes.
-#[pyclass(unsendable)]
+#[pyclass(unsendable, module = "waxy")]
 pub struct TaffyTree {
     inner: tp::TaffyTree,
 }

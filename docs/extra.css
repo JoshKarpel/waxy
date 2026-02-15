@@ -1,0 +1,83 @@
+/* === Compact headings inside doc objects === */
+.doc .doc-heading,
+.doc .doc-heading h1,
+.doc .doc-heading h2,
+.doc .doc-heading h3,
+.doc .doc-heading h4,
+.doc .doc-heading h5,
+.doc .doc-heading h6 {
+  margin-top: 0.1rem;
+  margin-bottom: 0.1rem;
+}
+
+.doc-object .doc-contents {
+  margin-top: 0;
+  padding-top: 0;
+}
+
+/* === mkdocstrings object boxes === */
+
+/* Classes: warm amber/orange border */
+.doc.doc-object.doc-class {
+  border: 1px solid rgba(255, 179, 0, 0.35);
+  border-left: 4px solid rgba(255, 179, 0, 0.7);
+  border-radius: 6px;
+  padding: 0.4rem 0.8rem;
+  margin: 0.75rem 0;
+  background: rgba(255, 179, 0, 0.03);
+}
+
+/* Methods inside a class: subtle blue-grey */
+.doc-class .doc-children .doc.doc-object.doc-function {
+  border: 1px solid rgba(100, 149, 237, 0.25);
+  border-left: 3px solid rgba(100, 149, 237, 0.5);
+  border-radius: 4px;
+  padding: 0.3rem 0.6rem;
+  margin: 0.4rem 0;
+  background: rgba(100, 149, 237, 0.025);
+}
+
+/* Top-level functions (not inside a class): soft teal */
+.doc.doc-object.doc-function:not(.doc-class .doc.doc-object.doc-function) {
+  border: 1px solid rgba(0, 188, 163, 0.3);
+  border-left: 4px solid rgba(0, 188, 163, 0.6);
+  border-radius: 6px;
+  padding: 0.4rem 0.8rem;
+  margin: 0.75rem 0;
+  background: rgba(0, 188, 163, 0.025);
+}
+
+/* Attributes / properties inside a class: light purple */
+.doc-class .doc-children .doc.doc-object.doc-attribute {
+  border: 1px solid rgba(167, 139, 250, 0.25);
+  border-left: 3px solid rgba(167, 139, 250, 0.45);
+  border-radius: 4px;
+  padding: 0.3rem 0.6rem;
+  margin: 0.4rem 0;
+  background: rgba(167, 139, 250, 0.02);
+}
+
+/* -- Dark mode adjustments (Material slate scheme) -- */
+[data-md-color-scheme="slate"] .doc.doc-object.doc-class {
+  border-color: rgba(255, 179, 0, 0.3);
+  border-left-color: rgba(255, 179, 0, 0.6);
+  background: rgba(255, 179, 0, 0.04);
+}
+
+[data-md-color-scheme="slate"] .doc-class .doc-children .doc.doc-object.doc-function {
+  border-color: rgba(100, 149, 237, 0.2);
+  border-left-color: rgba(100, 149, 237, 0.45);
+  background: rgba(100, 149, 237, 0.04);
+}
+
+[data-md-color-scheme="slate"] .doc.doc-object.doc-function:not(.doc-class .doc.doc-object.doc-function) {
+  border-color: rgba(0, 188, 163, 0.25);
+  border-left-color: rgba(0, 188, 163, 0.5);
+  background: rgba(0, 188, 163, 0.04);
+}
+
+[data-md-color-scheme="slate"] .doc-class .doc-children .doc.doc-object.doc-attribute {
+  border-color: rgba(167, 139, 250, 0.2);
+  border-left-color: rgba(167, 139, 250, 0.4);
+  background: rgba(167, 139, 250, 0.04);
+}
