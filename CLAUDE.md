@@ -27,12 +27,14 @@ The Rust source (`src/`) exposes a flat PyO3 module `_waxy`, which Python (`pyth
 ## Key Design Decisions
 
 - **`#[pyclass(unsendable)]`** is required on all types that wrap taffy's `CompactLength` (which contains `*const ()`, not `Send`). This includes: `Dimension`, `LengthPercentage`, `LengthPercentageAuto`, `GridTrack`, `GridTrackMin`, `GridTrackMax`, `GridPlacement`, `GridLine`, `Style`, `TaffyTree`.
+- **`#[pyclass(frozen)]`** is used on all types except `TaffyTree` (which is inherently mutable). All structs are immutable from Python — construct new instances instead of mutating.
 - **`Display.Nil`** maps to taffy's `Display::None`. We use `#[pyo3(name = "Nil")]` because `None` is a Python keyword.
 - **`AlignSelf`/`JustifySelf`/`JustifyItems`** are type aliases for `AlignItems` in taffy. **`JustifyContent`** is an alias for `AlignContent`. We reuse the same Python enum types.
 - **`AvailableSpace`** has data variants (`Definite(f32)`) so it's a `#[pyclass]` with static method constructors, not a PyO3 enum.
 - **Grid template tracks** — `GridTemplateComponent<String>` repeat variants are silently skipped when converting from taffy. Only `Single(TrackSizingFunction)` is round-tripped.
 - **Measure functions** are not yet implemented (`compute_layout_with_measure` requires Python→Rust callbacks).
 - **Removed node access** causes a Rust panic (slotmap behavior), not a `TaffyError`.
+- **`.pyi` method order** — Within each class: `__init__` first, then other dunder methods (`__repr__`, `__eq__`, `__iter__`, etc.), then properties, then regular methods.
 
 ## Commands
 

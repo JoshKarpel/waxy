@@ -121,6 +121,7 @@ clean: py-clean rs-clean
 
 _fix: format lint
 
+[doc("Run pre-commit checks")]
 fix:
     git add --update
     uv run pre-commit run {{ pre-commit-args }}
