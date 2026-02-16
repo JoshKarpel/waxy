@@ -3,6 +3,7 @@
 from waxy._waxy import (
     AlignContent,
     AlignItems,
+    AvailableDimensions,
     AvailableSpace,
     BoxSizing,
     ChildIndexOutOfBounds,
@@ -19,6 +20,7 @@ from waxy._waxy import (
     InvalidChildNode,
     InvalidInputNode,
     InvalidParentNode,
+    KnownDimensions,
     Layout,
     LengthPercentage,
     LengthPercentageAuto,
@@ -46,6 +48,7 @@ from waxy._waxy import (
 __all__ = [
     "AlignContent",
     "AlignItems",
+    "AvailableDimensions",
     "AvailableSpace",
     "BoxSizing",
     "ChildIndexOutOfBounds",
@@ -62,6 +65,7 @@ __all__ = [
     "InvalidChildNode",
     "InvalidInputNode",
     "InvalidParentNode",
+    "KnownDimensions",
     "Layout",
     "LengthPercentage",
     "LengthPercentageAuto",

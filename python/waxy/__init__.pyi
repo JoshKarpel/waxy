@@ -1,4 +1,4 @@
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 
 # Exceptions
 
@@ -123,6 +123,32 @@ class Line:
         """The length of the line segment (end - start)."""
     def contains(self, value: float) -> bool:
         """Check if a value is contained within this line segment."""
+
+class KnownDimensions:
+    """Known dimensions passed to measure functions (independently-optional width/height)."""
+
+    def __init__(self, width: float | None = None, height: float | None = None) -> None: ...
+    def __repr__(self) -> str: ...
+    def __eq__(self, other: object) -> bool: ...
+    def __hash__(self) -> int: ...
+    def __iter__(self) -> Iterator[float | None]: ...
+    @property
+    def width(self) -> float | None: ...
+    @property
+    def height(self) -> float | None: ...
+
+class AvailableDimensions:
+    """Available dimensions passed to measure functions (width/height as AvailableSpace)."""
+
+    def __init__(self, width: AvailableSpace, height: AvailableSpace) -> None: ...
+    def __repr__(self) -> str: ...
+    def __eq__(self, other: object) -> bool: ...
+    def __hash__(self) -> int: ...
+    def __iter__(self) -> Iterator[AvailableSpace]: ...
+    @property
+    def width(self) -> AvailableSpace: ...
+    @property
+    def height(self) -> AvailableSpace: ...
 
 # Dimensions
 
@@ -269,6 +295,10 @@ class AvailableSpace:
     def max_content() -> AvailableSpace:
         """Create a max-content available space."""
     def is_definite(self) -> bool: ...
+    def is_min_content(self) -> bool: ...
+    def is_max_content(self) -> bool: ...
+    def value(self) -> float | None:
+        """Return the definite value, or None for min-content/max-content."""
 
 # Grid types
 
@@ -580,17 +610,23 @@ class Style:
 
 # Tree
 
-class TaffyTree:
+class TaffyTree[NodeContext = object]:
     """A tree of layout nodes."""
 
     def __init__(self) -> None:
         """Create a new empty layout tree."""
     def __repr__(self) -> str: ...
     @staticmethod
-    def with_capacity(capacity: int) -> TaffyTree:
+    def with_capacity(capacity: int) -> TaffyTree[NodeContext]:
         """Create a new layout tree with pre-allocated capacity."""
     def new_leaf(self, style: Style) -> NodeId:
         """Create a new leaf node with the given style."""
+    def new_leaf_with_context(self, style: Style, context: NodeContext) -> NodeId:
+        """Create a new leaf node with the given style and context."""
+    def get_node_context(self, node: NodeId) -> NodeContext | None:
+        """Get the context attached to a node, if any."""
+    def set_node_context(self, node: NodeId, context: NodeContext | None) -> None:
+        """Set or clear the context attached to a node."""
     def new_with_children(self, style: Style, children: list[NodeId]) -> NodeId:
         """Create a new node with children."""
     def add_child(self, parent: NodeId, child: NodeId) -> None:
@@ -630,8 +666,8 @@ class TaffyTree:
     def compute_layout(
         self,
         node: NodeId,
-        available_width: AvailableSpace | None = None,
-        available_height: AvailableSpace | None = None,
+        available_space: AvailableDimensions | None = None,
+        measure: Callable[[KnownDimensions, AvailableDimensions, NodeContext], Size] | None = None,
     ) -> None:
         """Compute the layout of a tree rooted at the given node."""
     def layout(self, node: NodeId) -> Layout:
