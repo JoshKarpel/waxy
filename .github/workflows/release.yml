@@ -27,9 +27,7 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - uses: dtolnay/rust-toolchain@stable
-
-      - uses: Swatinem/rust-cache@v2
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
 
       - name: Build wheels
         uses: PyO3/maturin-action@v1
@@ -47,9 +45,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: dtolnay/rust-toolchain@stable
-
-      - uses: Swatinem/rust-cache@v2
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
 
       - name: Build sdist
         uses: PyO3/maturin-action@v1
