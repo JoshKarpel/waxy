@@ -166,6 +166,22 @@ The closure signature adapting taffy → Python:
 
 Taffy's `compute_leaf_layout` (in `src/compute/leaf.rs`) already short-circuits before calling the measure function when both dimensions are known during `ComputeSize` mode (lines 92–108). During `PerformLayout` mode, it passes `Size::NONE` (both `None`), so both-known never happens there either. Even in the rare edge case where both are `Some` (block nodes that can collapse through margins), `compute_leaf_layout` ignores the measure result via `known_dimensions.or(node_size).unwrap_or(measured_size)`. So this check is purely defensive — it avoids a Python call that would be wasted.
 
+#### When Is the Measure Function Called?
+
+The Rust wrapper applies two short-circuits before calling the user's Python measure function. Documenting these clearly is important so users know exactly what their function needs to handle.
+
+**The measure function is called** when ALL of the following are true:
+1. The node is a **leaf node** (has no children). Non-leaf nodes are laid out recursively by taffy and never reach the measure path.
+2. The node has **context attached** (via `new_leaf_with_context` or `set_node_context`). Nodes without context automatically get `Size(0, 0)` — the measure function is not called.
+3. **At most one** dimension (width or height) is already known from the node's style. If both are known, the Rust wrapper returns them directly without calling the measure function.
+
+**The measure function is NOT called** when any of the following are true:
+- The node has **children** — taffy lays out children recursively and computes the parent's size from them.
+- The node has **no context** — the wrapper returns `Size(0, 0)` automatically. This is always correct because without context there is no content to measure; style-based sizing (explicit width/height, min/max constraints, padding, border) is applied by taffy *around* the measure result.
+- **Both dimensions are already known** from the node's style — the wrapper returns them directly. Taffy itself almost never calls the measure function in this case (it short-circuits during `ComputeSize` mode), and even in the rare edge case where it does, it ignores the return value. The wrapper check is purely defensive.
+
+**Consequence for users**: The measure function's `node_context` parameter is always `T`, never `None`. And `known_dimensions` will have at most one `Some` value. Users only need to handle: "given this context and (possibly partial) size constraints, what size should this content be?"
+
 **Measure function signature** (from the user's perspective):
 
 ```python
