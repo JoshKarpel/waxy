@@ -6,7 +6,7 @@ Taffy's `TaffyTree<NodeContext>` is generic over a node context type. Currently,
 
 1. Change the inner tree to `TaffyTree<PyObject>` so any Python object can be attached as node context
 2. Expose methods for managing node context
-3. Expose `compute_layout_with_measure`, which accepts a Python callable
+3. Add an optional `measure` parameter to `compute_layout`
 
 ### How Measure Functions Work in Taffy
 
@@ -125,20 +125,23 @@ fn get_node_context(&self, node: &NodeId) -> Option<PyObject>
 
 `get_node_context` clones the `PyObject` (which is just an `Arc<PyObject>` ref-count bump under the hood).
 
-### Step 5: Add `compute_layout_with_measure`
+### Step 5: Add `measure` parameter to `compute_layout`
+
+Instead of adding a separate `compute_layout_with_measure` method, we add an optional `measure` keyword argument to the existing `compute_layout`:
 
 ```rust
-fn compute_layout_with_measure(
+#[pyo3(signature = (node, *, measure=None, available_width=None, available_height=None))]
+fn compute_layout(
     &mut self,
     py: Python<'_>,
     node: &NodeId,
+    measure: Option<PyObject>,  // a Python callable, or None
     available_width: Option<&AvailableSpace>,
     available_height: Option<&AvailableSpace>,
-    measure: PyObject,  // a Python callable
 ) -> PyResult<()>
 ```
 
-This calls `taffy::TaffyTree::compute_layout_with_measure` with a Rust closure that:
+When `measure` is `None`, this calls `taffy::TaffyTree::compute_layout` (the existing behavior — leaf nodes have zero intrinsic size). When `measure` is provided, it calls `taffy::TaffyTree::compute_layout_with_measure` with a Rust closure that:
 1. Checks if both `known_dimensions` are `Some` — if so, returns them immediately (no Python call needed; see "Both-Known Short-Circuit" below)
 2. Checks if `node_context` is `None` — if so, returns `Size::ZERO` immediately (no Python call)
 3. Converts the taffy arguments to waxy Python types (`KnownDimensions`, `AvailableDimensions`, etc.)
@@ -180,7 +183,7 @@ The Rust wrapper applies two short-circuits before calling the user's Python mea
 - The node has **no context** — the wrapper returns `Size(0, 0)` automatically. This is always correct because without context there is no content to measure; style-based sizing (explicit width/height, min/max constraints, padding, border) is applied by taffy *around* the measure result.
 - **Both dimensions are already known** from the node's style — the wrapper returns them directly. Taffy itself almost never calls the measure function in this case (it short-circuits during `ComputeSize` mode), and even in the rare edge case where it does, it ignores the return value. The wrapper check is purely defensive.
 
-**Consequence for users**: The measure function's `node_context` parameter is always `T`, never `None`. And `known_dimensions` will have at most one `Some` value. Users only need to handle: "given this context and (possibly partial) size constraints, what size should this content be?"
+**Consequence for users**: The measure function's `context` parameter is always `T`, never `None`. And `known_dimensions` will have at most one `Some` value. Users only need to handle: "given this context and (possibly partial) size constraints, what size should this content be?"
 
 **Measure function signature** (from the user's perspective):
 
@@ -188,8 +191,8 @@ The Rust wrapper applies two short-circuits before calling the user's Python mea
 def my_measure(
     known_dimensions: KnownDimensions,
     available_space: AvailableDimensions,
-    node_id: NodeId,
-    node_context: T,  # always present — never None
+    id: NodeId,
+    context: T,  # always present — never None
     style: Style,
 ) -> Size:
     ...
@@ -202,22 +205,18 @@ The measure function always returns a `Size` (no tuple fallback).
 - `python/waxy/__init__.py` — add `KnownDimensions` and `AvailableDimensions` exports
 - `python/waxy/__init__.pyi` — add type signatures for new types and methods, with `TaffyTree` made generic over `T`
 
-**Generic `TaffyTree[T]`** in the `.pyi`:
+**Generic `TaffyTree[T]`** in the `.pyi` (using PEP 695 syntax, since we require Python 3.13+):
 
 ```python
-from typing import Generic, TypeVar
-
-T = TypeVar("T")
-
-class TaffyTree(Generic[T]):
+class TaffyTree[T]:
     def new_leaf_with_context(self, style: Style, context: T) -> NodeId: ...
     def get_node_context(self, node: NodeId) -> T | None: ...
     def set_node_context(self, node: NodeId, context: T | None) -> None: ...
-    def compute_layout_with_measure(
+    def compute_layout(
         self,
         node: NodeId,
         *,
-        measure: Callable[[KnownDimensions, AvailableDimensions, NodeId, T, Style], Size],
+        measure: Callable[[KnownDimensions, AvailableDimensions, NodeId, T, Style], Size] | None = None,
         available_width: AvailableSpace | None = None,
         available_height: AvailableSpace | None = None,
     ) -> None: ...
@@ -234,11 +233,11 @@ Test cases:
 - `set_node_context` updates/clears context
 - `KnownDimensions` — construction, properties, unpacking via iteration
 - `AvailableDimensions` — construction, properties, unpacking via iteration
-- `compute_layout_with_measure` with a simple fixed-size measure function
-- `compute_layout_with_measure` with a text-like measure function that responds to available width
+- `compute_layout` with a simple fixed-size measure function
+- `compute_layout` with a text-like measure function that responds to available width
 - Measure function receives correct `known_dimensions` when style has explicit size
-- Measure function is NOT called when both dimensions are already known (Rust wrapper short-circuits)
-- Measure function is NOT called for nodes without context (they get zero size automatically)
+- Measure function is NOT called when both dimensions are already known — use `pytest-mock` to wrap the measure function and assert it was not called for those nodes (install via `uv add --dev pytest-mock`)
+- Measure function is NOT called for nodes without context — same `pytest-mock` approach: assert the mock was not called for context-less leaf nodes, and verify they get zero size
 - Error handling: measure function raises an exception → propagated to caller
 
 ## Usage Examples
@@ -265,21 +264,33 @@ root = tree.new_with_children(
 # Define how to measure leaf nodes
 # `context` is always present — nodes without context get Size(0, 0) automatically
 # Both-known case is handled by the Rust wrapper, so we don't need to check for it
-def measure(known_dimensions, available_space, node_id, context, style):
+def measure(known_dimensions, available_space, id, context, style):
     kw, kh = known_dimensions
 
     if context["type"] == "image":
-        w = context["intrinsic_width"]
-        h = context["intrinsic_height"]
+        iw = context["intrinsic_width"]
+        ih = context["intrinsic_height"]
+        ratio = iw / ih
+
         if kw is not None:
-            return Size(kw, kw / w * h)  # scale height to match
+            return Size(kw, kw / ratio)  # scale height to match known width
         if kh is not None:
-            return Size(kh / h * w, kh)  # scale width to match
-        return Size(w, h)
+            return Size(kh * ratio, kh)  # scale width to match known height
+
+        # Neither dimension known from style — use available space to constrain
+        avail_w, avail_h = available_space
+        if avail_w.is_definite() and avail_w.value() < iw:
+            constrained_w = avail_w.value()
+            return Size(constrained_w, constrained_w / ratio)
+        if avail_h.is_definite() and avail_h.value() < ih:
+            constrained_h = avail_h.value()
+            return Size(constrained_h * ratio, constrained_h)
+
+        return Size(iw, ih)
 
     return Size(0, 0)
 
-tree.compute_layout_with_measure(root, measure=measure)
+tree.compute_layout(root, measure=measure)
 
 layout = tree.layout(image_node)
 print(layout.size)  # Size(width=200.0, height=150.0) — scaled to fit 200px wide
@@ -307,7 +318,7 @@ root = tree.new_with_children(
 CHAR_WIDTH = 8.0
 CHAR_HEIGHT = 16.0
 
-def measure(known_dimensions, available_space, node_id, context, style):
+def measure(known_dimensions, available_space, id, context, style):
     kw, kh = known_dimensions
 
     if context["type"] != "text":
@@ -332,7 +343,7 @@ def measure(known_dimensions, available_space, node_id, context, style):
 
     return Size(inline_size, line_count * CHAR_HEIGHT)
 
-tree.compute_layout_with_measure(root, measure=measure)
+tree.compute_layout(root, measure=measure)
 layout = tree.layout(text_node)
 print(layout.size)  # Text wrapped within 100px width
 ```
@@ -354,7 +365,7 @@ root = tree.new_with_children(
     [heading, body, avatar],
 )
 
-def measure(known_dimensions, available_space, node_id, ctx, style):
+def measure(known_dimensions, available_space, id, ctx, style):
     kw, kh = known_dimensions
     if ctx["type"] == "image":
         return Size(ctx["width"], ctx["height"])
@@ -365,7 +376,7 @@ def measure(known_dimensions, available_space, node_id, ctx, style):
         return Size(w, float(ctx["font_size"]))
     return Size(0, 0)
 
-tree.compute_layout_with_measure(root, measure=measure)
+tree.compute_layout(root, measure=measure)
 
 # Each node now has a layout computed using its context
 for node in [heading, body, avatar]:
@@ -397,6 +408,6 @@ print(tree.get_node_context(node))  # None
 
 4. **Error propagation**: If the Python measure function raises, the exception propagates out of `compute_layout_with_measure` as a Python exception. PyO3 supports this naturally.
 
-5. **`compute_layout` (without measure) still works**: Yes. The existing `compute_layout` method stays as-is. Leaf nodes without a measure function simply have zero intrinsic size (taffy's default behavior). Users opt in to measure functions by calling `compute_layout_with_measure` instead. The key difference: `compute_layout_with_measure` wraps the user's measure function so that **nodes without context automatically get `Size(0, 0)` without the user's function being called**. This eliminates the boilerplate of checking for `None` context in every measure function.
+5. **Single `compute_layout` method**: Rather than a separate `compute_layout_with_measure`, the existing `compute_layout` gains an optional `measure` keyword argument. When `measure` is `None` (the default), taffy's `compute_layout` is called (leaf nodes have zero intrinsic size). When provided, taffy's `compute_layout_with_measure` is called with a Rust wrapper that auto-skips nodes without context. This keeps the API surface minimal — one method, optional measure.
 
-6. **Generic `TaffyTree[T]`**: The `.pyi` stub uses `Generic[T]` so mypy enforces that the context type flows through to `new_leaf_with_context`, `get_node_context`, `set_node_context`, and the measure function's `node_context` parameter. Since nodes without context are handled automatically, the measure function receives `T` (not `T | None`).
+6. **Generic `TaffyTree[T]`**: The `.pyi` stub uses PEP 695 syntax (`class TaffyTree[T]:`) so mypy enforces that the context type flows through to `new_leaf_with_context`, `get_node_context`, `set_node_context`, and the measure function's `context` parameter. Since nodes without context are handled automatically, the measure function receives `T` (not `T | None`).
