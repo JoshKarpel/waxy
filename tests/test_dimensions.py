@@ -10,7 +10,7 @@ import waxy
     [
         (lambda: waxy.Dimension.length(100.0), False),
         (lambda: waxy.Dimension.percent(0.5), False),
-        (lambda: waxy.Dimension.auto(), True),
+        (waxy.Dimension.auto, True),
     ],
     ids=["length", "percent", "auto"],
 )
@@ -23,8 +23,8 @@ def test_dimension_is_auto(factory: Callable[[], waxy.Dimension], is_auto: bool)
     [
         (lambda: waxy.Dimension.length(10.0), lambda: waxy.Dimension.length(10.0), True),
         (lambda: waxy.Dimension.length(10.0), lambda: waxy.Dimension.length(20.0), False),
-        (lambda: waxy.Dimension.auto(), lambda: waxy.Dimension.auto(), True),
-        (lambda: waxy.Dimension.auto(), lambda: waxy.Dimension.length(0.0), False),
+        (waxy.Dimension.auto, waxy.Dimension.auto, True),
+        (waxy.Dimension.auto, lambda: waxy.Dimension.length(0.0), False),
     ],
     ids=["length_eq", "length_ne", "auto_eq", "auto_ne_length"],
 )
@@ -77,7 +77,7 @@ def test_length_percentage_eq(
 @pytest.mark.parametrize(
     ("factory", "is_auto"),
     [
-        (lambda: waxy.LengthPercentageAuto.auto(), True),
+        (waxy.LengthPercentageAuto.auto, True),
         (lambda: waxy.LengthPercentageAuto.length(50.0), False),
     ],
     ids=["auto", "length"],
@@ -91,7 +91,7 @@ def test_length_percentage_auto_is_auto(
 @pytest.mark.parametrize(
     ("a", "b", "equal"),
     [
-        (lambda: waxy.LengthPercentageAuto.auto(), lambda: waxy.LengthPercentageAuto.auto(), True),
+        (waxy.LengthPercentageAuto.auto, waxy.LengthPercentageAuto.auto, True),
         (
             lambda: waxy.LengthPercentageAuto.length(10.0),
             lambda: waxy.LengthPercentageAuto.length(10.0),

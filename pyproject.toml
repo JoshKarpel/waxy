@@ -37,7 +37,62 @@ fix = true
 src = ["python", "tests"]
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "W"]
+select = [
+    "A",
+    "ANN",
+    "ASYNC",
+    "B",
+    "C4",
+    "D200",
+    "D201",
+    "D202",
+    "D204",
+    "D205",
+    "D206",
+    "D207",
+    "D208",
+    "D209",
+    "D210",
+    "D211",
+    "D213",
+    "D400",
+    "D419",
+    "DTZ",
+    "E",
+    "EM",
+    "EXE",
+    "F",
+    "FA",
+    "FLY",
+    "I",
+    "ISC",
+    "LOG",
+    "NPY",
+    "PERF",
+    "PGH",
+    "PIE",
+    "PLC",
+    "PLE",
+    "PLR",
+    "PLW",
+    "PT",
+    "PTH",
+    "Q",
+    "FURB",
+    "RET",
+    "RSE",
+    "RUF",
+    "SIM",
+    "SLOT",
+    "UP",
+    "W",
+    "YTT",
+]
+
+ignore = [
+    "A002",  # builtin shadowing
+    "PLR2004",  # magic constants
+]
 
 [tool.mypy]
 strict = true

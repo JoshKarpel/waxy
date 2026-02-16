@@ -35,7 +35,7 @@ def test_invalid_parent_node() -> None:
     node = tree.new_leaf(waxy.Style())
     tree.remove(node)
     # taffy panics on invalid node access (slotmap behavior)
-    with pytest.raises(BaseException):  # PanicException
+    with pytest.raises(BaseException, match="invalid SlotMap key"):
         tree.children(node)
 
 
