@@ -28,7 +28,7 @@ def test_geometry_default(cls: type, attrs: list[str], _values: list[float]) -> 
 )
 def test_geometry_values(cls: type, attrs: list[str], values: list[float]) -> None:
     obj = cls(*values)
-    for attr, val in zip(attrs, values):
+    for attr, val in zip(attrs, values, strict=True):
         assert getattr(obj, attr) == val
 
 
@@ -46,7 +46,7 @@ def test_geometry_eq(cls: type, attrs: list[str], values: list[float]) -> None:
 def test_size_immutable() -> None:
     s = waxy.Size()
     with pytest.raises(AttributeError):
-        setattr(s, "width", 5.0)
+        s.width = 5.0  # type: ignore[misc]
 
 
 def test_point_add() -> None:

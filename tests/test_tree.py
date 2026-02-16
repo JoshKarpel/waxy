@@ -163,7 +163,7 @@ def test_node_id_eq_and_hash() -> None:
     tree = waxy.TaffyTree()
     n1 = tree.new_leaf(waxy.Style())
     n2 = tree.new_leaf(waxy.Style())
-    assert n1 == n1
+    assert n1 == n1  # noqa: PLR0124
     assert n1 != n2
     assert hash(n1) == hash(n1)
     assert hash(n1) != hash(n2)

@@ -19,7 +19,7 @@ def test_style_display() -> None:
 def test_style_immutable() -> None:
     s = waxy.Style()
     with pytest.raises(AttributeError):
-        setattr(s, "display", waxy.Display.Block)
+        s.display = waxy.Display.Block  # type: ignore[misc]
 
 
 def test_style_flex_properties() -> None:

@@ -38,8 +38,8 @@ def test_enum_variants(enum_class: type, variants: list[str]) -> None:
     ("factory", "is_definite"),
     [
         (lambda: waxy.AvailableSpace.definite(100.0), True),
-        (lambda: waxy.AvailableSpace.min_content(), False),
-        (lambda: waxy.AvailableSpace.max_content(), False),
+        (waxy.AvailableSpace.min_content, False),
+        (waxy.AvailableSpace.max_content, False),
     ],
     ids=["definite", "min_content", "max_content"],
 )

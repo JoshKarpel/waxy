@@ -1,5 +1,4 @@
 from collections.abc import Iterator
-from typing import Optional
 
 # Exceptions
 
@@ -371,8 +370,8 @@ class GridLine:
 
     def __init__(
         self,
-        start: Optional[GridPlacement] = None,
-        end: Optional[GridPlacement] = None,
+        start: GridPlacement | None = None,
+        end: GridPlacement | None = None,
     ) -> None: ...
     def __repr__(self) -> str: ...
     @property
@@ -424,56 +423,56 @@ class Style:
     def __init__(
         self,
         *,
-        display: Optional[Display] = None,
-        box_sizing: Optional[BoxSizing] = None,
-        overflow_x: Optional[Overflow] = None,
-        overflow_y: Optional[Overflow] = None,
-        scrollbar_width: Optional[float] = None,
-        position: Optional[Position] = None,
-        inset_left: Optional[LengthPercentageAuto] = None,
-        inset_right: Optional[LengthPercentageAuto] = None,
-        inset_top: Optional[LengthPercentageAuto] = None,
-        inset_bottom: Optional[LengthPercentageAuto] = None,
-        size_width: Optional[Dimension] = None,
-        size_height: Optional[Dimension] = None,
-        min_size_width: Optional[Dimension] = None,
-        min_size_height: Optional[Dimension] = None,
-        max_size_width: Optional[Dimension] = None,
-        max_size_height: Optional[Dimension] = None,
-        aspect_ratio: Optional[float] = None,
-        margin_left: Optional[LengthPercentageAuto] = None,
-        margin_right: Optional[LengthPercentageAuto] = None,
-        margin_top: Optional[LengthPercentageAuto] = None,
-        margin_bottom: Optional[LengthPercentageAuto] = None,
-        padding_left: Optional[LengthPercentage] = None,
-        padding_right: Optional[LengthPercentage] = None,
-        padding_top: Optional[LengthPercentage] = None,
-        padding_bottom: Optional[LengthPercentage] = None,
-        border_left: Optional[LengthPercentage] = None,
-        border_right: Optional[LengthPercentage] = None,
-        border_top: Optional[LengthPercentage] = None,
-        border_bottom: Optional[LengthPercentage] = None,
-        align_items: Optional[AlignItems] = None,
-        align_self: Optional[AlignItems] = None,
-        justify_items: Optional[AlignItems] = None,
-        justify_self: Optional[AlignItems] = None,
-        align_content: Optional[AlignContent] = None,
-        justify_content: Optional[AlignContent] = None,
-        gap_width: Optional[LengthPercentage] = None,
-        gap_height: Optional[LengthPercentage] = None,
-        text_align: Optional[TextAlign] = None,
-        flex_direction: Optional[FlexDirection] = None,
-        flex_wrap: Optional[FlexWrap] = None,
-        flex_basis: Optional[Dimension] = None,
-        flex_grow: Optional[float] = None,
-        flex_shrink: Optional[float] = None,
-        grid_template_rows: Optional[list[GridTrack]] = None,
-        grid_template_columns: Optional[list[GridTrack]] = None,
-        grid_auto_rows: Optional[list[GridTrack]] = None,
-        grid_auto_columns: Optional[list[GridTrack]] = None,
-        grid_auto_flow: Optional[GridAutoFlow] = None,
-        grid_row: Optional[GridLine] = None,
-        grid_column: Optional[GridLine] = None,
+        display: Display | None = None,
+        box_sizing: BoxSizing | None = None,
+        overflow_x: Overflow | None = None,
+        overflow_y: Overflow | None = None,
+        scrollbar_width: float | None = None,
+        position: Position | None = None,
+        inset_left: LengthPercentageAuto | None = None,
+        inset_right: LengthPercentageAuto | None = None,
+        inset_top: LengthPercentageAuto | None = None,
+        inset_bottom: LengthPercentageAuto | None = None,
+        size_width: Dimension | None = None,
+        size_height: Dimension | None = None,
+        min_size_width: Dimension | None = None,
+        min_size_height: Dimension | None = None,
+        max_size_width: Dimension | None = None,
+        max_size_height: Dimension | None = None,
+        aspect_ratio: float | None = None,
+        margin_left: LengthPercentageAuto | None = None,
+        margin_right: LengthPercentageAuto | None = None,
+        margin_top: LengthPercentageAuto | None = None,
+        margin_bottom: LengthPercentageAuto | None = None,
+        padding_left: LengthPercentage | None = None,
+        padding_right: LengthPercentage | None = None,
+        padding_top: LengthPercentage | None = None,
+        padding_bottom: LengthPercentage | None = None,
+        border_left: LengthPercentage | None = None,
+        border_right: LengthPercentage | None = None,
+        border_top: LengthPercentage | None = None,
+        border_bottom: LengthPercentage | None = None,
+        align_items: AlignItems | None = None,
+        align_self: AlignItems | None = None,
+        justify_items: AlignItems | None = None,
+        justify_self: AlignItems | None = None,
+        align_content: AlignContent | None = None,
+        justify_content: AlignContent | None = None,
+        gap_width: LengthPercentage | None = None,
+        gap_height: LengthPercentage | None = None,
+        text_align: TextAlign | None = None,
+        flex_direction: FlexDirection | None = None,
+        flex_wrap: FlexWrap | None = None,
+        flex_basis: Dimension | None = None,
+        flex_grow: float | None = None,
+        flex_shrink: float | None = None,
+        grid_template_rows: list[GridTrack] | None = None,
+        grid_template_columns: list[GridTrack] | None = None,
+        grid_auto_rows: list[GridTrack] | None = None,
+        grid_auto_columns: list[GridTrack] | None = None,
+        grid_auto_flow: GridAutoFlow | None = None,
+        grid_row: GridLine | None = None,
+        grid_column: GridLine | None = None,
     ) -> None: ...
     def __repr__(self) -> str: ...
     def __or__(self, other: Style) -> Style: ...
@@ -511,7 +510,7 @@ class Style:
     @property
     def max_size_height(self) -> Dimension: ...
     @property
-    def aspect_ratio(self) -> Optional[float]: ...
+    def aspect_ratio(self) -> float | None: ...
     @property
     def margin_left(self) -> LengthPercentageAuto: ...
     @property
@@ -537,17 +536,17 @@ class Style:
     @property
     def border_bottom(self) -> LengthPercentage: ...
     @property
-    def align_items(self) -> Optional[AlignItems]: ...
+    def align_items(self) -> AlignItems | None: ...
     @property
-    def align_self(self) -> Optional[AlignItems]: ...
+    def align_self(self) -> AlignItems | None: ...
     @property
-    def justify_items(self) -> Optional[AlignItems]: ...
+    def justify_items(self) -> AlignItems | None: ...
     @property
-    def justify_self(self) -> Optional[AlignItems]: ...
+    def justify_self(self) -> AlignItems | None: ...
     @property
-    def align_content(self) -> Optional[AlignContent]: ...
+    def align_content(self) -> AlignContent | None: ...
     @property
-    def justify_content(self) -> Optional[AlignContent]: ...
+    def justify_content(self) -> AlignContent | None: ...
     @property
     def gap_width(self) -> LengthPercentage: ...
     @property
@@ -612,7 +611,7 @@ class TaffyTree:
         """Get all children of a node."""
     def child_count(self, parent: NodeId) -> int:
         """Get the number of children of a node."""
-    def parent(self, child: NodeId) -> Optional[NodeId]:
+    def parent(self, child: NodeId) -> NodeId | None:
         """Get the parent of a node, if any."""
     def total_node_count(self) -> int:
         """Get the total number of nodes in the tree."""
@@ -631,8 +630,8 @@ class TaffyTree:
     def compute_layout(
         self,
         node: NodeId,
-        available_width: Optional[AvailableSpace] = None,
-        available_height: Optional[AvailableSpace] = None,
+        available_width: AvailableSpace | None = None,
+        available_height: AvailableSpace | None = None,
     ) -> None:
         """Compute the layout of a tree rooted at the given node."""
     def layout(self, node: NodeId) -> Layout:
