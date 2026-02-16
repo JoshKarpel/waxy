@@ -7,7 +7,7 @@ use taffy::style::{
 };
 
 /// A track sizing function for grid layouts (minmax(min, max)).
-#[pyclass(unsendable, from_py_object, module = "waxy")]
+#[pyclass(unsendable, frozen, from_py_object, module = "waxy")]
 #[derive(Clone, Debug)]
 pub struct GridTrack {
     pub(crate) inner: TrackSizingFunction,
@@ -121,7 +121,7 @@ impl GridTrack {
 }
 
 /// Min track sizing function (for use with GridTrack.minmax).
-#[pyclass(unsendable, from_py_object, module = "waxy")]
+#[pyclass(unsendable, frozen, from_py_object, module = "waxy")]
 #[derive(Clone, Debug)]
 pub struct GridTrackMin {
     pub(crate) inner: MinTrackSizingFunction,
@@ -171,7 +171,7 @@ impl GridTrackMin {
 }
 
 /// Max track sizing function (for use with GridTrack.minmax).
-#[pyclass(unsendable, from_py_object, module = "waxy")]
+#[pyclass(unsendable, frozen, from_py_object, module = "waxy")]
 #[derive(Clone, Debug)]
 pub struct GridTrackMax {
     pub(crate) inner: MaxTrackSizingFunction,
@@ -245,7 +245,7 @@ impl GridTrackMax {
 }
 
 /// Grid placement for a child item.
-#[pyclass(unsendable, from_py_object, module = "waxy")]
+#[pyclass(unsendable, frozen, from_py_object, module = "waxy")]
 #[derive(Clone, Debug)]
 pub struct GridPlacement {
     pub(crate) inner: TaffyGridPlacement,
@@ -295,12 +295,12 @@ impl From<&GridPlacement> for TaffyGridPlacement {
 }
 
 /// A line with start and end grid placements.
-#[pyclass(unsendable, from_py_object, module = "waxy")]
+#[pyclass(unsendable, frozen, from_py_object, module = "waxy")]
 #[derive(Clone, Debug)]
 pub struct GridLine {
-    #[pyo3(get, set)]
+    #[pyo3(get)]
     pub start: GridPlacement,
-    #[pyo3(get, set)]
+    #[pyo3(get)]
     pub end: GridPlacement,
 }
 

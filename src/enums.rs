@@ -331,7 +331,7 @@ impl From<&TextAlign> for taffy::TextAlign {
 }
 
 /// Available space for layout.
-#[pyclass(unsendable, from_py_object, module = "waxy")]
+#[pyclass(unsendable, frozen, from_py_object, module = "waxy")]
 #[derive(Clone, Debug)]
 pub struct AvailableSpace {
     inner: taffy::AvailableSpace,

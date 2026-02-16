@@ -1,3 +1,5 @@
+from collections.abc import Callable
+
 import pytest
 
 import waxy
@@ -12,7 +14,7 @@ import waxy
     ],
     ids=["length", "percent", "auto"],
 )
-def test_dimension_is_auto(factory, is_auto: bool) -> None:  # type: ignore[no-untyped-def]
+def test_dimension_is_auto(factory: Callable[[], waxy.Dimension], is_auto: bool) -> None:
     assert factory().is_auto() == is_auto
 
 
@@ -26,7 +28,9 @@ def test_dimension_is_auto(factory, is_auto: bool) -> None:  # type: ignore[no-u
     ],
     ids=["length_eq", "length_ne", "auto_eq", "auto_ne_length"],
 )
-def test_dimension_eq(a, b, equal: bool) -> None:  # type: ignore[no-untyped-def]
+def test_dimension_eq(
+    a: Callable[[], waxy.Dimension], b: Callable[[], waxy.Dimension], equal: bool
+) -> None:
     assert (a() == b()) == equal
 
 
@@ -42,7 +46,7 @@ def test_dimension_repr() -> None:
     ],
     ids=["length", "percent"],
 )
-def test_length_percentage(factory, has_repr: bool) -> None:  # type: ignore[no-untyped-def]
+def test_length_percentage(factory: Callable[[], waxy.LengthPercentage], has_repr: bool) -> None:
     assert bool(repr(factory())) == has_repr
 
 
@@ -62,7 +66,11 @@ def test_length_percentage(factory, has_repr: bool) -> None:  # type: ignore[no-
     ],
     ids=["length_eq", "length_ne_percent"],
 )
-def test_length_percentage_eq(a, b, equal: bool) -> None:  # type: ignore[no-untyped-def]
+def test_length_percentage_eq(
+    a: Callable[[], waxy.LengthPercentage],
+    b: Callable[[], waxy.LengthPercentage],
+    equal: bool,
+) -> None:
     assert (a() == b()) == equal
 
 
@@ -74,7 +82,9 @@ def test_length_percentage_eq(a, b, equal: bool) -> None:  # type: ignore[no-unt
     ],
     ids=["auto", "length"],
 )
-def test_length_percentage_auto_is_auto(factory, is_auto: bool) -> None:  # type: ignore[no-untyped-def]
+def test_length_percentage_auto_is_auto(
+    factory: Callable[[], waxy.LengthPercentageAuto], is_auto: bool
+) -> None:
     assert factory().is_auto() == is_auto
 
 
@@ -90,7 +100,11 @@ def test_length_percentage_auto_is_auto(factory, is_auto: bool) -> None:  # type
     ],
     ids=["auto_eq", "length_eq"],
 )
-def test_length_percentage_auto_eq(a, b, equal: bool) -> None:  # type: ignore[no-untyped-def]
+def test_length_percentage_auto_eq(
+    a: Callable[[], waxy.LengthPercentageAuto],
+    b: Callable[[], waxy.LengthPercentageAuto],
+    equal: bool,
+) -> None:
     assert (a() == b()) == equal
 
 
@@ -103,7 +117,7 @@ def test_length_percentage_auto_eq(a, b, equal: bool) -> None:  # type: ignore[n
     ],
     ids=["auto", "length", "percent"],
 )
-def test_helpers_is_auto(factory, is_auto: bool) -> None:  # type: ignore[no-untyped-def]
+def test_helpers_is_auto(factory: Callable[[], waxy.Dimension], is_auto: bool) -> None:
     assert factory().is_auto() == is_auto
 
 

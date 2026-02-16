@@ -1,3 +1,4 @@
+from collections.abc import Iterator
 from typing import Optional
 
 # Exceptions
@@ -22,19 +23,17 @@ class InvalidInputNode(TaffyException):
 class Size:
     """A 2D size with width and height."""
 
-    width: float
-    height: float
     def __init__(self, width: float = 0.0, height: float = 0.0) -> None: ...
     def __repr__(self) -> str: ...
     def __eq__(self, other: object) -> bool: ...
+    @property
+    def width(self) -> float: ...
+    @property
+    def height(self) -> float: ...
 
 class Rect:
     """A rectangle with left, right, top, bottom edges."""
 
-    left: float
-    right: float
-    top: float
-    bottom: float
     def __init__(
         self,
         left: float = 0.0,
@@ -44,30 +43,74 @@ class Rect:
     ) -> None: ...
     def __repr__(self) -> str: ...
     def __eq__(self, other: object) -> bool: ...
+    def __iter__(self) -> Iterator[Point]: ...
+    def __len__(self) -> int: ...
+    @property
+    def left(self) -> float: ...
+    @property
+    def right(self) -> float: ...
+    @property
+    def top(self) -> float: ...
+    @property
+    def bottom(self) -> float: ...
+    def contains(self, point: Point) -> bool:
+        """Check if a point is inside this rectangle."""
+    @property
+    def top_left(self) -> Point:
+        """The top-left corner point."""
+    @property
+    def top_right(self) -> Point:
+        """The top-right corner point."""
+    @property
+    def bottom_right(self) -> Point:
+        """The bottom-right corner point."""
+    @property
+    def bottom_left(self) -> Point:
+        """The bottom-left corner point."""
+    def corners(self) -> tuple[Point, Point, Point, Point]:
+        """Return the four corner points (top-left, top-right, bottom-right, bottom-left)."""
+    def top_edge(self) -> Iterator[Point]:
+        """Iterate over integer pixel locations along the top edge."""
+    def bottom_edge(self) -> Iterator[Point]:
+        """Iterate over integer pixel locations along the bottom edge."""
+    def left_edge(self) -> Iterator[Point]:
+        """Iterate over integer pixel locations along the left edge."""
+    def right_edge(self) -> Iterator[Point]:
+        """Iterate over integer pixel locations along the right edge."""
 
 class Point:
     """A 2D point with x and y coordinates."""
 
-    x: float
-    y: float
     def __init__(self, x: float = 0.0, y: float = 0.0) -> None: ...
     def __repr__(self) -> str: ...
     def __eq__(self, other: object) -> bool: ...
+    def __add__(self, other: Point) -> Point: ...
+    def __sub__(self, other: Point) -> Point: ...
+    @property
+    def x(self) -> float: ...
+    @property
+    def y(self) -> float: ...
 
 class Line:
     """A line segment with start and end values."""
 
-    start: float
-    end: float
     def __init__(self, start: float = 0.0, end: float = 0.0) -> None: ...
     def __repr__(self) -> str: ...
     def __eq__(self, other: object) -> bool: ...
+    def __iter__(self) -> Iterator[float]: ...
+    def __len__(self) -> int: ...
+    @property
+    def start(self) -> float: ...
+    @property
+    def end(self) -> float: ...
 
 # Dimensions
 
 class Dimension:
     """A dimension value that can be a length, percentage, or auto."""
 
+    def __repr__(self) -> str: ...
+    def __eq__(self, other: object) -> bool: ...
     @staticmethod
     def length(value: float) -> Dimension:
         """Create a length dimension in pixels."""
@@ -78,24 +121,24 @@ class Dimension:
     def auto() -> Dimension:
         """Create an auto dimension."""
     def is_auto(self) -> bool: ...
-    def __repr__(self) -> str: ...
-    def __eq__(self, other: object) -> bool: ...
 
 class LengthPercentage:
     """A length or percentage value (no auto)."""
 
+    def __repr__(self) -> str: ...
+    def __eq__(self, other: object) -> bool: ...
     @staticmethod
     def length(value: float) -> LengthPercentage:
         """Create a length value in pixels."""
     @staticmethod
     def percent(value: float) -> LengthPercentage:
         """Create a percentage value (0.0 to 1.0)."""
-    def __repr__(self) -> str: ...
-    def __eq__(self, other: object) -> bool: ...
 
 class LengthPercentageAuto:
     """A length, percentage, or auto value."""
 
+    def __repr__(self) -> str: ...
+    def __eq__(self, other: object) -> bool: ...
     @staticmethod
     def length(value: float) -> LengthPercentageAuto:
         """Create a length value in pixels."""
@@ -106,8 +149,6 @@ class LengthPercentageAuto:
     def auto() -> LengthPercentageAuto:
         """Create an auto value."""
     def is_auto(self) -> bool: ...
-    def __repr__(self) -> str: ...
-    def __eq__(self, other: object) -> bool: ...
 
 # Enums
 
@@ -197,6 +238,7 @@ class TextAlign:
 class AvailableSpace:
     """Available space for layout."""
 
+    def __repr__(self) -> str: ...
     @staticmethod
     def definite(value: float) -> AvailableSpace:
         """Create a definite available space."""
@@ -207,13 +249,13 @@ class AvailableSpace:
     def max_content() -> AvailableSpace:
         """Create a max-content available space."""
     def is_definite(self) -> bool: ...
-    def __repr__(self) -> str: ...
 
 # Grid types
 
 class GridTrack:
     """A track sizing function for grid layouts (minmax(min, max))."""
 
+    def __repr__(self) -> str: ...
     @staticmethod
     def length(value: float) -> GridTrack:
         """Create a fixed-size track from a length in pixels."""
@@ -241,7 +283,6 @@ class GridTrack:
     @staticmethod
     def fit_content_percent(limit: float) -> GridTrack:
         """Create a fit-content track with a percentage limit."""
-    def __repr__(self) -> str: ...
 
 class GridTrackMin:
     """Min track sizing function (for use with GridTrack.minmax)."""
@@ -293,6 +334,7 @@ class GridTrackMax:
 class GridPlacement:
     """Grid placement for a child item."""
 
+    def __repr__(self) -> str: ...
     @staticmethod
     def auto() -> GridPlacement:
         """Auto placement."""
@@ -302,19 +344,20 @@ class GridPlacement:
     @staticmethod
     def span(count: int) -> GridPlacement:
         """Span a number of tracks."""
-    def __repr__(self) -> str: ...
 
 class GridLine:
     """A line with start and end grid placements."""
 
-    start: GridPlacement
-    end: GridPlacement
     def __init__(
         self,
         start: Optional[GridPlacement] = None,
         end: Optional[GridPlacement] = None,
     ) -> None: ...
     def __repr__(self) -> str: ...
+    @property
+    def start(self) -> GridPlacement: ...
+    @property
+    def end(self) -> GridPlacement: ...
 
 # Node
 
@@ -330,6 +373,7 @@ class NodeId:
 class Layout:
     """The computed layout of a node."""
 
+    def __repr__(self) -> str: ...
     @property
     def order(self) -> int: ...
     @property
@@ -350,7 +394,6 @@ class Layout:
         """Width of the content box (size minus padding and border)."""
     def content_box_height(self) -> float:
         """Height of the content box (size minus padding and border)."""
-    def __repr__(self) -> str: ...
 
 # Style
 
@@ -411,60 +454,108 @@ class Style:
         grid_row: Optional[GridLine] = None,
         grid_column: Optional[GridLine] = None,
     ) -> None: ...
-
-    # Properties
-    display: Display
-    box_sizing: BoxSizing
-    overflow_x: Overflow
-    overflow_y: Overflow
-    scrollbar_width: float
-    position: Position
-    inset_left: LengthPercentageAuto
-    inset_right: LengthPercentageAuto
-    inset_top: LengthPercentageAuto
-    inset_bottom: LengthPercentageAuto
-    size_width: Dimension
-    size_height: Dimension
-    min_size_width: Dimension
-    min_size_height: Dimension
-    max_size_width: Dimension
-    max_size_height: Dimension
-    aspect_ratio: Optional[float]
-    margin_left: LengthPercentageAuto
-    margin_right: LengthPercentageAuto
-    margin_top: LengthPercentageAuto
-    margin_bottom: LengthPercentageAuto
-    padding_left: LengthPercentage
-    padding_right: LengthPercentage
-    padding_top: LengthPercentage
-    padding_bottom: LengthPercentage
-    border_left: LengthPercentage
-    border_right: LengthPercentage
-    border_top: LengthPercentage
-    border_bottom: LengthPercentage
-    align_items: Optional[AlignItems]
-    align_self: Optional[AlignItems]
-    justify_items: Optional[AlignItems]
-    justify_self: Optional[AlignItems]
-    align_content: Optional[AlignContent]
-    justify_content: Optional[AlignContent]
-    gap_width: LengthPercentage
-    gap_height: LengthPercentage
-    text_align: TextAlign
-    flex_direction: FlexDirection
-    flex_wrap: FlexWrap
-    flex_basis: Dimension
-    flex_grow: float
-    flex_shrink: float
-    grid_template_rows: list[GridTrack]
-    grid_template_columns: list[GridTrack]
-    grid_auto_rows: list[GridTrack]
-    grid_auto_columns: list[GridTrack]
-    grid_auto_flow: GridAutoFlow
-    grid_row: GridLine
-    grid_column: GridLine
-
     def __repr__(self) -> str: ...
+    # Properties (read-only)
+    @property
+    def display(self) -> Display: ...
+    @property
+    def box_sizing(self) -> BoxSizing: ...
+    @property
+    def overflow_x(self) -> Overflow: ...
+    @property
+    def overflow_y(self) -> Overflow: ...
+    @property
+    def scrollbar_width(self) -> float: ...
+    @property
+    def position(self) -> Position: ...
+    @property
+    def inset_left(self) -> LengthPercentageAuto: ...
+    @property
+    def inset_right(self) -> LengthPercentageAuto: ...
+    @property
+    def inset_top(self) -> LengthPercentageAuto: ...
+    @property
+    def inset_bottom(self) -> LengthPercentageAuto: ...
+    @property
+    def size_width(self) -> Dimension: ...
+    @property
+    def size_height(self) -> Dimension: ...
+    @property
+    def min_size_width(self) -> Dimension: ...
+    @property
+    def min_size_height(self) -> Dimension: ...
+    @property
+    def max_size_width(self) -> Dimension: ...
+    @property
+    def max_size_height(self) -> Dimension: ...
+    @property
+    def aspect_ratio(self) -> Optional[float]: ...
+    @property
+    def margin_left(self) -> LengthPercentageAuto: ...
+    @property
+    def margin_right(self) -> LengthPercentageAuto: ...
+    @property
+    def margin_top(self) -> LengthPercentageAuto: ...
+    @property
+    def margin_bottom(self) -> LengthPercentageAuto: ...
+    @property
+    def padding_left(self) -> LengthPercentage: ...
+    @property
+    def padding_right(self) -> LengthPercentage: ...
+    @property
+    def padding_top(self) -> LengthPercentage: ...
+    @property
+    def padding_bottom(self) -> LengthPercentage: ...
+    @property
+    def border_left(self) -> LengthPercentage: ...
+    @property
+    def border_right(self) -> LengthPercentage: ...
+    @property
+    def border_top(self) -> LengthPercentage: ...
+    @property
+    def border_bottom(self) -> LengthPercentage: ...
+    @property
+    def align_items(self) -> Optional[AlignItems]: ...
+    @property
+    def align_self(self) -> Optional[AlignItems]: ...
+    @property
+    def justify_items(self) -> Optional[AlignItems]: ...
+    @property
+    def justify_self(self) -> Optional[AlignItems]: ...
+    @property
+    def align_content(self) -> Optional[AlignContent]: ...
+    @property
+    def justify_content(self) -> Optional[AlignContent]: ...
+    @property
+    def gap_width(self) -> LengthPercentage: ...
+    @property
+    def gap_height(self) -> LengthPercentage: ...
+    @property
+    def text_align(self) -> TextAlign: ...
+    @property
+    def flex_direction(self) -> FlexDirection: ...
+    @property
+    def flex_wrap(self) -> FlexWrap: ...
+    @property
+    def flex_basis(self) -> Dimension: ...
+    @property
+    def flex_grow(self) -> float: ...
+    @property
+    def flex_shrink(self) -> float: ...
+    @property
+    def grid_template_rows(self) -> list[GridTrack]: ...
+    @property
+    def grid_template_columns(self) -> list[GridTrack]: ...
+    @property
+    def grid_auto_rows(self) -> list[GridTrack]: ...
+    @property
+    def grid_auto_columns(self) -> list[GridTrack]: ...
+    @property
+    def grid_auto_flow(self) -> GridAutoFlow: ...
+    @property
+    def grid_row(self) -> GridLine: ...
+    @property
+    def grid_column(self) -> GridLine: ...
 
 # Tree
 
@@ -473,6 +564,7 @@ class TaffyTree:
 
     def __init__(self) -> None:
         """Create a new empty layout tree."""
+    def __repr__(self) -> str: ...
     @staticmethod
     def with_capacity(capacity: int) -> TaffyTree:
         """Create a new layout tree with pre-allocated capacity."""
@@ -531,7 +623,6 @@ class TaffyTree:
         """Disable rounding of layout values."""
     def print_tree(self, root: NodeId) -> None:
         """Print the layout tree for debugging."""
-    def __repr__(self) -> str: ...
 
 # Helper functions
 

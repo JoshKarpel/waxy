@@ -1,3 +1,5 @@
+from collections.abc import Callable
+
 import pytest
 
 import waxy
@@ -41,7 +43,7 @@ def test_enum_variants(enum_class: type, variants: list[str]) -> None:
     ],
     ids=["definite", "min_content", "max_content"],
 )
-def test_available_space(factory, is_definite: bool) -> None:  # type: ignore[no-untyped-def]
+def test_available_space(factory: Callable[[], waxy.AvailableSpace], is_definite: bool) -> None:
     assert factory().is_definite() == is_definite
 
 

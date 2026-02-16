@@ -1,3 +1,5 @@
+import pytest
+
 import waxy
 
 
@@ -14,10 +16,10 @@ def test_style_display() -> None:
     assert s.display == waxy.Display.Grid
 
 
-def test_style_set_display() -> None:
+def test_style_immutable() -> None:
     s = waxy.Style()
-    s.display = waxy.Display.Block
-    assert s.display == waxy.Display.Block
+    with pytest.raises(AttributeError):
+        setattr(s, "display", waxy.Display.Block)
 
 
 def test_style_flex_properties() -> None:
