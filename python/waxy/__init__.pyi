@@ -664,10 +664,9 @@ class TaffyTree[NodeContext = object]:
     def compute_layout(
         self,
         node: NodeId,
-        *,
+        available_space: AvailableDimensions | None = None,
         measure: Callable[[KnownDimensions, AvailableDimensions, NodeId, NodeContext, Style], Size]
         | None = None,
-        available_space: AvailableDimensions | None = None,
     ) -> None:
         """Compute the layout of a tree rooted at the given node."""
     def layout(self, node: NodeId) -> Layout:

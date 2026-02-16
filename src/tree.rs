@@ -197,13 +197,13 @@ impl TaffyTree {
     }
 
     /// Compute the layout of a tree rooted at the given node.
-    #[pyo3(signature = (node, *, measure=None, available_space=None))]
+    #[pyo3(signature = (node, available_space=None, measure=None))]
     fn compute_layout(
         &mut self,
         py: Python<'_>,
         node: &NodeId,
-        measure: Option<Py<PyAny>>,
         available_space: Option<&AvailableDimensions>,
+        measure: Option<Py<PyAny>>,
     ) -> PyResult<()> {
         let avail: taffy::Size<taffy::AvailableSpace> =
             available_space.map(|a| a.into()).unwrap_or(taffy::Size {
