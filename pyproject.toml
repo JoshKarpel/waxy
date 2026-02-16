@@ -4,10 +4,27 @@ build-backend = "maturin"
 
 [project]
 name = "waxy"
-version = "0.1.0"
+version = "0.2.0"
 description = "A Python wrapper around the Rust taffy UI layout library"
 requires-python = ">=3.13"
 license = "MIT"
+readme = "README.md"
+authors = [{ name = "Josh Karpel", email = "josh.karpel@gmail.com" }]
+keywords = ["layout", "taffy", "ui"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Programming Language :: Rust",
+    "Typing :: Typed",
+]
+
+[project.urls]
+Homepage = "https://joshkarpel.github.io/waxy"
+Repository = "https://github.com/JoshKarpel/waxy"
+Issues = "https://github.com/JoshKarpel/waxy/issues"
 
 [tool.maturin]
 features = ["pyo3/extension-module"]
