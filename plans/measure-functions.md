@@ -259,8 +259,8 @@ Test cases:
 - `compute_layout` with a simple fixed-size measure function
 - `compute_layout` with a text-like measure function that responds to available width
 - Measure function receives correct `known_dimensions` when style has explicit size
-- Measure function is NOT called when both dimensions are already known — use `pytest-mock` to wrap the measure function and assert it was not called for those nodes (install via `uv add --dev pytest-mock`)
-- Measure function is NOT called for nodes without context — same `pytest-mock` approach: assert the mock was not called for context-less leaf nodes, and verify they get zero size
+- Measure function is NOT called when both dimensions are already known — use a call counter to assert it was not called for those nodes
+- Measure function is NOT called for nodes without context — same call-counter approach: assert the function was not called for context-less leaf nodes, and verify they get zero size
 - Error handling: measure function raises an exception → propagated to caller
 
 ## Usage Examples
