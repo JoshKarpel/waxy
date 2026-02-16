@@ -488,6 +488,14 @@ impl KnownDimensions {
         self.width == other.width && self.height == other.height
     }
 
+    fn __hash__(&self) -> u64 {
+        use std::hash::{Hash, Hasher};
+        let mut hasher = std::collections::hash_map::DefaultHasher::new();
+        self.width.map(|v| v.to_bits()).hash(&mut hasher);
+        self.height.map(|v| v.to_bits()).hash(&mut hasher);
+        hasher.finish()
+    }
+
     fn __iter__(&self) -> KnownDimensionsIter {
         KnownDimensionsIter {
             width: self.width,
@@ -577,6 +585,29 @@ impl AvailableDimensions {
 
     fn __eq__(&self, other: &AvailableDimensions) -> bool {
         self.width == other.width && self.height == other.height
+    }
+
+    fn __hash__(&self) -> u64 {
+        use std::hash::{Hash, Hasher};
+        let mut hasher = std::collections::hash_map::DefaultHasher::new();
+        // Hash the discriminant and value for each dimension
+        match self.width {
+            taffy::AvailableSpace::Definite(v) => {
+                0u8.hash(&mut hasher);
+                v.to_bits().hash(&mut hasher);
+            }
+            taffy::AvailableSpace::MinContent => 1u8.hash(&mut hasher),
+            taffy::AvailableSpace::MaxContent => 2u8.hash(&mut hasher),
+        }
+        match self.height {
+            taffy::AvailableSpace::Definite(v) => {
+                0u8.hash(&mut hasher);
+                v.to_bits().hash(&mut hasher);
+            }
+            taffy::AvailableSpace::MinContent => 1u8.hash(&mut hasher),
+            taffy::AvailableSpace::MaxContent => 2u8.hash(&mut hasher),
+        }
+        hasher.finish()
     }
 
     fn __iter__(&self) -> AvailableDimensionsIter {

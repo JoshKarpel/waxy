@@ -224,9 +224,9 @@ impl TaffyTree {
                     avail,
                     |known_dimensions,
                      available_space,
-                     node_id,
+                     _node_id,
                      node_context: Option<&mut Py<PyAny>>,
-                     style| {
+                     _style| {
                         // If we already have a Python error, short-circuit.
                         if py_err.is_some() {
                             return taffy::Size::ZERO;
@@ -252,27 +252,20 @@ impl TaffyTree {
                         // Convert to Python types and call the measure function.
                         let py_known = KnownDimensions::from(known_dimensions);
                         let py_avail = AvailableDimensions::from(available_space);
-                        let py_node = NodeId::from(node_id);
-                        let py_style = Style::from(style);
 
-                        let call_result = measure_fn.call1(
-                            py,
-                            (py_known, py_avail, py_node, context.clone_ref(py), py_style),
-                        );
+                        let call_result =
+                            measure_fn.call1(py, (py_known, py_avail, context.clone_ref(py)));
 
                         match call_result {
                             Err(e) => {
                                 py_err = Some(e);
                                 taffy::Size::ZERO
                             }
-                            Ok(result) => match result.cast_bound::<crate::geometry::Size>(py) {
-                                Ok(size) => {
-                                    let s = size.get();
-                                    taffy::Size {
-                                        width: s.width,
-                                        height: s.height,
-                                    }
-                                }
+                            Ok(result) => match result.extract::<crate::geometry::Size>(py) {
+                                Ok(size) => taffy::Size {
+                                    width: size.width,
+                                    height: size.height,
+                                },
                                 Err(e) => {
                                     py_err = Some(e.into());
                                     taffy::Size::ZERO

@@ -16,9 +16,9 @@ A measure function lets you say: "this leaf contains text/an image/a widget — 
 
 - **known_dimensions**: `Size<Option<f32>>` — if the layout algorithm already determined width or height (e.g., from an explicit style), those values are `Some`. The measure function should respect these.
 - **available_space**: `Size<AvailableSpace>` — how much space the parent is offering (definite px, min-content, or max-content)
-- **node_id**: which node is being measured
+- **node_id**: which node is being measured (taffy passes this internally, but waxy does not forward it — the context already identifies the node, and the tree is mutably borrowed during layout so you can't call back into it with the id anyway)
 - **node_context**: the `Option<&mut NodeContext>` attached to this node (the user's custom data)
-- **style**: the node's style
+- **style**: the node's style (taffy passes this internally, but waxy does not forward it — never needed in practice)
 
 The function returns a `Size<f32>` — the measured (width, height).
 
@@ -174,7 +174,7 @@ When `measure` is `None`, this calls `taffy::TaffyTree::compute_layout` (the exi
 
 The closure signature adapting taffy → Python:
 ```rust
-|known_dimensions, available_space, node_id, node_context, style| {
+|known_dimensions, available_space, node_id, node_context, _style| {
     // If both dimensions are already known, return them directly — the caller
     // (compute_leaf_layout) would ignore our return value anyway, so skip the
     // Python call entirely as an optimization.
@@ -186,6 +186,7 @@ The closure signature adapting taffy → Python:
         return Ok(taffy::Size::ZERO);
     };
     // Convert to Python types and call the Python function
+    // Note: style is not forwarded to Python — it's never needed in practice
 }
 ```
 
@@ -215,9 +216,7 @@ The Rust wrapper applies two short-circuits before calling the user's Python mea
 def my_measure(
     known_dimensions: KnownDimensions,
     available_space: AvailableDimensions,
-    id: NodeId,
     context: T,  # always present — never None
-    style: Style,
 ) -> Size:
     ...
 ```
@@ -240,7 +239,7 @@ class TaffyTree[T]:
         self,
         node: NodeId,
         available_space: AvailableDimensions | None = None,
-        measure: Callable[[KnownDimensions, AvailableDimensions, NodeId, T, Style], Size] | None = None,
+        measure: Callable[[KnownDimensions, AvailableDimensions, T], Size] | None = None,
     ) -> None: ...
     # ... all existing methods unchanged ...
 ```
@@ -286,7 +285,7 @@ root = tree.new_with_children(
 # Define how to measure leaf nodes
 # `context` is always present — nodes without context get Size(0, 0) automatically
 # Both-known case is handled by the Rust wrapper, so we don't need to check for it
-def measure(known_dimensions, available_space, id, context, style):
+def measure(known_dimensions, available_space, context):
     kw, kh = known_dimensions
 
     if context["type"] == "image":
@@ -340,7 +339,7 @@ root = tree.new_with_children(
 CHAR_WIDTH = 8.0
 CHAR_HEIGHT = 16.0
 
-def measure(known_dimensions, available_space, id, context, style):
+def measure(known_dimensions, available_space, context):
     kw, kh = known_dimensions
 
     if context["type"] != "text":
@@ -387,7 +386,7 @@ root = tree.new_with_children(
     [heading, body, avatar],
 )
 
-def measure(known_dimensions, available_space, id, ctx, style):
+def measure(known_dimensions, available_space, ctx):
     kw, kh = known_dimensions
     if ctx["type"] == "image":
         return Size(ctx["width"], ctx["height"])
@@ -419,7 +418,7 @@ root = tree.new_with_children(
     [text_node],
 )
 
-def measure(known_dimensions, available_space, id, context, style):
+def measure(known_dimensions, available_space, context):
     kw, _ = known_dimensions
     w = kw if kw is not None else len(context["content"]) * 8.0
     return Size(w, 16.0)

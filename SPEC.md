@@ -30,6 +30,10 @@ Pin to taffy **0.9.x**. Track patch releases but don't automatically upgrade maj
 
 All layout modes supported by taffy are in scope: flexbox, CSS grid, block layout, and others.
 
+Custom measure functions are supported for computing intrinsic sizes of leaf nodes (text, images, etc.).
+Arbitrary Python objects can be attached to nodes as context, and a user-provided measure function
+is called during layout to determine the size of leaf nodes that have context attached.
+
 ## Python Version
 
 Minimum supported Python version: **3.13+**

@@ -172,9 +172,7 @@ def test_compute_layout_with_fixed_measure() -> None:
     def measure(
         known_dimensions: waxy.KnownDimensions,
         available_space: waxy.AvailableDimensions,
-        node_id: waxy.NodeId,
         context: FixedContent,
-        style: waxy.Style,
     ) -> waxy.Size:
         return waxy.Size(context.width, context.height)
 
@@ -202,9 +200,7 @@ def test_compute_layout_text_wrapping() -> None:
     def measure(
         known_dimensions: waxy.KnownDimensions,
         available_space: waxy.AvailableDimensions,
-        node_id: waxy.NodeId,
         context: TextContent,
-        style: waxy.Style,
     ) -> waxy.Size:
         kw, _ = known_dimensions
         avail_w, _ = available_space
@@ -244,9 +240,7 @@ def test_measure_receives_known_dimensions_from_style() -> None:
     def measure(
         known_dimensions: waxy.KnownDimensions,
         available_space: waxy.AvailableDimensions,
-        node_id: waxy.NodeId,
         context: str,
-        style: waxy.Style,
     ) -> waxy.Size:
         received_kd.append(known_dimensions)
         kw, kh = known_dimensions
@@ -274,16 +268,17 @@ def test_measure_not_called_for_nodes_without_context() -> None:
         [node_with_ctx, node_without_ctx],
     )
 
-    mock_measure = MagicMock(
-        side_effect=lambda kd, avail, nid, ctx, style: waxy.Size(ctx.width, ctx.height)
-    )
+    mock_measure = MagicMock(side_effect=lambda kd, avail, ctx: waxy.Size(ctx.width, ctx.height))
 
     tree.compute_layout(root, measure=mock_measure)
 
+    # The measure function should have been called at least once
+    assert mock_measure.call_count >= 1
+
     # The measure function should only have been called for node_with_ctx
     for call in mock_measure.call_args_list:
-        # 4th arg (index 3) is context — should never be None
-        assert call[0][3] is not None
+        # 3rd arg (index 2) is context — should never be None
+        assert call[0][2] is not None
 
     # node_without_ctx should get zero intrinsic width (height may stretch from flex)
     layout = tree.layout(node_without_ctx)
@@ -298,9 +293,7 @@ def test_measure_error_propagation() -> None:
     def bad_measure(
         known_dimensions: waxy.KnownDimensions,
         available_space: waxy.AvailableDimensions,
-        node_id: waxy.NodeId,
         context: str,
-        style: waxy.Style,
     ) -> waxy.Size:
         msg = "measure failed!"
         raise ValueError(msg)
@@ -324,9 +317,7 @@ def test_compute_layout_with_available_space_param() -> None:
     def measure(
         known_dimensions: waxy.KnownDimensions,
         available_space: waxy.AvailableDimensions,
-        node_id: waxy.NodeId,
         context: TextContent,
-        style: waxy.Style,
     ) -> waxy.Size:
         kw, _ = known_dimensions
         w = kw if kw is not None else len(context.text) * 8.0
@@ -357,9 +348,7 @@ def test_measure_with_max_content_available_space() -> None:
     def measure(
         known_dimensions: waxy.KnownDimensions,
         available_space: waxy.AvailableDimensions,
-        node_id: waxy.NodeId,
         context: TextContent,
-        style: waxy.Style,
     ) -> waxy.Size:
         kw, _ = known_dimensions
         avail_w, _ = available_space
@@ -396,9 +385,7 @@ def test_measure_with_min_content_available_space() -> None:
     def measure(
         known_dimensions: waxy.KnownDimensions,
         available_space: waxy.AvailableDimensions,
-        node_id: waxy.NodeId,
         context: TextContent,
-        style: waxy.Style,
     ) -> waxy.Size:
         kw, _ = known_dimensions
         avail_w, _ = available_space
