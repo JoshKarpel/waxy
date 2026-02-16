@@ -134,11 +134,13 @@ Instead of adding a separate `compute_layout_with_measure` method, we add an opt
 fn compute_layout(
     &mut self,
     py: Python<'_>,
-    node: &NodeId,
+    node: &NodeId,  // root of the subtree to lay out (usually the tree root)
     measure: Option<PyObject>,         // a Python callable, or None
     available_space: Option<&AvailableDimensions>,  // defaults to MaxContent × MaxContent
 ) -> PyResult<()>
 ```
+
+`node` is the root of the subtree to compute layout for. Taffy walks the subtree recursively, laying out all descendants. In most cases this is the tree's root node, but it can be any node if you only need to re-layout a subtree.
 
 This is a breaking change to the existing `compute_layout` signature (the old `available_width`/`available_height` kwargs are removed), but since we're already changing the method to add `measure`, this is the right time to clean it up. The old two-parameter form was just an unpacked `Size<AvailableSpace>` — now that we have `AvailableDimensions` as a proper type, we should use it. `None` defaults to `AvailableDimensions(AvailableSpace.max_content(), AvailableSpace.max_content())` (unconstrained layout, the existing default).
 
