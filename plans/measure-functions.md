@@ -151,13 +151,13 @@ fn get_node_context(&self, node: &NodeId) -> Option<PyObject>
 Instead of adding a separate `compute_layout_with_measure` method, we add an optional `measure` keyword argument to the existing `compute_layout`. We also replace the two separate `available_width`/`available_height` parameters with a single `available_space: AvailableDimensions` parameter, since that's exactly what it represents.
 
 ```rust
-#[pyo3(signature = (node, *, measure=None, available_space=None))]
+#[pyo3(signature = (node, available_space=None, measure=None))]
 fn compute_layout(
     &mut self,
     py: Python<'_>,
     node: &NodeId,  // root of the subtree to lay out (usually the tree root)
-    measure: Option<PyObject>,         // a Python callable, or None
     available_space: Option<&AvailableDimensions>,  // defaults to MaxContent × MaxContent
+    measure: Option<PyObject>,         // a Python callable, or None
 ) -> PyResult<()>
 ```
 
@@ -239,9 +239,8 @@ class TaffyTree[T]:
     def compute_layout(
         self,
         node: NodeId,
-        *,
-        measure: Callable[[KnownDimensions, AvailableDimensions, NodeId, T, Style], Size] | None = None,
         available_space: AvailableDimensions | None = None,
+        measure: Callable[[KnownDimensions, AvailableDimensions, NodeId, T, Style], Size] | None = None,
     ) -> None: ...
     # ... all existing methods unchanged ...
 ```
