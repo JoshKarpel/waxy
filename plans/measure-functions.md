@@ -123,7 +123,8 @@ fn set_node_context(&mut self, node: &NodeId, context: Option<PyObject>) -> PyRe
 fn get_node_context(&self, node: &NodeId) -> Option<PyObject>
 ```
 
-`get_node_context` clones the `PyObject` (which is just an `Arc<PyObject>` ref-count bump under the hood).
+`set_node_context` should wrap `taffy::TaffyTree::set_node_context`, which automatically marks the node as dirty so it will be re-laid out.
+`get_node_context` clones the `PyObject` (which increments Python's reference count and is a cheap operation).
 
 ### Step 5: Add `measure` parameter to `compute_layout`
 
@@ -303,7 +304,7 @@ print(layout.size)  # Size(width=200.0, height=150.0) — scaled to fit 200px wi
 ```python
 import textwrap
 
-from waxy import TaffyTree, Style, Size, Display, FlexDirection, length, AvailableSpace
+from waxy import TaffyTree, Style, Size, Display, length
 
 tree: TaffyTree[dict] = TaffyTree()
 
