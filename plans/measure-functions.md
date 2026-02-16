@@ -139,14 +139,21 @@ fn compute_layout_with_measure(
 ```
 
 This calls `taffy::TaffyTree::compute_layout_with_measure` with a Rust closure that:
-1. Checks if `node_context` is `None` — if so, returns `Size::ZERO` immediately (no Python call)
-2. Converts the taffy arguments to waxy Python types (`KnownDimensions`, `AvailableDimensions`, etc.)
-3. Calls the Python `measure` callable
-4. Converts the returned `Size` back to `taffy::Size<f32>`
+1. Checks if both `known_dimensions` are `Some` — if so, returns them immediately (no Python call needed; see "Both-Known Short-Circuit" below)
+2. Checks if `node_context` is `None` — if so, returns `Size::ZERO` immediately (no Python call)
+3. Converts the taffy arguments to waxy Python types (`KnownDimensions`, `AvailableDimensions`, etc.)
+4. Calls the Python `measure` callable
+5. Converts the returned `Size` back to `taffy::Size<f32>`
 
 The closure signature adapting taffy → Python:
 ```rust
 |known_dimensions, available_space, node_id, node_context, style| {
+    // If both dimensions are already known, return them directly — the caller
+    // (compute_leaf_layout) would ignore our return value anyway, so skip the
+    // Python call entirely as an optimization.
+    if let Size { width: Some(w), height: Some(h) } = known_dimensions {
+        return Ok(taffy::Size { width: w, height: h });
+    }
     // If no context, return zero — don't bother calling Python
     let Some(context) = node_context else {
         return Ok(taffy::Size::ZERO);
@@ -154,6 +161,10 @@ The closure signature adapting taffy → Python:
     // Convert to Python types and call the Python function
 }
 ```
+
+#### Both-Known Short-Circuit
+
+Taffy's `compute_leaf_layout` (in `src/compute/leaf.rs`) already short-circuits before calling the measure function when both dimensions are known during `ComputeSize` mode (lines 92–108). During `PerformLayout` mode, it passes `Size::NONE` (both `None`), so both-known never happens there either. Even in the rare edge case where both are `Some` (block nodes that can collapse through margins), `compute_leaf_layout` ignores the measure result via `known_dimensions.or(node_size).unwrap_or(measured_size)`. So this check is purely defensive — it avoids a Python call that would be wasted.
 
 **Measure function signature** (from the user's perspective):
 
@@ -210,6 +221,7 @@ Test cases:
 - `compute_layout_with_measure` with a simple fixed-size measure function
 - `compute_layout_with_measure` with a text-like measure function that responds to available width
 - Measure function receives correct `known_dimensions` when style has explicit size
+- Measure function is NOT called when both dimensions are already known (Rust wrapper short-circuits)
 - Measure function is NOT called for nodes without context (they get zero size automatically)
 - Error handling: measure function raises an exception → propagated to caller
 
@@ -236,10 +248,9 @@ root = tree.new_with_children(
 
 # Define how to measure leaf nodes
 # `context` is always present — nodes without context get Size(0, 0) automatically
+# Both-known case is handled by the Rust wrapper, so we don't need to check for it
 def measure(known_dimensions, available_space, node_id, context, style):
     kw, kh = known_dimensions
-    if kw is not None and kh is not None:
-        return Size(kw, kh)
 
     if context["type"] == "image":
         w = context["intrinsic_width"]
@@ -282,8 +293,6 @@ CHAR_HEIGHT = 16.0
 
 def measure(known_dimensions, available_space, node_id, context, style):
     kw, kh = known_dimensions
-    if kw is not None and kh is not None:
-        return Size(kw, kh)
 
     if context["type"] != "text":
         return Size(0, 0)
@@ -331,8 +340,6 @@ root = tree.new_with_children(
 
 def measure(known_dimensions, available_space, node_id, ctx, style):
     kw, kh = known_dimensions
-    if kw is not None and kh is not None:
-        return Size(kw, kh)
     if ctx["type"] == "image":
         return Size(ctx["width"], ctx["height"])
     if ctx["type"] == "text":
