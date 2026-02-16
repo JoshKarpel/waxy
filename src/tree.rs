@@ -2,8 +2,8 @@ use pyo3::prelude::*;
 use taffy::prelude as tp;
 use taffy::TraversePartialTree;
 
-use crate::enums::AvailableSpace;
 use crate::errors::taffy_error_to_py;
+use crate::geometry::{AvailableDimensions, KnownDimensions};
 use crate::layout::Layout;
 use crate::node::NodeId;
 use crate::style::Style;
@@ -11,7 +11,7 @@ use crate::style::Style;
 /// A tree of layout nodes.
 #[pyclass(unsendable, module = "waxy")]
 pub struct TaffyTree {
-    inner: tp::TaffyTree,
+    inner: tp::TaffyTree<Py<PyAny>>,
 }
 
 #[pymethods]
@@ -37,6 +37,28 @@ impl TaffyTree {
         self.inner
             .new_leaf(style.to_taffy())
             .map(NodeId::from)
+            .map_err(taffy_error_to_py)
+    }
+
+    /// Create a new leaf node with the given style and context.
+    fn new_leaf_with_context(&mut self, style: &Style, context: Py<PyAny>) -> PyResult<NodeId> {
+        self.inner
+            .new_leaf_with_context(style.to_taffy(), context)
+            .map(NodeId::from)
+            .map_err(taffy_error_to_py)
+    }
+
+    /// Get the context attached to a node, if any.
+    fn get_node_context(&self, py: Python<'_>, node: &NodeId) -> Option<Py<PyAny>> {
+        self.inner
+            .get_node_context(node.inner)
+            .map(|ctx| ctx.clone_ref(py))
+    }
+
+    /// Set or clear the context attached to a node.
+    fn set_node_context(&mut self, node: &NodeId, context: Option<Py<PyAny>>) -> PyResult<()> {
+        self.inner
+            .set_node_context(node.inner, context)
             .map_err(taffy_error_to_py)
     }
 
@@ -117,7 +139,7 @@ impl TaffyTree {
     fn children(&self, parent: &NodeId) -> PyResult<Vec<NodeId>> {
         self.inner
             .children(parent.inner)
-            .map(|ids| ids.into_iter().map(NodeId::from).collect())
+            .map(|ids: Vec<taffy::NodeId>| ids.into_iter().map(NodeId::from).collect())
             .map_err(taffy_error_to_py)
     }
 
@@ -175,23 +197,98 @@ impl TaffyTree {
     }
 
     /// Compute the layout of a tree rooted at the given node.
-    #[pyo3(signature = (node, available_width=None, available_height=None))]
+    #[pyo3(signature = (node, *, measure=None, available_space=None))]
     fn compute_layout(
         &mut self,
+        py: Python<'_>,
         node: &NodeId,
-        available_width: Option<&AvailableSpace>,
-        available_height: Option<&AvailableSpace>,
+        measure: Option<Py<PyAny>>,
+        available_space: Option<&AvailableDimensions>,
     ) -> PyResult<()> {
-        let width: taffy::AvailableSpace = available_width
-            .map(|a| a.into())
-            .unwrap_or(taffy::AvailableSpace::MaxContent);
-        let height: taffy::AvailableSpace = available_height
-            .map(|a| a.into())
-            .unwrap_or(taffy::AvailableSpace::MaxContent);
+        let avail: taffy::Size<taffy::AvailableSpace> =
+            available_space.map(|a| a.into()).unwrap_or(taffy::Size {
+                width: taffy::AvailableSpace::MaxContent,
+                height: taffy::AvailableSpace::MaxContent,
+            });
 
-        self.inner
-            .compute_layout(node.inner, taffy::Size { width, height })
-            .map_err(taffy_error_to_py)
+        match measure {
+            None => self
+                .inner
+                .compute_layout(node.inner, avail)
+                .map_err(taffy_error_to_py),
+            Some(measure_fn) => {
+                let mut py_err: Option<PyErr> = None;
+
+                let result = self.inner.compute_layout_with_measure(
+                    node.inner,
+                    avail,
+                    |known_dimensions,
+                     available_space,
+                     node_id,
+                     node_context: Option<&mut Py<PyAny>>,
+                     style| {
+                        // If we already have a Python error, short-circuit.
+                        if py_err.is_some() {
+                            return taffy::Size::ZERO;
+                        }
+
+                        // If both dimensions are already known, return them directly.
+                        if let taffy::Size {
+                            width: Some(w),
+                            height: Some(h),
+                        } = known_dimensions
+                        {
+                            return taffy::Size {
+                                width: w,
+                                height: h,
+                            };
+                        }
+
+                        // If no context, return zero — don't bother calling Python.
+                        let Some(context) = node_context else {
+                            return taffy::Size::ZERO;
+                        };
+
+                        // Convert to Python types and call the measure function.
+                        let py_known = KnownDimensions::from(known_dimensions);
+                        let py_avail = AvailableDimensions::from(available_space);
+                        let py_node = NodeId::from(node_id);
+                        let py_style = Style::from(style);
+
+                        let call_result = measure_fn.call1(
+                            py,
+                            (py_known, py_avail, py_node, context.clone_ref(py), py_style),
+                        );
+
+                        match call_result {
+                            Err(e) => {
+                                py_err = Some(e);
+                                taffy::Size::ZERO
+                            }
+                            Ok(result) => match result.cast_bound::<crate::geometry::Size>(py) {
+                                Ok(size) => {
+                                    let s = size.get();
+                                    taffy::Size {
+                                        width: s.width,
+                                        height: s.height,
+                                    }
+                                }
+                                Err(e) => {
+                                    py_err = Some(e.into());
+                                    taffy::Size::ZERO
+                                }
+                            },
+                        }
+                    },
+                );
+
+                // Check for Python errors first, then taffy errors.
+                if let Some(e) = py_err {
+                    return Err(e);
+                }
+                result.map_err(taffy_error_to_py)
+            }
+        }
     }
 
     /// Get the computed layout of a node.
@@ -224,6 +321,14 @@ impl TaffyTree {
 
     fn __repr__(&self) -> String {
         format!("TaffyTree(nodes={})", self.inner.total_node_count())
+    }
+
+    #[classmethod]
+    fn __class_getitem__(
+        cls: &Bound<'_, pyo3::types::PyType>,
+        _item: &Bound<'_, PyAny>,
+    ) -> Py<pyo3::types::PyType> {
+        cls.clone().unbind()
     }
 }
 

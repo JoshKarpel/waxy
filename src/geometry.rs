@@ -1,5 +1,7 @@
 use pyo3::prelude::*;
 
+use crate::enums::AvailableSpace;
+
 /// A 2D size with width and height.
 #[pyclass(frozen, from_py_object, module = "waxy")]
 #[derive(Clone, Debug)]
@@ -452,10 +454,198 @@ impl PixelIter {
     }
 }
 
+/// Known dimensions passed to measure functions (independently-optional width/height).
+#[pyclass(frozen, from_py_object, module = "waxy")]
+#[derive(Clone, Debug)]
+pub struct KnownDimensions {
+    width: Option<f32>,
+    height: Option<f32>,
+}
+
+#[pymethods]
+impl KnownDimensions {
+    #[new]
+    #[pyo3(signature = (width=None, height=None))]
+    fn new(width: Option<f32>, height: Option<f32>) -> Self {
+        Self { width, height }
+    }
+
+    fn __repr__(&self) -> String {
+        format!(
+            "KnownDimensions(width={}, height={})",
+            match self.width {
+                Some(v) => v.to_string(),
+                None => "None".to_string(),
+            },
+            match self.height {
+                Some(v) => v.to_string(),
+                None => "None".to_string(),
+            }
+        )
+    }
+
+    fn __eq__(&self, other: &KnownDimensions) -> bool {
+        self.width == other.width && self.height == other.height
+    }
+
+    fn __iter__(&self) -> KnownDimensionsIter {
+        KnownDimensionsIter {
+            width: self.width,
+            height: self.height,
+            index: 0,
+        }
+    }
+
+    #[getter]
+    fn width(&self) -> Option<f32> {
+        self.width
+    }
+
+    #[getter]
+    fn height(&self) -> Option<f32> {
+        self.height
+    }
+}
+
+impl From<taffy::Size<Option<f32>>> for KnownDimensions {
+    fn from(s: taffy::Size<Option<f32>>) -> Self {
+        Self {
+            width: s.width,
+            height: s.height,
+        }
+    }
+}
+
+#[pyclass(module = "waxy")]
+struct KnownDimensionsIter {
+    width: Option<f32>,
+    height: Option<f32>,
+    index: u8,
+}
+
+#[pymethods]
+impl KnownDimensionsIter {
+    fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+        slf
+    }
+
+    fn __next__(&mut self) -> Option<Option<f32>> {
+        let val = match self.index {
+            0 => Some(self.width),
+            1 => Some(self.height),
+            _ => None,
+        };
+        self.index += 1;
+        val
+    }
+}
+
+/// Available dimensions passed to measure functions (width/height as AvailableSpace).
+#[pyclass(frozen, unsendable, from_py_object, module = "waxy")]
+#[derive(Clone, Debug)]
+pub struct AvailableDimensions {
+    width: taffy::AvailableSpace,
+    height: taffy::AvailableSpace,
+}
+
+#[pymethods]
+impl AvailableDimensions {
+    #[new]
+    fn new(width: &AvailableSpace, height: &AvailableSpace) -> Self {
+        Self {
+            width: width.into(),
+            height: height.into(),
+        }
+    }
+
+    fn __repr__(&self) -> String {
+        fn fmt_avail(a: &taffy::AvailableSpace) -> String {
+            match a {
+                taffy::AvailableSpace::Definite(v) => {
+                    format!("AvailableSpace.definite({v})")
+                }
+                taffy::AvailableSpace::MinContent => "AvailableSpace.min_content()".to_string(),
+                taffy::AvailableSpace::MaxContent => "AvailableSpace.max_content()".to_string(),
+            }
+        }
+        format!(
+            "AvailableDimensions(width={}, height={})",
+            fmt_avail(&self.width),
+            fmt_avail(&self.height)
+        )
+    }
+
+    fn __eq__(&self, other: &AvailableDimensions) -> bool {
+        self.width == other.width && self.height == other.height
+    }
+
+    fn __iter__(&self) -> AvailableDimensionsIter {
+        AvailableDimensionsIter {
+            width: self.width,
+            height: self.height,
+            index: 0,
+        }
+    }
+
+    #[getter]
+    fn width(&self) -> AvailableSpace {
+        AvailableSpace::from(self.width)
+    }
+
+    #[getter]
+    fn height(&self) -> AvailableSpace {
+        AvailableSpace::from(self.height)
+    }
+}
+
+impl From<taffy::Size<taffy::AvailableSpace>> for AvailableDimensions {
+    fn from(s: taffy::Size<taffy::AvailableSpace>) -> Self {
+        Self {
+            width: s.width,
+            height: s.height,
+        }
+    }
+}
+
+impl From<&AvailableDimensions> for taffy::Size<taffy::AvailableSpace> {
+    fn from(a: &AvailableDimensions) -> Self {
+        taffy::Size {
+            width: a.width,
+            height: a.height,
+        }
+    }
+}
+
+#[pyclass(unsendable, module = "waxy")]
+struct AvailableDimensionsIter {
+    width: taffy::AvailableSpace,
+    height: taffy::AvailableSpace,
+    index: u8,
+}
+
+#[pymethods]
+impl AvailableDimensionsIter {
+    fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+        slf
+    }
+
+    fn __next__(&mut self) -> Option<AvailableSpace> {
+        let val = match self.index {
+            0 => Some(AvailableSpace::from(self.width)),
+            1 => Some(AvailableSpace::from(self.height)),
+            _ => None,
+        };
+        self.index += 1;
+        val
+    }
+}
+
 pub fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Size>()?;
     m.add_class::<Rect>()?;
     m.add_class::<Point>()?;
     m.add_class::<Line>()?;
+    m.add_class::<KnownDimensions>()?;
+    m.add_class::<AvailableDimensions>()?;
     Ok(())
 }

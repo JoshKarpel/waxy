@@ -55,6 +55,10 @@ All test/check commands accept override variables from the command line:
 - `just cargo-test-args="-- --nocapture" rs-test`
 - `just pre-commit-args="--all-files" fix`
 
+## Dependencies
+
+Add Python packages with `uv add <package>` (not by editing `pyproject.toml`) and Rust packages with `cargo add <package>` (not by editing `Cargo.toml`). This ensures lockfiles stay in sync.
+
 ## Adding a New Taffy Type or Field
 
 1. Add the Rust wrapper in the appropriate `src/*.rs` file

@@ -367,6 +367,22 @@ impl AvailableSpace {
         self.inner.is_definite()
     }
 
+    fn is_min_content(&self) -> bool {
+        matches!(self.inner, taffy::AvailableSpace::MinContent)
+    }
+
+    fn is_max_content(&self) -> bool {
+        matches!(self.inner, taffy::AvailableSpace::MaxContent)
+    }
+
+    /// Return the definite value, or None for min-content/max-content.
+    fn value(&self) -> Option<f32> {
+        match self.inner {
+            taffy::AvailableSpace::Definite(v) => Some(v),
+            _ => None,
+        }
+    }
+
     fn __repr__(&self) -> String {
         match self.inner {
             taffy::AvailableSpace::Definite(v) => format!("AvailableSpace.definite({v})"),

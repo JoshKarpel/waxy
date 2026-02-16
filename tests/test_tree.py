@@ -130,8 +130,10 @@ def test_compute_layout_with_available_space() -> None:
     node = tree.new_leaf(style)
     tree.compute_layout(
         node,
-        waxy.AvailableSpace.definite(200.0),
-        waxy.AvailableSpace.definite(200.0),
+        available_space=waxy.AvailableDimensions(
+            waxy.AvailableSpace.definite(200.0),
+            waxy.AvailableSpace.definite(200.0),
+        ),
     )
     layout = tree.layout(node)
     assert layout.size.width == 100.0
