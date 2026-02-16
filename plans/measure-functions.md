@@ -82,6 +82,26 @@ pub struct AvailableDimensions {
 
 `unsendable` because `AvailableSpace` wraps taffy types that contain `CompactLength`. Implements `__iter__` so it can be unpacked: `avail_width, avail_height = available_space`.
 
+## Prerequisite: Add `value()` to `AvailableSpace`
+
+The existing `AvailableSpace` type has `is_definite()` but no way to extract the inner `f32`. Add a `value()` method that returns `Option<f32>` — `Some(v)` for `Definite(v)`, `None` for `MinContent`/`MaxContent`. This is needed by measure functions that want to constrain content to the available space.
+
+In `src/enums.rs`:
+```rust
+fn value(&self) -> Option<f32> {
+    match self.inner {
+        taffy::AvailableSpace::Definite(v) => Some(v),
+        _ => None,
+    }
+}
+```
+
+In `python/waxy/__init__.pyi`, add to `AvailableSpace`:
+```python
+def value(self) -> float | None:
+    """Return the definite value, or None for min-content/max-content."""
+```
+
 ## Implementation Plan
 
 ### Step 1: Change `TaffyTree` to use `PyObject` context
@@ -386,7 +406,37 @@ for node in [heading, body, avatar]:
     print(tree.layout(node).size)
 ```
 
-### Example 4: Updating Context After Creation
+### Example 4: Explicit `available_space` (Viewport Constraint)
+
+```python
+from waxy import TaffyTree, Style, Size, Display, AvailableSpace, AvailableDimensions, length
+
+tree: TaffyTree[dict] = TaffyTree()
+
+text_node = tree.new_leaf_with_context(Style(), {"type": "text", "content": "Some text"})
+
+root = tree.new_with_children(
+    Style(display=Display.Flex),
+    [text_node],
+)
+
+def measure(known_dimensions, available_space, id, context, style):
+    kw, _ = known_dimensions
+    w = kw if kw is not None else len(context["content"]) * 8.0
+    return Size(w, 16.0)
+
+# Constrain layout to a 800x600 viewport
+viewport = AvailableDimensions(
+    width=AvailableSpace.definite(800.0),
+    height=AvailableSpace.definite(600.0),
+)
+tree.compute_layout(root, measure=measure, available_space=viewport)
+
+layout = tree.layout(root)
+print(layout.size)  # Constrained to 800x600 viewport
+```
+
+### Example 5: Updating Context After Creation
 
 ```python
 tree: TaffyTree[dict] = TaffyTree()
