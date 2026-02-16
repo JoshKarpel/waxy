@@ -24,7 +24,33 @@ The function returns a `Size<f32>` — the measured (width, height).
 
 **Node context** is arbitrary user data attached to a node. For example, a text node might store `{"text": "Hello world", "font_size": 14}`, and the measure function would use that to calculate how much space the text needs at a given width.
 
-**Important**: Taffy calls the measure function for **all leaf nodes**, including those without context. The `node_context` parameter will be `None` for nodes that have no context set. In waxy, we handle this automatically — the Rust closure returns `Size::ZERO` for nodes without context, so the user's measure function is **only called when context is present**. This means the user never needs to handle the `None` context case, and the context parameter is always `T`, not `T | None`.
+### Why Waxy Auto-Skips Nodes Without Context
+
+Taffy calls the measure function for **all leaf nodes**, including those without context. The `node_context` parameter will be `None` for nodes that have no context set. Taffy does not auto-skip because it's a generic Rust library that leaves this policy to the caller.
+
+However, in practice, **every taffy example returns `Size::ZERO` for `None` context**. From taffy's own `examples/measure.rs`:
+
+```rust
+match node_context {
+    None => Size::ZERO,
+    Some(NodeContext::Text(text_context)) => { /* measure text */ }
+    Some(NodeContext::Image(image_context)) => { /* measure image */ }
+}
+```
+
+This makes sense: the measure function reports **intrinsic content size**, and without context there is no content to measure. Style-based sizing (explicit `width`/`height`, min/max constraints, padding, border) is handled by `compute_leaf_layout` *around* the measure function's return value — it's not the measure function's job.
+
+Additional details from the taffy source (`src/compute/leaf.rs`):
+
+- During `RunMode::ComputeSize` (sizing flex/grid children), if **both** dimensions are already known from style, taffy short-circuits and doesn't call the measure function at all (lines 92–108).
+- During `RunMode::PerformLayout` (full layout pass), the measure function is **always called** with `known_dimensions = Size::NONE` (both `None`), regardless of context.
+- Only leaf nodes (no children) ever reach the measure function path — the dispatch in `taffy_tree.rs` matches `(_, false)` for `has_children == false`.
+
+In waxy, the Rust closure returns `Size::ZERO` for nodes without context **before calling Python**. This means:
+- The user's measure function is **only called when context is present**
+- The context parameter is always `T`, not `T | None`
+- This eliminates boilerplate and enables the `Generic[T]` type safety on `TaffyTree`
+- No edge cases are lost — a leaf without context has no content, so zero intrinsic size is always correct
 
 ## New Types
 
