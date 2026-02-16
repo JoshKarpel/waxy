@@ -127,19 +127,20 @@ fn get_node_context(&self, node: &NodeId) -> Option<PyObject>
 
 ### Step 5: Add `measure` parameter to `compute_layout`
 
-Instead of adding a separate `compute_layout_with_measure` method, we add an optional `measure` keyword argument to the existing `compute_layout`:
+Instead of adding a separate `compute_layout_with_measure` method, we add an optional `measure` keyword argument to the existing `compute_layout`. We also replace the two separate `available_width`/`available_height` parameters with a single `available_space: AvailableDimensions` parameter, since that's exactly what it represents.
 
 ```rust
-#[pyo3(signature = (node, *, measure=None, available_width=None, available_height=None))]
+#[pyo3(signature = (node, *, measure=None, available_space=None))]
 fn compute_layout(
     &mut self,
     py: Python<'_>,
     node: &NodeId,
-    measure: Option<PyObject>,  // a Python callable, or None
-    available_width: Option<&AvailableSpace>,
-    available_height: Option<&AvailableSpace>,
+    measure: Option<PyObject>,         // a Python callable, or None
+    available_space: Option<&AvailableDimensions>,  // defaults to MaxContent × MaxContent
 ) -> PyResult<()>
 ```
+
+This is a breaking change to the existing `compute_layout` signature (the old `available_width`/`available_height` kwargs are removed), but since we're already changing the method to add `measure`, this is the right time to clean it up. The old two-parameter form was just an unpacked `Size<AvailableSpace>` — now that we have `AvailableDimensions` as a proper type, we should use it. `None` defaults to `AvailableDimensions(AvailableSpace.max_content(), AvailableSpace.max_content())` (unconstrained layout, the existing default).
 
 When `measure` is `None`, this calls `taffy::TaffyTree::compute_layout` (the existing behavior — leaf nodes have zero intrinsic size). When `measure` is provided, it calls `taffy::TaffyTree::compute_layout_with_measure` with a Rust closure that:
 1. Checks if both `known_dimensions` are `Some` — if so, returns them immediately (no Python call needed; see "Both-Known Short-Circuit" below)
@@ -217,8 +218,7 @@ class TaffyTree[T]:
         node: NodeId,
         *,
         measure: Callable[[KnownDimensions, AvailableDimensions, NodeId, T, Style], Size] | None = None,
-        available_width: AvailableSpace | None = None,
-        available_height: AvailableSpace | None = None,
+        available_space: AvailableDimensions | None = None,
     ) -> None: ...
     # ... all existing methods unchanged ...
 ```
