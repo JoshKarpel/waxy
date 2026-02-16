@@ -30,6 +30,9 @@ class Size:
     def width(self) -> float: ...
     @property
     def height(self) -> float: ...
+    @property
+    def area(self) -> float:
+        """The area (width * height)."""
 
 class Rect:
     """A rectangle with left, right, top, bottom edges."""
@@ -53,6 +56,15 @@ class Rect:
     def top(self) -> float: ...
     @property
     def bottom(self) -> float: ...
+    @property
+    def width(self) -> float:
+        """The width of the rectangle (right - left)."""
+    @property
+    def height(self) -> float:
+        """The height of the rectangle (bottom - top)."""
+    @property
+    def size(self) -> Size:
+        """The size of the rectangle as a Size."""
     def contains(self, point: Point) -> bool:
         """Check if a point is inside this rectangle."""
     @property
@@ -86,6 +98,10 @@ class Point:
     def __eq__(self, other: object) -> bool: ...
     def __add__(self, other: Point) -> Point: ...
     def __sub__(self, other: Point) -> Point: ...
+    def __mul__(self, scalar: float) -> Point: ...
+    def __rmul__(self, scalar: float) -> Point: ...
+    def __truediv__(self, scalar: float) -> Point: ...
+    def __neg__(self) -> Point: ...
     @property
     def x(self) -> float: ...
     @property
@@ -103,6 +119,11 @@ class Line:
     def start(self) -> float: ...
     @property
     def end(self) -> float: ...
+    @property
+    def length(self) -> float:
+        """The length of the line segment (end - start)."""
+    def contains(self, value: float) -> bool:
+        """Check if a value is contained within this line segment."""
 
 # Dimensions
 

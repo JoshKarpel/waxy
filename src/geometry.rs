@@ -25,6 +25,12 @@ impl Size {
     fn __eq__(&self, other: &Size) -> bool {
         self.width == other.width && self.height == other.height
     }
+
+    /// The area (width * height).
+    #[getter]
+    fn area(&self) -> f32 {
+        self.width * self.height
+    }
 }
 
 impl From<taffy::Size<f32>> for Size {
@@ -84,6 +90,27 @@ impl Rect {
             && self.right == other.right
             && self.top == other.top
             && self.bottom == other.bottom
+    }
+
+    /// The width of the rectangle (right - left).
+    #[getter]
+    fn width(&self) -> f32 {
+        self.right - self.left
+    }
+
+    /// The height of the rectangle (bottom - top).
+    #[getter]
+    fn height(&self) -> f32 {
+        self.bottom - self.top
+    }
+
+    /// The size of the rectangle as a Size.
+    #[getter]
+    fn size(&self) -> Size {
+        Size {
+            width: self.right - self.left,
+            height: self.bottom - self.top,
+        }
     }
 
     /// Check if a point is inside this rectangle.
@@ -275,6 +302,31 @@ impl Point {
             y: self.y - other.y,
         }
     }
+
+    fn __mul__(&self, scalar: f32) -> Point {
+        Point {
+            x: self.x * scalar,
+            y: self.y * scalar,
+        }
+    }
+
+    fn __rmul__(&self, scalar: f32) -> Point {
+        self.__mul__(scalar)
+    }
+
+    fn __truediv__(&self, scalar: f32) -> Point {
+        Point {
+            x: self.x / scalar,
+            y: self.y / scalar,
+        }
+    }
+
+    fn __neg__(&self) -> Point {
+        Point {
+            x: -self.x,
+            y: -self.y,
+        }
+    }
 }
 
 impl From<taffy::Point<f32>> for Point {
@@ -313,6 +365,17 @@ impl Line {
 
     fn __eq__(&self, other: &Line) -> bool {
         self.start == other.start && self.end == other.end
+    }
+
+    /// The length of the line segment (end - start).
+    #[getter]
+    fn length(&self) -> f32 {
+        self.end - self.start
+    }
+
+    /// Check if a value is contained within this line segment.
+    fn contains(&self, value: f32) -> bool {
+        value >= self.start && value <= self.end
     }
 
     /// Iterate over integer values contained within this line segment.

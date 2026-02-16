@@ -179,5 +179,55 @@ def test_line_len() -> None:
     assert len(waxy.Line(0.5, 0.6)) == 0
 
 
+def test_size_area() -> None:
+    assert waxy.Size(3.0, 4.0).area == 12.0
+    assert waxy.Size(0.0, 5.0).area == 0.0
+
+
+def test_rect_width_height() -> None:
+    r = waxy.Rect(1.0, 4.0, 2.0, 7.0)
+    assert r.width == 3.0
+    assert r.height == 5.0
+
+
+def test_rect_size() -> None:
+    r = waxy.Rect(1.0, 4.0, 2.0, 7.0)
+    assert r.size == waxy.Size(3.0, 5.0)
+
+
+def test_point_mul() -> None:
+    p = waxy.Point(2.0, 3.0) * 4.0
+    assert p == waxy.Point(8.0, 12.0)
+
+
+def test_point_rmul() -> None:
+    p = 4.0 * waxy.Point(2.0, 3.0)
+    assert p == waxy.Point(8.0, 12.0)
+
+
+def test_point_truediv() -> None:
+    p = waxy.Point(8.0, 12.0) / 4.0
+    assert p == waxy.Point(2.0, 3.0)
+
+
+def test_point_neg() -> None:
+    p = -waxy.Point(2.0, -3.0)
+    assert p == waxy.Point(-2.0, 3.0)
+
+
+def test_line_length() -> None:
+    assert waxy.Line(1.0, 4.0).length == 3.0
+    assert waxy.Line(0.0, 0.0).length == 0.0
+
+
+def test_line_contains() -> None:
+    line = waxy.Line(1.0, 5.0)
+    assert line.contains(3.0)
+    assert line.contains(1.0)  # edge
+    assert line.contains(5.0)  # edge
+    assert not line.contains(0.5)
+    assert not line.contains(5.5)
+
+
 def test_size_repr() -> None:
     assert "Size" in repr(waxy.Size(1.0, 2.0))
