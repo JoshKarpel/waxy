@@ -1,3 +1,5 @@
+import pytest
+
 import waxy
 
 
@@ -14,10 +16,10 @@ def test_style_display() -> None:
     assert s.display == waxy.Display.Grid
 
 
-def test_style_set_display() -> None:
+def test_style_immutable() -> None:
     s = waxy.Style()
-    s.display = waxy.Display.Block
-    assert s.display == waxy.Display.Block
+    with pytest.raises(AttributeError):
+        setattr(s, "display", waxy.Display.Block)
 
 
 def test_style_flex_properties() -> None:
@@ -154,15 +156,6 @@ def test_style_or_does_not_mutate_operands() -> None:
     _ = a | b
     assert a.display == waxy.Display.Flex
     assert b.display == waxy.Display.Grid
-
-
-def test_style_or_setter_marks_field_set() -> None:
-    a = waxy.Style(display=waxy.Display.Flex)
-    b = waxy.Style()
-    b.flex_grow = 5.0
-    result = a | b
-    assert result.flex_grow == 5.0
-    assert result.display == waxy.Display.Flex
 
 
 def test_style_or_default_value_overrides_when_explicit() -> None:

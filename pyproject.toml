@@ -29,7 +29,6 @@ files = ["python", "tests"]
 [tool.pytest]
 testpaths = ["tests"]
 addopts = [
-    "-v",
     "-n", "auto",
     "--dist", "worksteal",
 ]
