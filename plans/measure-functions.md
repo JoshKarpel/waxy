@@ -1,8 +1,10 @@
 # Plan: Custom Measure Functions and Node Context (Issue #18)
 
+**Status: Implemented** (PR #22)
+
 ## Background
 
-Taffy's `TaffyTree<NodeContext>` is generic over a node context type. Currently, waxy uses `TaffyTree<()>` (the default — no context). To support measure functions, we need to:
+Taffy's `TaffyTree<NodeContext>` is generic over a node context type. To support measure functions, waxy needed to:
 
 1. Change the inner tree to `TaffyTree<PyObject>` so any Python object can be attached as node context
 2. Expose methods for managing node context

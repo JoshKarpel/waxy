@@ -4,7 +4,7 @@ A Python wrapper around the Rust `taffy` UI layout library, built with PyO3/matu
 
 ## Key Files
 
-- `SPEC.md` — Project spec and plan. Read this first for context on goals, tooling, and design decisions.
+- `plans/` — Design documents: `initial-concept.md` (project goals, tooling, design decisions), `measure-functions.md` (measure function design).
 
 ## Architecture
 
