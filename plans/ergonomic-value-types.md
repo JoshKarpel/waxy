@@ -315,6 +315,8 @@ In a new file `src/values.rs`, add all new types:
 - **Grid placement**: `Line` (frozen pyclass with `i16` field), `Span` (frozen pyclass with `u16` field)
 - **Constants**: `AUTO`, `MIN_CONTENT`, `MAX_CONTENT` — registered via `m.add()`
 
+Every type gets a Rust doc comment (`/// ...`) which PyO3 surfaces as Python `__doc__`. Use the docstrings from the "New Types" section above — they should explain what the type represents in plain language, not just repeat the type name. For types that map to CSS concepts (`Fraction`, `Minmax`, `FitContent`, `MinContent`, `MaxContent`), mention the CSS equivalent so users coming from CSS can orient themselves.
+
 `Minmax` and `FitContent` store their inner values as `PyObject` (the new value types), not taffy types. Conversion to taffy happens at the point of use (Style constructor, etc.).
 
 Register in `values::register()`, wire into `lib.rs`.
@@ -376,7 +378,8 @@ In `src/geometry.rs`:
 ### Step 8: Update Python exports and stubs
 
 - `python/waxy/__init__.py` — add new types to imports and `__all__`, remove old types
-- `python/waxy/__init__.pyi` — add type signatures for new types, update Style/GridLine signatures, remove old type stubs
+- `python/waxy/__init__.pyi` — add type signatures for new types, update Style/GridLine/AvailableDimensions signatures, remove old type stubs. Every class gets a class-level docstring matching the Rust doc comment. Every `__init__` parameter and property that isn't self-evident gets a docstring. Follow the existing stub conventions (see current `.pyi` for examples).
+  - Add type aliases for the unions that appear repeatedly (e.g., `DimensionValue = Length | Percent | Auto`) to keep the Style signature readable — or spell them out inline if the aliases would obscure more than they help. Use judgment.
 
 ### Step 9: Update tests
 
@@ -398,6 +401,15 @@ In `src/geometry.rs`:
 
 ### Step 10: Update CLAUDE.md
 
-Update the architecture table and key design decisions to reflect the new types.
+- Architecture table: replace `dimensions.rs` and `helpers.rs` entries with `values.rs`, update the contents column
+- Key design decisions: document that dimension-like values are now standalone frozen types (not enum-with-static-methods), list the new types, note that `CompactLength`/`unsendable` no longer applies to value types
+- Remove mentions of deleted types (`Dimension`, `LengthPercentage`, `LengthPercentageAuto`, `AvailableSpace`, `GridTrack`, `GridTrackMin`, `GridTrackMax`, `GridPlacement`) and deleted helpers
 
-### Step 11: Run `just check`
+### Step 11: Verify docstrings
+
+Spot-check that every new public type has:
+- A Rust doc comment that becomes `__doc__` in Python
+- A matching docstring in the `.pyi` stub
+- CSS concept cross-references where applicable (`Fraction` → `fr`, `Minmax` → `minmax()`, `FitContent` → `fit-content()`, `MinContent` → `min-content`, `MaxContent` → `max-content`)
+
+### Step 12: Run `just check`
