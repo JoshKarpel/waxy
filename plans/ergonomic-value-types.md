@@ -120,6 +120,13 @@ class FitContent:
 #### Grid placement only
 
 ```python
+class Line:
+    """A grid line index (1-based, negative indices count from the end)."""
+    __match_args__ = ("index",)
+    def __init__(self, index: int) -> None: ...
+    @property
+    def index(self) -> int: ...
+
 class Span:
     """Span a number of grid tracks."""
     __match_args__ = ("count",)
@@ -128,7 +135,7 @@ class Span:
     def count(self) -> int: ...
 ```
 
-Grid line indices are plain `int` — no wrapper class needed. `Auto` is reused for auto-placement.
+`Auto` is reused for auto-placement.
 
 #### Naming
 
@@ -147,7 +154,7 @@ Grid line indices are plain `int` — no wrapper class needed. `Auto` is reused 
 | `GridTrack` | `Length \| Percent \| Auto \| MinContent \| MaxContent \| Fraction \| Minmax \| FitContent` | `grid_template_*`, `grid_auto_*` |
 | `GridTrackMin` | `Length \| Percent \| Auto \| MinContent \| MaxContent` | `Minmax.min` |
 | `GridTrackMax` | `Length \| Percent \| Auto \| MinContent \| MaxContent \| Fraction \| FitContent` | `Minmax.max` |
-| `GridPlacement` | `int \| Span \| Auto` | `GridLine.start`, `GridLine.end` |
+| `GridPlacement` | `Line \| Span \| Auto` | `GridLine.start`, `GridLine.end` |
 
 The key insight: `Length`, `Percent`, `Auto`, `MinContent`, `MaxContent` are shared across many contexts. A single small set of types covers the entire API.
 
@@ -181,7 +188,7 @@ match track:
 
 # Grid placements
 match grid_line.start:
-    case int(n):
+    case Line(n):
         print(f"line {n}")
     case Span(n):
         print(f"span {n}")
@@ -226,7 +233,7 @@ enum AvailableSpaceInput { Definite(Definite), MinContent(MinContent), MaxConten
 enum GridTrackInput { Length(Length), Percent(Percent), Auto(Auto), MinContent(MinContent), MaxContent(MaxContent), Fraction(Fraction), Minmax(Minmax), FitContent(FitContent) }
 
 #[derive(FromPyObject)]
-enum GridPlacementInput { Int(i16), Span(Span), Auto(Auto) }
+enum GridPlacementInput { Line(Line), Span(Span), Auto(Auto) }
 ```
 
 #### Getters
@@ -253,13 +260,13 @@ This means what you put in is what you get back: `Fraction(1)` round-trips as `F
 class GridLine:
     def __init__(
         self,
-        start: int | Span | Auto | None = None,  # None defaults to Auto
-        end: int | Span | Auto | None = None,
+        start: Line | Span | Auto | None = None,  # None defaults to Auto
+        end: Line | Span | Auto | None = None,
     ) -> None: ...
     @property
-    def start(self) -> int | Span | Auto: ...
+    def start(self) -> Line | Span | Auto: ...
     @property
-    def end(self) -> int | Span | Auto: ...
+    def end(self) -> Line | Span | Auto: ...
 ```
 
 Before vs after:
@@ -269,7 +276,7 @@ Before vs after:
 GridLine(start=GridPlacement.line(1), end=GridPlacement.span(3))
 
 # After
-GridLine(start=1, end=Span(3))
+GridLine(start=Line(1), end=Span(3))
 ```
 
 ### Before / After Summary
@@ -292,7 +299,7 @@ Style(
     margin_left=AUTO,
     grid_template_columns=[Length(200), Fraction(1), Fraction(2)],
     grid_template_rows=[AUTO, Minmax(Length(100), Fraction(1))],
-    grid_row=GridLine(start=1, end=Span(2)),
+    grid_row=GridLine(start=Line(1), end=Span(2)),
 )
 ```
 
@@ -305,7 +312,7 @@ In a new file `src/values.rs`, add all new types:
 - **Shared**: `Length`, `Percent`, `Auto`, `MinContent`, `MaxContent` — frozen pyclasses with `__init__`, properties, `__repr__`, `__eq__`, `__hash__`, `__match_args__`
 - **Available space**: `Definite` — frozen pyclass with `f32` field
 - **Grid track**: `Fraction`, `FitContent`, `Minmax` — frozen pyclasses
-- **Grid placement**: `Span` — frozen pyclass with `u16` field
+- **Grid placement**: `Line` (frozen pyclass with `i16` field), `Span` (frozen pyclass with `u16` field)
 - **Constants**: `AUTO`, `MIN_CONTENT`, `MAX_CONTENT` — registered via `m.add()`
 
 `Minmax` and `FitContent` store their inner values as `PyObject` (the new value types), not taffy types. Conversion to taffy happens at the point of use (Style constructor, etc.).
@@ -323,7 +330,7 @@ In `src/values.rs`, define the input enums with `to_taffy()` methods:
 - `GridTrackInput` — `Length | Percent | Auto | MinContent | MaxContent | Fraction | Minmax | FitContent`
 - `GridTrackMinInput` — `Length | Percent | Auto | MinContent | MaxContent`
 - `GridTrackMaxInput` — `Length | Percent | Auto | MinContent | MaxContent | Fraction | FitContent`
-- `GridPlacementInput` — `i16 | Span | Auto`
+- `GridPlacementInput` — `Line | Span | Auto`
 
 ### Step 3: Add taffy→value-type conversion helpers
 
@@ -334,7 +341,7 @@ Functions that inspect taffy's internal types and return the appropriate new Pyt
 - `length_percentage_auto_to_py()` — for `taffy::LengthPercentageAuto` → `Length | Percent | Auto`
 - `available_space_to_py()` — for `taffy::AvailableSpace` → `Definite | MinContent | MaxContent`
 - `grid_track_to_py()` — for `TrackSizingFunction` → shorthand or `Minmax`
-- `grid_placement_to_py()` — for `TaffyGridPlacement` → `int | Span | Auto`
+- `grid_placement_to_py()` — for `TaffyGridPlacement` → `Line | Span | Auto`
 
 ### Step 4: Update Style constructor and getters
 
@@ -346,7 +353,7 @@ Functions that inspect taffy's internal types and return the appropriate new Pyt
 ### Step 5: Update `GridLine`
 
 - Constructor accepts `GridPlacementInput` for `start`/`end`
-- Properties return `int | Span | Auto` via `grid_placement_to_py()`
+- Properties return `Line | Span | Auto` via `grid_placement_to_py()`
 - Internal storage stays as `TaffyGridPlacement`
 
 ### Step 6: Update `AvailableDimensions`
@@ -383,7 +390,7 @@ In `src/geometry.rs`:
   - Style construction with new types (all field categories including grid)
   - Style getters return correct new types
   - Grid track round-tripping (e.g., `Fraction(1)` in → `Fraction(1)` out)
-  - `GridLine` with `int`, `Span`, `Auto` for start/end
+  - `GridLine` with `Line`, `Span`, `Auto` for start/end
   - `Minmax` and `FitContent` construction and destructuring
   - `AvailableDimensions` with new types
   - Measure function using pattern matching on `AvailableDimensions`
