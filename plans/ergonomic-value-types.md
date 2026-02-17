@@ -17,7 +17,7 @@ Style(
 
 Two problems:
 
-1. **Verbosity**: `LengthPercentageAuto.length(10)` and `GridTrack.flex(1)` are painful to type. Users want `Length(10)` and `Fr(1)`. The old helpers (`length()`, `percent()`, `auto()`) only returned `Dimension`, so they couldn't even be used for padding, margin, border, gap, or inset fields.
+1. **Verbosity**: `LengthPercentageAuto.length(10)` and `GridTrack.flex(1)` are painful to type. Users want `Length(10)` and `Fraction(1)`. The old helpers (`length()`, `percent()`, `auto()`) only returned `Dimension`, so they couldn't even be used for padding, margin, border, gap, or inset fields.
 2. **No pattern matching**: Dimension-like values are opaque objects. Users can call `is_auto()` but can't destructure them with Python 3.10+ `match`/`case`. Similarly, `AvailableSpace.value()` returns `float | None`, defeating mypy narrowing after `is_definite()` guards.
 
 ## Design: Standalone Value Types
@@ -79,11 +79,18 @@ class Definite:
     def value(self) -> float: ...
 ```
 
-#### Grid track only
+#### Grid track sizing only
+
+A "grid track" is CSS terminology for a single row or column in a grid layout. These types define how a track should be sized.
 
 ```python
-class Fr:
-    """A fractional grid track unit."""
+class Fraction:
+    """A fractional unit of remaining grid space (CSS `fr` unit).
+
+    After fixed lengths and percentages are allocated, remaining space
+    is divided among fractional tracks proportionally. E.g., Fraction(1)
+    and Fraction(2) in the same grid get 1/3 and 2/3 of remaining space.
+    """
     __match_args__ = ("value",)
     def __init__(self, value: float) -> None: ...
     @property
@@ -95,12 +102,12 @@ class Minmax:
     def __init__(
         self,
         min: Length | Percent | Auto | MinContent | MaxContent,
-        max: Length | Percent | Auto | MinContent | MaxContent | Fr | FitContent,
+        max: Length | Percent | Auto | MinContent | MaxContent | Fraction | FitContent,
     ) -> None: ...
     @property
     def min(self) -> Length | Percent | Auto | MinContent | MaxContent: ...
     @property
-    def max(self) -> Length | Percent | Auto | MinContent | MaxContent | Fr | FitContent: ...
+    def max(self) -> Length | Percent | Auto | MinContent | MaxContent | Fraction | FitContent: ...
 
 class FitContent:
     """A fit-content grid track sizing function."""
@@ -123,11 +130,11 @@ class Span:
 
 Grid line indices are plain `int` — no wrapper class needed. `Auto` is reused for auto-placement.
 
-#### Naming: `Percent` vs `Percentage`
+#### Naming
 
-Use `Percent` because:
-- It's shorter
-- CSS reads as "50 percent" not "50 percentage"
+**`Percent` vs `Percentage`**: Use `Percent` — it's shorter, and CSS reads as "50 percent" not "50 percentage".
+
+**`Fraction` vs `Fr`**: Use `Fraction` — spell it out. `fr` is a CSS abbreviation that's opaque if you don't already know CSS grid. The docstring can mention the CSS `fr` unit for people coming from CSS.
 
 ### How They Replace the Old Types
 
@@ -137,9 +144,9 @@ Use `Percent` because:
 | `LengthPercentage` | `Length \| Percent` | `padding_*`, `border_*`, `gap_*` |
 | `LengthPercentageAuto` | `Length \| Percent \| Auto` | `margin_*`, `inset_*` |
 | `AvailableSpace` | `Definite \| MinContent \| MaxContent` | `AvailableDimensions` |
-| `GridTrack` | `Length \| Percent \| Auto \| MinContent \| MaxContent \| Fr \| Minmax \| FitContent` | `grid_template_*`, `grid_auto_*` |
+| `GridTrack` | `Length \| Percent \| Auto \| MinContent \| MaxContent \| Fraction \| Minmax \| FitContent` | `grid_template_*`, `grid_auto_*` |
 | `GridTrackMin` | `Length \| Percent \| Auto \| MinContent \| MaxContent` | `Minmax.min` |
-| `GridTrackMax` | `Length \| Percent \| Auto \| MinContent \| MaxContent \| Fr \| FitContent` | `Minmax.max` |
+| `GridTrackMax` | `Length \| Percent \| Auto \| MinContent \| MaxContent \| Fraction \| FitContent` | `Minmax.max` |
 | `GridPlacement` | `int \| Span \| Auto` | `GridLine.start`, `GridLine.end` |
 
 The key insight: `Length`, `Percent`, `Auto`, `MinContent`, `MaxContent` are shared across many contexts. A single small set of types covers the entire API.
@@ -165,7 +172,7 @@ match avail_w:
 
 # Grid tracks
 match track:
-    case Fr(v):
+    case Fraction(v):
         print(f"{v}fr")
     case Minmax(min_val, max_val):
         print(f"minmax({min_val}, {max_val})")
@@ -194,7 +201,7 @@ class Style:
         size_width: Length | Percent | Auto | None = None,
         padding_left: Length | Percent | None = None,
         margin_left: Length | Percent | Auto | None = None,
-        grid_template_columns: list[Length | Percent | Auto | MinContent | MaxContent | Fr | Minmax | FitContent] | None = None,
+        grid_template_columns: list[Length | Percent | Auto | MinContent | MaxContent | Fraction | Minmax | FitContent] | None = None,
         grid_row: GridLine | None = None,
         ...
     ) -> None: ...
@@ -216,7 +223,7 @@ enum LengthPercentageAutoInput { Length(Length), Percent(Percent), Auto(Auto) }
 enum AvailableSpaceInput { Definite(Definite), MinContent(MinContent), MaxContent(MaxContent) }
 
 #[derive(FromPyObject)]
-enum GridTrackInput { Length(Length), Percent(Percent), Auto(Auto), MinContent(MinContent), MaxContent(MaxContent), Fr(Fr), Minmax(Minmax), FitContent(FitContent) }
+enum GridTrackInput { Length(Length), Percent(Percent), Auto(Auto), MinContent(MinContent), MaxContent(MaxContent), Fraction(Fraction), Minmax(Minmax), FitContent(FitContent) }
 
 #[derive(FromPyObject)]
 enum GridPlacementInput { Int(i16), Span(Span), Auto(Auto) }
@@ -231,12 +238,12 @@ Style getters return the new types. Grid track getters recognize common shorthan
 - `minmax(auto, auto)` → `Auto()`
 - `minmax(min_content, min_content)` → `MinContent()`
 - `minmax(max_content, max_content)` → `MaxContent()`
-- `minmax(auto, fr(v))` → `Fr(v)`
+- `minmax(auto, fr(v))` → `Fraction(v)`
 - `minmax(auto, fit_content_px(v))` → `FitContent(Length(v))`
 - `minmax(auto, fit_content_percent(v))` → `FitContent(Percent(v))`
 - Everything else → `Minmax(min, max)`
 
-This means what you put in is what you get back: `Fr(1)` round-trips as `Fr(1)`, not `Minmax(Auto(), Fr(1))`.
+This means what you put in is what you get back: `Fraction(1)` round-trips as `Fraction(1)`, not `Minmax(Auto(), Fraction(1))`.
 
 ### GridLine Changes
 
@@ -273,7 +280,7 @@ Style(
     size_width=Dimension.length(10),
     padding_left=LengthPercentage.length(10),
     margin_left=LengthPercentageAuto.auto(),
-    grid_template_columns=[GridTrack.length(200), GridTrack.flex(1), GridTrack.flex(2)],
+    grid_template_columns=[GridTrack.length(200), GridTrack.flex(1), GridTrack.flex(2)],  # "flex" is taffy's name for CSS fr
     grid_template_rows=[GridTrack.auto(), GridTrack.minmax(GridTrackMin.length(100), GridTrackMax.fr(1))],
     grid_row=GridLine(start=GridPlacement.line(1), end=GridPlacement.span(2)),
 )
@@ -283,8 +290,8 @@ Style(
     size_width=Length(10),
     padding_left=Length(10),
     margin_left=AUTO,
-    grid_template_columns=[Length(200), Fr(1), Fr(2)],
-    grid_template_rows=[AUTO, Minmax(Length(100), Fr(1))],
+    grid_template_columns=[Length(200), Fraction(1), Fraction(2)],
+    grid_template_rows=[AUTO, Minmax(Length(100), Fraction(1))],
     grid_row=GridLine(start=1, end=Span(2)),
 )
 ```
@@ -297,7 +304,7 @@ In a new file `src/values.rs`, add all new types:
 
 - **Shared**: `Length`, `Percent`, `Auto`, `MinContent`, `MaxContent` — frozen pyclasses with `__init__`, properties, `__repr__`, `__eq__`, `__hash__`, `__match_args__`
 - **Available space**: `Definite` — frozen pyclass with `f32` field
-- **Grid track**: `Fr`, `FitContent`, `Minmax` — frozen pyclasses
+- **Grid track**: `Fraction`, `FitContent`, `Minmax` — frozen pyclasses
 - **Grid placement**: `Span` — frozen pyclass with `u16` field
 - **Constants**: `AUTO`, `MIN_CONTENT`, `MAX_CONTENT` — registered via `m.add()`
 
@@ -313,9 +320,9 @@ In `src/values.rs`, define the input enums with `to_taffy()` methods:
 - `LengthPercentageInput` — `Length | Percent`
 - `LengthPercentageAutoInput` — `Length | Percent | Auto`
 - `AvailableSpaceInput` — `Definite | MinContent | MaxContent`
-- `GridTrackInput` — `Length | Percent | Auto | MinContent | MaxContent | Fr | Minmax | FitContent`
+- `GridTrackInput` — `Length | Percent | Auto | MinContent | MaxContent | Fraction | Minmax | FitContent`
 - `GridTrackMinInput` — `Length | Percent | Auto | MinContent | MaxContent`
-- `GridTrackMaxInput` — `Length | Percent | Auto | MinContent | MaxContent | Fr | FitContent`
+- `GridTrackMaxInput` — `Length | Percent | Auto | MinContent | MaxContent | Fraction | FitContent`
 - `GridPlacementInput` — `i16 | Span | Auto`
 
 ### Step 3: Add taffy→value-type conversion helpers
@@ -375,7 +382,7 @@ In `src/geometry.rs`:
   - `AUTO`, `MIN_CONTENT`, `MAX_CONTENT` constants
   - Style construction with new types (all field categories including grid)
   - Style getters return correct new types
-  - Grid track round-tripping (e.g., `Fr(1)` in → `Fr(1)` out)
+  - Grid track round-tripping (e.g., `Fraction(1)` in → `Fraction(1)` out)
   - `GridLine` with `int`, `Span`, `Auto` for start/end
   - `Minmax` and `FitContent` construction and destructuring
   - `AvailableDimensions` with new types
