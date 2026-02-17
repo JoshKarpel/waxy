@@ -18,11 +18,10 @@ percent(0.5) # → Dimension — same problem
 auto()       # → Dimension
 ```
 
-Three separate problems:
+Two problems:
 
-1. **Verbosity**: `LengthPercentageAuto.length(10)` is painful to type. Users want `Length(10)`.
-2. **Helpers are too narrow**: `length()`, `percent()`, `auto()` return `Dimension`, but many Style fields expect `LengthPercentage` or `LengthPercentageAuto`. There's no way to use the short helpers for padding, margin, border, gap, or inset fields.
-3. **No pattern matching**: Dimension-like values are opaque objects. Users can call `is_auto()` but can't destructure them with Python 3.10+ `match`/`case`. Similarly, `AvailableSpace.value()` returns `float | None`, defeating mypy narrowing after `is_definite()` guards.
+1. **Verbosity**: `LengthPercentageAuto.length(10)` is painful to type. Users want `Length(10)`. The old helpers (`length()`, `percent()`, `auto()`) only returned `Dimension`, so they couldn't even be used for padding, margin, border, gap, or inset fields.
+2. **No pattern matching**: Dimension-like values are opaque objects. Users can call `is_auto()` but can't destructure them with Python 3.10+ `match`/`case`. Similarly, `AvailableSpace.value()` returns `float | None`, defeating mypy narrowing after `is_definite()` guards.
 
 ## Design: Standalone Value Types
 
@@ -61,7 +60,6 @@ These are plain frozen pyclasses that store an `f32` (or nothing for `Auto`). Th
 #### Naming: `Percent` vs `Percentage`
 
 Use `Percent` because:
-- It matches the existing `percent()` helper name
 - It's shorter
 - CSS reads as "50 percent" not "50 percentage"
 
@@ -146,27 +144,26 @@ style.margin_left     # → Length | Percent | Auto
 
 On the Rust side, each getter inspects the inner taffy value's tag and returns the appropriate new type as a `PyObject`. For fields that can be auto, the getter checks `is_auto()` first, then distinguishes length vs percent via the tag. For `LengthPercentage` fields, only length and percent are possible.
 
-### Helper Function Changes
+### Helper Functions Removed
 
-| Helper | Before | After |
-|---|---|---|
-| `length(value)` | `Dimension` | `Length` |
-| `percent(value)` | `Dimension` | `Percent` |
-| `auto()` | `Dimension` | `Auto` |
-| `zero()` | `LengthPercentage` | `Length` |
+The old helper functions (`length()`, `percent()`, `auto()`, `zero()`) are deleted. The class constructors are equally concise:
 
-Since `Length`, `Percent`, and `Auto` are accepted everywhere the old types were, all helpers now work for **all** Style fields:
+| Old Helper | Replacement |
+|---|---|
+| `length(10)` | `Length(10)` |
+| `percent(0.5)` | `Percent(0.5)` |
+| `auto()` | `Auto()` or `AUTO` |
+| `zero()` | `Length(0)` |
+
+The constructors work for **all** Style fields — the key ergonomic win over the old API:
 
 ```python
-# length() and percent() now work everywhere
-Style(size_width=length(10))        # ✓
-Style(padding_left=length(10))      # ✓ (was broken before!)
-Style(margin_left=length(10))       # ✓
-Style(border_top=percent(0.5))      # ✓ (was broken before!)
-Style(inset_left=auto())            # ✓ (was broken before!)
+Style(size_width=Length(10))        # ✓
+Style(padding_left=Length(10))      # ✓ (was broken with old helpers!)
+Style(margin_left=Length(10))       # ✓
+Style(border_top=Percent(0.5))     # ✓ (was broken with old helpers!)
+Style(inset_left=AUTO)             # ✓ (was broken with old helpers!)
 ```
-
-This is the key ergonomic win.
 
 ## Design: Value Types for AvailableSpace
 
@@ -234,14 +231,15 @@ def measure(known_dimensions, available_space, context):
             inline_size = len(context["text"]) * CHAR_WIDTH
 ```
 
-### Helper Function Changes
+### AvailableSpace Helper Functions Removed
 
-| Helper | Before | After |
-|---|---|---|
-| `min_content()` | `AvailableSpace` | `MinContent` |
-| `max_content()` | `AvailableSpace` | `MaxContent` |
+Same rationale as the dimension helpers — the class constructors are equally concise:
 
-A new `definite(value)` helper is added for symmetry, returning `Definite`.
+| Old Helper | Replacement |
+|---|---|
+| `min_content()` | `MinContent()` or `MIN_CONTENT` |
+| `max_content()` | `MaxContent()` or `MAX_CONTENT` |
+| `AvailableSpace.definite(100)` | `Definite(100)` |
 
 ## Implementation Steps
 
@@ -331,24 +329,15 @@ In `src/geometry.rs`:
 - Properties return new types (`Definite`, `MinContent`, or `MaxContent`)
 - `__iter__` yields new types
 
-### Step 7: Update helper functions
-
-In `src/helpers.rs`:
-
-- `length()` → returns `Length`
-- `percent()` → returns `Percent`
-- `auto()` → returns `Auto`
-- `zero()` → returns `Length` (with value `0.0`)
-- `min_content()` → returns `MinContent`
-- `max_content()` → returns `MaxContent`
-- Add `definite(value)` → returns `Definite`
-
-### Step 8: Delete old types
+### Step 7: Delete old types and helpers
 
 - Delete `src/dimensions.rs` entirely (`Dimension`, `LengthPercentage`, `LengthPercentageAuto`)
+- Delete `src/helpers.rs` entirely (`length`, `percent`, `auto`, `zero`, `min_content`, `max_content`, `fr`, `minmax`)
 - Delete `AvailableSpace` from `src/enums.rs`
 - Remove their registrations from `lib.rs`
 - Remove from `python/waxy/__init__.py` exports
+
+Note: `fr()` and `minmax()` are grid helpers unrelated to this issue. They could be kept as-is, or converted to `Fr(value)` / `GridTrack(min, max)` constructors in a future change. For now, keep them — move them into `src/grid.rs` or `src/values.rs`.
 
 ### Step 9: Update Python exports and stubs
 
@@ -357,7 +346,7 @@ In `src/helpers.rs`:
 
 ### Step 10: Update tests
 
-- Delete tests for old types (`test_dimensions.py` content that tests `Dimension`, `LengthPercentage`, `LengthPercentageAuto`)
+- Delete `test_dimensions.py` (tests old types)
 - Add new tests:
   - Construction and properties for each new type
   - `__repr__`, `__eq__`, `__hash__` for each
@@ -366,7 +355,6 @@ In `src/helpers.rs`:
   - `AUTO`, `MIN_CONTENT`, `MAX_CONTENT` constants
   - Style construction with new types (all field categories)
   - Style getters return correct new types
-  - Helper functions return new types and are accepted by all Style fields
   - `AvailableDimensions` with new types
   - Measure function using pattern matching on `AvailableDimensions`
 - Update existing tests that use old types (in `test_style.py`, `test_integration.py`, `test_measure.py`, etc.)
