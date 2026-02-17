@@ -2,7 +2,7 @@
 
 ## Problem
 
-The current API for dimension values is verbose and inflexible:
+The current API for dimension and grid values is verbose and inflexible:
 
 ```python
 # Verbose — each container type has its own static constructors
@@ -10,26 +10,29 @@ Style(
     size_width=Dimension.length(10),
     padding_left=LengthPercentage.length(10),
     margin_left=LengthPercentageAuto.length(10),
+    grid_template_columns=[GridTrack.length(200), GridTrack.flex(1), GridTrack.flex(2)],
+    grid_row=GridLine(start=GridPlacement.line(1), end=GridPlacement.span(2)),
 )
-
-# Helpers exist, but only return Dimension
-length(10)   # → Dimension — works for size_width but NOT for padding_left
-percent(0.5) # → Dimension — same problem
-auto()       # → Dimension
 ```
 
 Two problems:
 
-1. **Verbosity**: `LengthPercentageAuto.length(10)` is painful to type. Users want `Length(10)`. The old helpers (`length()`, `percent()`, `auto()`) only returned `Dimension`, so they couldn't even be used for padding, margin, border, gap, or inset fields.
+1. **Verbosity**: `LengthPercentageAuto.length(10)` and `GridTrack.flex(1)` are painful to type. Users want `Length(10)` and `Fr(1)`. The old helpers (`length()`, `percent()`, `auto()`) only returned `Dimension`, so they couldn't even be used for padding, margin, border, gap, or inset fields.
 2. **No pattern matching**: Dimension-like values are opaque objects. Users can call `is_auto()` but can't destructure them with Python 3.10+ `match`/`case`. Similarly, `AvailableSpace.value()` returns `float | None`, defeating mypy narrowing after `is_definite()` guards.
 
 ## Design: Standalone Value Types
 
 Replace the "enum with static methods" pattern with standalone Python classes — one per variant. This is the "poor man's Rust enum" approach: model each variant as its own type and use `Union` on the Python side.
 
-The old container types (`Dimension`, `LengthPercentage`, `LengthPercentageAuto`, `AvailableSpace`) are removed entirely. No backward compatibility — waxy is pre-1.0 and a clean break is better than legacy baggage.
+The old container types (`Dimension`, `LengthPercentage`, `LengthPercentageAuto`, `AvailableSpace`, `GridTrack`, `GridTrackMin`, `GridTrackMax`, `GridPlacement`) are all removed entirely. No backward compatibility — waxy is pre-1.0 and a clean break is better than legacy baggage.
 
-### New Dimension Types
+All old helper functions (`length()`, `percent()`, `auto()`, `zero()`, `min_content()`, `max_content()`, `fr()`, `minmax()`) are also deleted — the class constructors are equally concise.
+
+### New Types
+
+All types are `#[pyclass(frozen)]`. Value-carrying types get `__match_args__`, `__eq__`, `__hash__`, `__repr__`. None of these wrap `CompactLength`, so none need `unsendable`.
+
+#### Shared across dimensions, available space, and grid tracks
 
 ```python
 class Length:
@@ -47,15 +50,78 @@ class Percent:
     def value(self) -> float: ...
 
 class Auto:
-    """An automatic dimension."""
+    """Automatic sizing."""
     def __init__(self) -> None: ...
 
-AUTO: Auto  # Module-level constant for convenience
+AUTO: Auto  # Module-level constant
+
+class MinContent:
+    """Min-content sizing."""
+    def __init__(self) -> None: ...
+
+MIN_CONTENT: MinContent  # Module-level constant
+
+class MaxContent:
+    """Max-content sizing."""
+    def __init__(self) -> None: ...
+
+MAX_CONTENT: MaxContent  # Module-level constant
 ```
 
-These are plain frozen pyclasses that store an `f32` (or nothing for `Auto`). They do **not** wrap `CompactLength`, so they don't need `unsendable` — a nice simplification over the existing types.
+#### Available space only
 
-`AUTO` is a module-level constant (`Auto()`) for convenience. The `Auto` class is still needed for pattern matching syntax (`case Auto():`).
+```python
+class Definite:
+    """A definite available space in pixels."""
+    __match_args__ = ("value",)
+    def __init__(self, value: float) -> None: ...
+    @property
+    def value(self) -> float: ...
+```
+
+#### Grid track only
+
+```python
+class Fr:
+    """A fractional grid track unit."""
+    __match_args__ = ("value",)
+    def __init__(self, value: float) -> None: ...
+    @property
+    def value(self) -> float: ...
+
+class Minmax:
+    """A minmax grid track sizing function."""
+    __match_args__ = ("min", "max")
+    def __init__(
+        self,
+        min: Length | Percent | Auto | MinContent | MaxContent,
+        max: Length | Percent | Auto | MinContent | MaxContent | Fr | FitContent,
+    ) -> None: ...
+    @property
+    def min(self) -> Length | Percent | Auto | MinContent | MaxContent: ...
+    @property
+    def max(self) -> Length | Percent | Auto | MinContent | MaxContent | Fr | FitContent: ...
+
+class FitContent:
+    """A fit-content grid track sizing function."""
+    __match_args__ = ("limit",)
+    def __init__(self, limit: Length | Percent) -> None: ...
+    @property
+    def limit(self) -> Length | Percent: ...
+```
+
+#### Grid placement only
+
+```python
+class Span:
+    """Span a number of grid tracks."""
+    __match_args__ = ("count",)
+    def __init__(self, count: int) -> None: ...
+    @property
+    def count(self) -> int: ...
+```
+
+Grid line indices are plain `int` — no wrapper class needed. `Auto` is reused for auto-placement.
 
 #### Naming: `Percent` vs `Percentage`
 
@@ -65,19 +131,23 @@ Use `Percent` because:
 
 ### How They Replace the Old Types
 
-The three old container types are deleted and replaced by unions:
-
-| Removed Type | Replacement | Used By |
+| Removed Type | Replacement Union | Used By |
 |---|---|---|
 | `Dimension` | `Length \| Percent \| Auto` | `size_*`, `min_size_*`, `max_size_*`, `flex_basis` |
 | `LengthPercentage` | `Length \| Percent` | `padding_*`, `border_*`, `gap_*` |
 | `LengthPercentageAuto` | `Length \| Percent \| Auto` | `margin_*`, `inset_*` |
+| `AvailableSpace` | `Definite \| MinContent \| MaxContent` | `AvailableDimensions` |
+| `GridTrack` | `Length \| Percent \| Auto \| MinContent \| MaxContent \| Fr \| Minmax \| FitContent` | `grid_template_*`, `grid_auto_*` |
+| `GridTrackMin` | `Length \| Percent \| Auto \| MinContent \| MaxContent` | `Minmax.min` |
+| `GridTrackMax` | `Length \| Percent \| Auto \| MinContent \| MaxContent \| Fr \| FitContent` | `Minmax.max` |
+| `GridPlacement` | `int \| Span \| Auto` | `GridLine.start`, `GridLine.end` |
+
+The key insight: `Length`, `Percent`, `Auto`, `MinContent`, `MaxContent` are shared across many contexts. A single small set of types covers the entire API.
 
 ### Pattern Matching
 
-With `__match_args__` defined on `Length` and `Percent`, structural pattern matching works naturally:
-
 ```python
+# Dimension fields
 match style.size_width:
     case Length(v):
         print(f"{v}px")
@@ -85,282 +155,235 @@ match style.size_width:
         print(f"{v * 100}%")
     case Auto():
         print("auto")
+
+# Available space in measure functions
+match avail_w:
+    case Definite(v):
+        inline_size = v  # float — no Optional, no type: ignore
+    case MinContent() | MaxContent():
+        inline_size = len(context["text"]) * CHAR_WIDTH
+
+# Grid tracks
+match track:
+    case Fr(v):
+        print(f"{v}fr")
+    case Minmax(min_val, max_val):
+        print(f"minmax({min_val}, {max_val})")
+    case FitContent(Length(v)):
+        print(f"fit-content({v}px)")
+
+# Grid placements
+match grid_line.start:
+    case int(n):
+        print(f"line {n}")
+    case Span(n):
+        print(f"span {n}")
+    case Auto():
+        print("auto")
 ```
 
-### Style Constructor Changes
+### Style Changes
 
-In the `.pyi` stub:
+#### Constructor
 
 ```python
 class Style:
     def __init__(
         self,
         *,
-        # Fields that accept length | percent | auto
         size_width: Length | Percent | Auto | None = None,
-        # Fields that accept length | percent only
         padding_left: Length | Percent | None = None,
-        # Fields that accept length | percent | auto
         margin_left: Length | Percent | Auto | None = None,
+        grid_template_columns: list[Length | Percent | Auto | MinContent | MaxContent | Fr | Minmax | FitContent] | None = None,
+        grid_row: GridLine | None = None,
         ...
     ) -> None: ...
 ```
 
-On the Rust side, this is implemented using `#[derive(FromPyObject)]` input enums that try each type in order:
+On the Rust side, implemented with `#[derive(FromPyObject)]` input enums:
 
 ```rust
 #[derive(FromPyObject)]
-enum DimensionInput {
-    Length(Length),
-    Percent(Percent),
-    Auto(Auto),
-}
+enum DimensionInput { Length(Length), Percent(Percent), Auto(Auto) }
 
 #[derive(FromPyObject)]
-enum LengthPercentageInput {
-    Length(Length),
-    Percent(Percent),
-}
+enum LengthPercentageInput { Length(Length), Percent(Percent) }
 
 #[derive(FromPyObject)]
-enum LengthPercentageAutoInput {
-    Length(Length),
-    Percent(Percent),
-    Auto(Auto),
-}
+enum LengthPercentageAutoInput { Length(Length), Percent(Percent), Auto(Auto) }
+
+#[derive(FromPyObject)]
+enum AvailableSpaceInput { Definite(Definite), MinContent(MinContent), MaxContent(MaxContent) }
+
+#[derive(FromPyObject)]
+enum GridTrackInput { Length(Length), Percent(Percent), Auto(Auto), MinContent(MinContent), MaxContent(MaxContent), Fr(Fr), Minmax(Minmax), FitContent(FitContent) }
+
+#[derive(FromPyObject)]
+enum GridPlacementInput { Int(i16), Span(Span), Auto(Auto) }
 ```
 
-Each input enum has a `to_taffy()` method that converts to the appropriate taffy type.
+#### Getters
 
-### Style Getter Changes
+Style getters return the new types. Grid track getters recognize common shorthand forms and return the simplified type:
 
-Style getters return the new types:
+- `minmax(length(v), length(v))` → `Length(v)`
+- `minmax(percent(v), percent(v))` → `Percent(v)`
+- `minmax(auto, auto)` → `Auto()`
+- `minmax(min_content, min_content)` → `MinContent()`
+- `minmax(max_content, max_content)` → `MaxContent()`
+- `minmax(auto, fr(v))` → `Fr(v)`
+- `minmax(auto, fit_content_px(v))` → `FitContent(Length(v))`
+- `minmax(auto, fit_content_percent(v))` → `FitContent(Percent(v))`
+- Everything else → `Minmax(min, max)`
 
-```python
-style.size_width      # → Length | Percent | Auto
-style.padding_left    # → Length | Percent
-style.margin_left     # → Length | Percent | Auto
-```
+This means what you put in is what you get back: `Fr(1)` round-trips as `Fr(1)`, not `Minmax(Auto(), Fr(1))`.
 
-On the Rust side, each getter inspects the inner taffy value's tag and returns the appropriate new type as a `PyObject`. For fields that can be auto, the getter checks `is_auto()` first, then distinguishes length vs percent via the tag. For `LengthPercentage` fields, only length and percent are possible.
+### GridLine Changes
 
-### Helper Functions Removed
-
-The old helper functions (`length()`, `percent()`, `auto()`, `zero()`) are deleted. The class constructors are equally concise:
-
-| Old Helper | Replacement |
-|---|---|
-| `length(10)` | `Length(10)` |
-| `percent(0.5)` | `Percent(0.5)` |
-| `auto()` | `Auto()` or `AUTO` |
-| `zero()` | `Length(0)` |
-
-The constructors work for **all** Style fields — the key ergonomic win over the old API:
+`GridLine` stays as a class, but its `start`/`end` accept and return the new types:
 
 ```python
-Style(size_width=Length(10))        # ✓
-Style(padding_left=Length(10))      # ✓ (was broken with old helpers!)
-Style(margin_left=Length(10))       # ✓
-Style(border_top=Percent(0.5))     # ✓ (was broken with old helpers!)
-Style(inset_left=AUTO)             # ✓ (was broken with old helpers!)
-```
-
-## Design: Value Types for AvailableSpace
-
-The same pattern applies to `AvailableSpace`, which has a type-narrowing problem:
-
-```python
-avail_w = available_space.width  # AvailableSpace
-if avail_w.is_definite():
-    v = avail_w.value()  # float | None — mypy can't narrow despite the guard
-```
-
-### New AvailableSpace Types
-
-```python
-class Definite:
-    """A definite available space in pixels."""
-    __match_args__ = ("value",)
-    def __init__(self, value: float) -> None: ...
-    @property
-    def value(self) -> float: ...
-
-class MinContent:
-    """Min-content available space."""
-    def __init__(self) -> None: ...
-
-class MaxContent:
-    """Max-content available space."""
-    def __init__(self) -> None: ...
-
-MIN_CONTENT: MinContent  # Module-level constant
-MAX_CONTENT: MaxContent  # Module-level constant
-```
-
-### AvailableSpace Removal
-
-The old `AvailableSpace` class is deleted. `AvailableDimensions` accepts and returns the new types directly:
-
-```python
-class AvailableDimensions:
+class GridLine:
     def __init__(
         self,
-        width: Definite | MinContent | MaxContent,
-        height: Definite | MinContent | MaxContent,
+        start: int | Span | Auto | None = None,  # None defaults to Auto
+        end: int | Span | Auto | None = None,
     ) -> None: ...
-
     @property
-    def width(self) -> Definite | MinContent | MaxContent: ...
+    def start(self) -> int | Span | Auto: ...
     @property
-    def height(self) -> Definite | MinContent | MaxContent: ...
+    def end(self) -> int | Span | Auto: ...
 ```
 
-### Pattern Matching in Measure Functions
-
-This solves the type-narrowing problem:
+Before vs after:
 
 ```python
-def measure(known_dimensions, available_space, context):
-    kw, kh = known_dimensions
-    avail_w, avail_h = available_space
+# Before
+GridLine(start=GridPlacement.line(1), end=GridPlacement.span(3))
 
-    match avail_w:
-        case Definite(v):
-            inline_size = v  # float — no Optional, no type: ignore
-        case MinContent() | MaxContent():
-            inline_size = len(context["text"]) * CHAR_WIDTH
+# After
+GridLine(start=1, end=Span(3))
 ```
 
-### AvailableSpace Helper Functions Removed
+### Before / After Summary
 
-Same rationale as the dimension helpers — the class constructors are equally concise:
+```python
+# Before
+Style(
+    size_width=Dimension.length(10),
+    padding_left=LengthPercentage.length(10),
+    margin_left=LengthPercentageAuto.auto(),
+    grid_template_columns=[GridTrack.length(200), GridTrack.flex(1), GridTrack.flex(2)],
+    grid_template_rows=[GridTrack.auto(), GridTrack.minmax(GridTrackMin.length(100), GridTrackMax.fr(1))],
+    grid_row=GridLine(start=GridPlacement.line(1), end=GridPlacement.span(2)),
+)
 
-| Old Helper | Replacement |
-|---|---|
-| `min_content()` | `MinContent()` or `MIN_CONTENT` |
-| `max_content()` | `MaxContent()` or `MAX_CONTENT` |
-| `AvailableSpace.definite(100)` | `Definite(100)` |
+# After
+Style(
+    size_width=Length(10),
+    padding_left=Length(10),
+    margin_left=AUTO,
+    grid_template_columns=[Length(200), Fr(1), Fr(2)],
+    grid_template_rows=[AUTO, Minmax(Length(100), Fr(1))],
+    grid_row=GridLine(start=1, end=Span(2)),
+)
+```
 
 ## Implementation Steps
 
-### Step 1: Add `Length`, `Percent`, `Auto` types
+### Step 1: Add new value types
 
-In a new file `src/values.rs`:
+In a new file `src/values.rs`, add all new types:
 
-- `Length` — `#[pyclass(frozen, module = "waxy")]` with `f32` field, `__init__`, `value` property, `__repr__`, `__eq__`, `__hash__`, `__match_args__`
-- `Percent` — same structure
-- `Auto` — `#[pyclass(frozen, module = "waxy")]` unit struct with `__init__`, `__repr__`, `__eq__`, `__hash__`
-- `AUTO` — module-level constant via `m.add("AUTO", Auto {})?`
+- **Shared**: `Length`, `Percent`, `Auto`, `MinContent`, `MaxContent` — frozen pyclasses with `__init__`, properties, `__repr__`, `__eq__`, `__hash__`, `__match_args__`
+- **Available space**: `Definite` — frozen pyclass with `f32` field
+- **Grid track**: `Fr`, `FitContent`, `Minmax` — frozen pyclasses
+- **Grid placement**: `Span` — frozen pyclass with `u16` field
+- **Constants**: `AUTO`, `MIN_CONTENT`, `MAX_CONTENT` — registered via `m.add()`
+
+`Minmax` and `FitContent` store their inner values as `PyObject` (the new value types), not taffy types. Conversion to taffy happens at the point of use (Style constructor, etc.).
 
 Register in `values::register()`, wire into `lib.rs`.
 
-### Step 2: Add `Definite`, `MinContent`, `MaxContent` types
+### Step 2: Add `FromPyObject` input enums
 
-In the same `src/values.rs`:
+In `src/values.rs`, define the input enums with `to_taffy()` methods:
 
-- `Definite` — frozen pyclass with `f32` field, same methods as `Length`
-- `MinContent` — frozen unit struct
-- `MaxContent` — frozen unit struct
-- `MIN_CONTENT` and `MAX_CONTENT` — module-level constants
+- `DimensionInput` — `Length | Percent | Auto`
+- `LengthPercentageInput` — `Length | Percent`
+- `LengthPercentageAutoInput` — `Length | Percent | Auto`
+- `AvailableSpaceInput` — `Definite | MinContent | MaxContent`
+- `GridTrackInput` — `Length | Percent | Auto | MinContent | MaxContent | Fr | Minmax | FitContent`
+- `GridTrackMinInput` — `Length | Percent | Auto | MinContent | MaxContent`
+- `GridTrackMaxInput` — `Length | Percent | Auto | MinContent | MaxContent | Fr | FitContent`
+- `GridPlacementInput` — `i16 | Span | Auto`
 
-### Step 3: Add input enums with `FromPyObject`
+### Step 3: Add taffy→value-type conversion helpers
 
-In `src/values.rs`, define the input enums:
+Functions that inspect taffy's internal types and return the appropriate new Python type as `PyObject`:
 
-```rust
-#[derive(FromPyObject)]
-pub enum DimensionInput { ... }
+- `dimension_to_py()` — for `taffy::Dimension` → `Length | Percent | Auto`
+- `length_percentage_to_py()` — for `taffy::LengthPercentage` → `Length | Percent`
+- `length_percentage_auto_to_py()` — for `taffy::LengthPercentageAuto` → `Length | Percent | Auto`
+- `available_space_to_py()` — for `taffy::AvailableSpace` → `Definite | MinContent | MaxContent`
+- `grid_track_to_py()` — for `TrackSizingFunction` → shorthand or `Minmax`
+- `grid_placement_to_py()` — for `TaffyGridPlacement` → `int | Span | Auto`
 
-#[derive(FromPyObject)]
-pub enum LengthPercentageInput { ... }
+### Step 4: Update Style constructor and getters
 
-#[derive(FromPyObject)]
-pub enum LengthPercentageAutoInput { ... }
+- Change `set_field!` macro calls to use the new input enums
+- Change getters to return new types via the conversion helpers
+- Grid template fields accept `Vec<GridTrackInput>` and return converted lists
+- Remove all imports of old types from `style.rs`
 
-#[derive(FromPyObject)]
-pub enum AvailableSpaceInput { ... }
-```
+### Step 5: Update `GridLine`
 
-Each with `to_taffy()` methods that convert to the appropriate taffy type.
-
-### Step 4: Update Style constructor
-
-Change `set_field!` macro calls to use the new input enums instead of the old types:
-
-```rust
-// Before
-set_field!("size_width", F_SIZE_WIDTH, |v: Dimension| {
-    style.size.width = (&v).into()
-});
-
-// After
-set_field!("size_width", F_SIZE_WIDTH, |v: DimensionInput| {
-    style.size.width = v.to_taffy_dimension()
-});
-```
-
-Remove the `use crate::dimensions::*` import from `style.rs`.
-
-### Step 5: Update Style getters
-
-Change getters to return the new types as `PyObject`:
-
-```rust
-// Before
-#[getter]
-fn get_size_width(&self) -> Dimension {
-    self.inner.size.width.into()
-}
-
-// After
-#[getter]
-fn get_size_width(&self, py: Python<'_>) -> PyObject {
-    dimension_to_value_type(py, self.inner.size.width)
-}
-```
-
-Where `dimension_to_value_type` inspects the tag and returns `Length`, `Percent`, or `Auto`. Add similar helpers for `LengthPercentage` and `LengthPercentageAuto` fields.
+- Constructor accepts `GridPlacementInput` for `start`/`end`
+- Properties return `int | Span | Auto` via `grid_placement_to_py()`
+- Internal storage stays as `TaffyGridPlacement`
 
 ### Step 6: Update `AvailableDimensions`
 
 In `src/geometry.rs`:
 
-- Constructor accepts `AvailableSpaceInput` (the new types)
-- Properties return new types (`Definite`, `MinContent`, or `MaxContent`)
+- Constructor accepts `AvailableSpaceInput`
+- Properties return `Definite | MinContent | MaxContent`
 - `__iter__` yields new types
 
 ### Step 7: Delete old types and helpers
 
-- Delete `src/dimensions.rs` entirely (`Dimension`, `LengthPercentage`, `LengthPercentageAuto`)
-- Delete `src/helpers.rs` entirely (`length`, `percent`, `auto`, `zero`, `min_content`, `max_content`, `fr`, `minmax`)
+- Delete `src/dimensions.rs` entirely
+- Delete `src/helpers.rs` entirely
 - Delete `AvailableSpace` from `src/enums.rs`
-- Remove their registrations from `lib.rs`
+- Delete `GridTrack`, `GridTrackMin`, `GridTrackMax`, `GridPlacement` from `src/grid.rs` (keep `GridLine`)
+- Remove all registrations from `lib.rs`
 - Remove from `python/waxy/__init__.py` exports
 
-Note: `fr()` and `minmax()` are grid helpers unrelated to this issue. They could be kept as-is, or converted to `Fr(value)` / `GridTrack(min, max)` constructors in a future change. For now, keep them — move them into `src/grid.rs` or `src/values.rs`.
-
-### Step 9: Update Python exports and stubs
+### Step 8: Update Python exports and stubs
 
 - `python/waxy/__init__.py` — add new types to imports and `__all__`, remove old types
-- `python/waxy/__init__.pyi` — add type signatures for new types, update Style constructor/getter signatures, update helper return types, remove old type stubs
+- `python/waxy/__init__.pyi` — add type signatures for new types, update Style/GridLine signatures, remove old type stubs
 
-### Step 10: Update tests
+### Step 9: Update tests
 
 - Delete `test_dimensions.py` (tests old types)
 - Add new tests:
   - Construction and properties for each new type
   - `__repr__`, `__eq__`, `__hash__` for each
-  - Pattern matching with `match`/`case`
+  - Pattern matching with `match`/`case` for all type families
   - `__match_args__` for positional destructuring
   - `AUTO`, `MIN_CONTENT`, `MAX_CONTENT` constants
-  - Style construction with new types (all field categories)
+  - Style construction with new types (all field categories including grid)
   - Style getters return correct new types
+  - Grid track round-tripping (e.g., `Fr(1)` in → `Fr(1)` out)
+  - `GridLine` with `int`, `Span`, `Auto` for start/end
+  - `Minmax` and `FitContent` construction and destructuring
   - `AvailableDimensions` with new types
   - Measure function using pattern matching on `AvailableDimensions`
 - Update existing tests that use old types (in `test_style.py`, `test_integration.py`, `test_measure.py`, etc.)
 
-### Step 11: Update CLAUDE.md
+### Step 10: Update CLAUDE.md
 
 Update the architecture table and key design decisions to reflect the new types.
 
-### Step 12: Run `just check`
+### Step 11: Run `just check`
