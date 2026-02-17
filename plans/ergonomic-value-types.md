@@ -28,6 +28,8 @@ Three separate problems:
 
 Replace the "enum with static methods" pattern with standalone Python classes — one per variant. This is the "poor man's Rust enum" approach: model each variant as its own type and use `Union` on the Python side.
 
+The old container types (`Dimension`, `LengthPercentage`, `LengthPercentageAuto`, `AvailableSpace`) are removed entirely. No backward compatibility — waxy is pre-1.0 and a clean break is better than legacy baggage.
+
 ### New Dimension Types
 
 ```python
@@ -48,22 +50,26 @@ class Percent:
 class Auto:
     """An automatic dimension."""
     def __init__(self) -> None: ...
+
+AUTO: Auto  # Module-level constant for convenience
 ```
 
 These are plain frozen pyclasses that store an `f32` (or nothing for `Auto`). They do **not** wrap `CompactLength`, so they don't need `unsendable` — a nice simplification over the existing types.
 
+`AUTO` is a module-level constant (`Auto()`) for convenience. The `Auto` class is still needed for pattern matching syntax (`case Auto():`).
+
 #### Naming: `Percent` vs `Percentage`
 
 Use `Percent` because:
-- It matches the existing `percent()` helper and `Dimension.percent()` method names
+- It matches the existing `percent()` helper name
 - It's shorter
 - CSS reads as "50 percent" not "50 percentage"
 
-### How They Map to Existing Types
+### How They Replace the Old Types
 
-The three existing container types become unions of the new types:
+The three old container types are deleted and replaced by unions:
 
-| Existing Type | Union Equivalent | Used By |
+| Removed Type | Replacement | Used By |
 |---|---|---|
 | `Dimension` | `Length \| Percent \| Auto` | `size_*`, `min_size_*`, `max_size_*`, `flex_basis` |
 | `LengthPercentage` | `Length \| Percent` | `padding_*`, `border_*`, `gap_*` |
@@ -85,7 +91,7 @@ match style.size_width:
 
 ### Style Constructor Changes
 
-The Style constructor accepts both old and new types for full backward compatibility. In the `.pyi` stub:
+In the `.pyi` stub:
 
 ```python
 class Style:
@@ -93,11 +99,11 @@ class Style:
         self,
         *,
         # Fields that accept length | percent | auto
-        size_width: Length | Percent | Auto | Dimension | None = None,
+        size_width: Length | Percent | Auto | None = None,
         # Fields that accept length | percent only
-        padding_left: Length | Percent | LengthPercentage | None = None,
+        padding_left: Length | Percent | None = None,
         # Fields that accept length | percent | auto
-        margin_left: Length | Percent | Auto | LengthPercentageAuto | None = None,
+        margin_left: Length | Percent | Auto | None = None,
         ...
     ) -> None: ...
 ```
@@ -110,14 +116,12 @@ enum DimensionInput {
     Length(Length),
     Percent(Percent),
     Auto(Auto),
-    Legacy(Dimension),   // backward compat
 }
 
 #[derive(FromPyObject)]
 enum LengthPercentageInput {
     Length(Length),
     Percent(Percent),
-    Legacy(LengthPercentage),
 }
 
 #[derive(FromPyObject)]
@@ -125,7 +129,6 @@ enum LengthPercentageAutoInput {
     Length(Length),
     Percent(Percent),
     Auto(Auto),
-    Legacy(LengthPercentageAuto),
 }
 ```
 
@@ -133,27 +136,17 @@ Each input enum has a `to_taffy()` method that converts to the appropriate taffy
 
 ### Style Getter Changes
 
-Style getters return the new types instead of the old container types:
+Style getters return the new types:
 
 ```python
-# Before
-style.size_width      # → Dimension
-style.padding_left    # → LengthPercentage
-style.margin_left     # → LengthPercentageAuto
-
-# After
 style.size_width      # → Length | Percent | Auto
 style.padding_left    # → Length | Percent
 style.margin_left     # → Length | Percent | Auto
 ```
 
-On the Rust side, each getter inspects the inner taffy value's tag and returns the appropriate new type as a `PyObject`. For `Dimension`/`LengthPercentageAuto` fields, the getter checks `is_auto()` first, then distinguishes length vs percent via the tag. For `LengthPercentage` fields, only length and percent are possible.
-
-This is a breaking change for code that depends on the exact return type (e.g., `isinstance(style.size_width, Dimension)`), but enables pattern matching on returned values.
+On the Rust side, each getter inspects the inner taffy value's tag and returns the appropriate new type as a `PyObject`. For fields that can be auto, the getter checks `is_auto()` first, then distinguishes length vs percent via the tag. For `LengthPercentage` fields, only length and percent are possible.
 
 ### Helper Function Changes
-
-The existing helpers change return types:
 
 | Helper | Before | After |
 |---|---|---|
@@ -162,16 +155,18 @@ The existing helpers change return types:
 | `auto()` | `Dimension` | `Auto` |
 | `zero()` | `LengthPercentage` | `Length` |
 
-Since the new types are accepted everywhere the old types were (via the input enums), this is backward-compatible at call sites:
+Since `Length`, `Percent`, and `Auto` are accepted everywhere the old types were, all helpers now work for **all** Style fields:
 
 ```python
-# Still works — Length is now accepted for all dimension-like Style fields
-Style(size_width=length(10))        # was Dimension, now Length — still accepted
-Style(padding_left=length(10))      # was broken! now works because Length is accepted
-Style(margin_left=length(10))       # was Dimension, now Length — still accepted
+# length() and percent() now work everywhere
+Style(size_width=length(10))        # ✓
+Style(padding_left=length(10))      # ✓ (was broken before!)
+Style(margin_left=length(10))       # ✓
+Style(border_top=percent(0.5))      # ✓ (was broken before!)
+Style(inset_left=auto())            # ✓ (was broken before!)
 ```
 
-This is the key ergonomic win: **`length()`, `percent()`, `auto()`, and `zero()` now work for all Style fields**, not just the ones that take `Dimension`.
+This is the key ergonomic win.
 
 ## Design: Value Types for AvailableSpace
 
@@ -200,17 +195,28 @@ class MinContent:
 class MaxContent:
     """Max-content available space."""
     def __init__(self) -> None: ...
+
+MIN_CONTENT: MinContent  # Module-level constant
+MAX_CONTENT: MaxContent  # Module-level constant
 ```
 
-### AvailableSpace Changes
+### AvailableSpace Removal
 
-`AvailableSpace` becomes a union type alias:
+The old `AvailableSpace` class is deleted. `AvailableDimensions` accepts and returns the new types directly:
 
 ```python
-type AvailableSpaceValue = Definite | MinContent | MaxContent
-```
+class AvailableDimensions:
+    def __init__(
+        self,
+        width: Definite | MinContent | MaxContent,
+        height: Definite | MinContent | MaxContent,
+    ) -> None: ...
 
-The existing `AvailableSpace` class remains for backward compatibility. Places that accept `AvailableSpace` (e.g., `AvailableDimensions.__init__`) also accept the new types. The `AvailableDimensions` properties return the new types.
+    @property
+    def width(self) -> Definite | MinContent | MaxContent: ...
+    @property
+    def height(self) -> Definite | MinContent | MaxContent: ...
+```
 
 ### Pattern Matching in Measure Functions
 
@@ -235,28 +241,7 @@ def measure(known_dimensions, available_space, context):
 | `min_content()` | `AvailableSpace` | `MinContent` |
 | `max_content()` | `AvailableSpace` | `MaxContent` |
 
-A new `definite(value)` helper is also added for symmetry, returning `Definite`.
-
-## Backward Compatibility
-
-### What Still Works
-
-- Old types (`Dimension`, `LengthPercentage`, `LengthPercentageAuto`, `AvailableSpace`) remain as classes
-- Old static methods (`Dimension.length()`, `Dimension.auto()`, etc.) still work
-- Old types are still accepted by Style constructor and other APIs
-- Existing test code continues to pass without changes
-
-### What Changes (Breaking)
-
-- Helper function return types change (e.g., `length()` returns `Length` instead of `Dimension`). Call sites that pass these to Style fields still work, but code that does `isinstance(length(10), Dimension)` would break.
-- Style getter return types change (e.g., `style.size_width` returns `Length | Percent | Auto` instead of `Dimension`). Code that does `isinstance(style.size_width, Dimension)` would break.
-- `AvailableDimensions.width`/`.height` return new types instead of `AvailableSpace`.
-
-### Deprecation Path
-
-The old container types (`Dimension`, `LengthPercentage`, `LengthPercentageAuto`) should be deprecated in favor of the new value types. They can be removed in a future major version. `AvailableSpace` follows the same path.
-
-Given that waxy is pre-1.0, these breaking changes are acceptable.
+A new `definite(value)` helper is added for symmetry, returning `Definite`.
 
 ## Implementation Steps
 
@@ -267,6 +252,7 @@ In a new file `src/values.rs`:
 - `Length` — `#[pyclass(frozen, module = "waxy")]` with `f32` field, `__init__`, `value` property, `__repr__`, `__eq__`, `__hash__`, `__match_args__`
 - `Percent` — same structure
 - `Auto` — `#[pyclass(frozen, module = "waxy")]` unit struct with `__init__`, `__repr__`, `__eq__`, `__hash__`
+- `AUTO` — module-level constant via `m.add("AUTO", Auto {})?`
 
 Register in `values::register()`, wire into `lib.rs`.
 
@@ -277,6 +263,7 @@ In the same `src/values.rs`:
 - `Definite` — frozen pyclass with `f32` field, same methods as `Length`
 - `MinContent` — frozen unit struct
 - `MaxContent` — frozen unit struct
+- `MIN_CONTENT` and `MAX_CONTENT` — module-level constants
 
 ### Step 3: Add input enums with `FromPyObject`
 
@@ -296,11 +283,11 @@ pub enum LengthPercentageAutoInput { ... }
 pub enum AvailableSpaceInput { ... }
 ```
 
-Each with `to_taffy()` methods.
+Each with `to_taffy()` methods that convert to the appropriate taffy type.
 
 ### Step 4: Update Style constructor
 
-Change `set_field!` macro calls to use the new input enums instead of the old types. For example:
+Change `set_field!` macro calls to use the new input enums instead of the old types:
 
 ```rust
 // Before
@@ -313,6 +300,8 @@ set_field!("size_width", F_SIZE_WIDTH, |v: DimensionInput| {
     style.size.width = v.to_taffy_dimension()
 });
 ```
+
+Remove the `use crate::dimensions::*` import from `style.rs`.
 
 ### Step 5: Update Style getters
 
@@ -332,11 +321,13 @@ fn get_size_width(&self, py: Python<'_>) -> PyObject {
 }
 ```
 
-Where `dimension_to_value_type` inspects the tag and returns `Length`, `Percent`, or `Auto`.
+Where `dimension_to_value_type` inspects the tag and returns `Length`, `Percent`, or `Auto`. Add similar helpers for `LengthPercentage` and `LengthPercentageAuto` fields.
 
 ### Step 6: Update `AvailableDimensions`
 
-- Constructor accepts `AvailableSpaceInput` (new types + legacy `AvailableSpace`)
+In `src/geometry.rs`:
+
+- Constructor accepts `AvailableSpaceInput` (the new types)
 - Properties return new types (`Definite`, `MinContent`, or `MaxContent`)
 - `__iter__` yields new types
 
@@ -352,30 +343,36 @@ In `src/helpers.rs`:
 - `max_content()` → returns `MaxContent`
 - Add `definite(value)` → returns `Definite`
 
-### Step 8: Update Python exports
+### Step 8: Delete old types
 
-- `python/waxy/__init__.py` — add new types to imports and `__all__`
-- `python/waxy/__init__.pyi` — add type signatures for new types, update Style constructor/getter signatures, update helper return types
+- Delete `src/dimensions.rs` entirely (`Dimension`, `LengthPercentage`, `LengthPercentageAuto`)
+- Delete `AvailableSpace` from `src/enums.rs`
+- Remove their registrations from `lib.rs`
+- Remove from `python/waxy/__init__.py` exports
 
-### Step 9: Add tests
+### Step 9: Update Python exports and stubs
 
-- Construction and properties for each new type
-- `__repr__`, `__eq__`, `__hash__` for each
-- Pattern matching with `match`/`case`
-- `__match_args__` for positional destructuring
-- Style construction with new types (all field categories)
-- Style construction with mixed old and new types (backward compat)
-- Style getters return new types
-- Helper functions return new types and are accepted by all Style fields
-- `AvailableDimensions` with new AvailableSpace types
-- Measure function using pattern matching on `AvailableDimensions`
+- `python/waxy/__init__.py` — add new types to imports and `__all__`, remove old types
+- `python/waxy/__init__.pyi` — add type signatures for new types, update Style constructor/getter signatures, update helper return types, remove old type stubs
 
-### Step 10: Run `just check`
+### Step 10: Update tests
 
-## Questions to Resolve
+- Delete tests for old types (`test_dimensions.py` content that tests `Dimension`, `LengthPercentage`, `LengthPercentageAuto`)
+- Add new tests:
+  - Construction and properties for each new type
+  - `__repr__`, `__eq__`, `__hash__` for each
+  - Pattern matching with `match`/`case`
+  - `__match_args__` for positional destructuring
+  - `AUTO`, `MIN_CONTENT`, `MAX_CONTENT` constants
+  - Style construction with new types (all field categories)
+  - Style getters return correct new types
+  - Helper functions return new types and are accepted by all Style fields
+  - `AvailableDimensions` with new types
+  - Measure function using pattern matching on `AvailableDimensions`
+- Update existing tests that use old types (in `test_style.py`, `test_integration.py`, `test_measure.py`, etc.)
 
-1. **Should `Auto` be a singleton?** We could expose an `AUTO` module-level constant as `Auto()` for convenience. Pattern matching still uses `case Auto():` regardless. The class is still needed for the pattern match syntax.
+### Step 11: Update CLAUDE.md
 
-2. **Should we add `__match_args__` to the old types too?** Adding `__match_args__` to `Dimension`, `LengthPercentage`, `LengthPercentageAuto` would enable limited pattern matching even for users who haven't migrated. But it may not be worth the effort if we're deprecating them.
+Update the architecture table and key design decisions to reflect the new types.
 
-3. **Should `AvailableSpace` decomposition be a separate issue?** It follows the same pattern as the dimension types but affects different APIs (measure functions vs. style construction). Could be split into a Phase 2 if the dimension work is large enough on its own.
+### Step 12: Run `just check`
