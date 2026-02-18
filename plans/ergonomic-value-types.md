@@ -22,7 +22,7 @@ Two problems:
 
 ## Waxy ↔ Taffy Type Reference
 
-Complete mapping between waxy Python types and their underlying taffy 0.9.x Rust types. Types marked with *(removing)* are deleted by this plan; types marked with *(new)* are added. All others are unchanged.
+Complete mapping between waxy Python types and their underlying taffy 0.9.x Rust types, as they will exist after this plan is implemented.
 
 `#[pyclass]` markers: **frozen** = immutable from Python; **unsendable** = wraps taffy's `CompactLength` (contains `*const ()`, not `Send`).
 
@@ -43,9 +43,9 @@ Complete mapping between waxy Python types and their underlying taffy 0.9.x Rust
 | `Size` | `Size<f32>` | frozen | `width`, `height`; also used for `Layout` fields |
 | `Rect` | `Rect<f32>` | frozen | `left`, `right`, `top`, `bottom` |
 | `Point` | `Point<f32>` | frozen | `x`, `y`; arithmetic ops supported |
-| `Line` | `Line<f32>` | frozen | `start`, `end` — a 1D line segment |
+| `Line` | `Line<f32>` | frozen | `start`, `end` — a 1D line segment; **naming conflict with grid `Line`** — see note below |
 | `KnownDimensions` | `Size<Option<f32>>` | frozen | Optional `width`/`height` for measure functions |
-| `AvailableDimensions` | `Size<AvailableSpace>` | frozen, unsendable | Inputs/outputs change to new value types |
+| `AvailableDimensions` | `Size<AvailableSpace>` | frozen | Accepts/returns `Definite \| MinContent \| MaxContent` |
 
 ### Enums (`src/enums.rs`)
 
@@ -62,54 +62,39 @@ Complete mapping between waxy Python types and their underlying taffy 0.9.x Rust
 | `BoxSizing` | `BoxSizing` | — | `BorderBox`, `ContentBox` |
 | `TextAlign` | `TextAlign` | — | `Auto`, `LegacyLeft`, `LegacyRight`, `LegacyCenter` |
 
-### Dimension & available-space types (`src/dimensions.rs` → `src/values.rs`)
+### Value types (`src/values.rs`)
+
+These replace the old `Dimension`, `LengthPercentage`, `LengthPercentageAuto`, `AvailableSpace`, `GridTrack`, `GridTrackMin`, `GridTrackMax`, `GridPlacement` types and all helper functions. None wrap `CompactLength`, so none need `unsendable`.
 
 | Waxy type | Taffy type | Markers | Notes |
 |---|---|---|---|
-| `Dimension` *(removing)* | `Dimension` | frozen, unsendable | Opaque wrapper with static methods |
-| `LengthPercentage` *(removing)* | `LengthPercentage` | frozen, unsendable | Opaque wrapper with static methods |
-| `LengthPercentageAuto` *(removing)* | `LengthPercentageAuto` | frozen, unsendable | Opaque wrapper with static methods |
-| `AvailableSpace` *(removing)* | `AvailableSpace` | unsendable | Opaque wrapper with static methods; in `src/enums.rs` |
-| `Length` *(new)* | Variant of `Dimension` / `LengthPercentage` / etc. | frozen | `Length(value)` — shared across all dimension contexts |
-| `Percent` *(new)* | Variant of `Dimension` / `LengthPercentage` / etc. | frozen | `Percent(value)` — shared across all dimension contexts |
-| `Auto` *(new)* | Variant of `Dimension` / `LengthPercentageAuto` / `GridPlacement` | frozen | `Auto()` — shared across dimensions and grid placement |
-| `MinContent` *(new)* | `AvailableSpace::MinContent` / `MinTrackSizingFunction::MinContent` | frozen | Also used in grid track sizing |
-| `MaxContent` *(new)* | `AvailableSpace::MaxContent` / `MinTrackSizingFunction::MaxContent` | frozen | Also used in grid track sizing |
-| `Definite` *(new)* | `AvailableSpace::Definite(f32)` | frozen | Available space only |
-
-New types don't wrap `CompactLength`, so none need `unsendable`.
-
-### Grid track types (`src/grid.rs` → `src/values.rs`)
-
-| Waxy type | Taffy type | Markers | Notes |
-|---|---|---|---|
-| `GridTrack` *(removing)* | `MinMax<MinTrackSizingFunction, MaxTrackSizingFunction>` | frozen, unsendable | Opaque wrapper with static methods |
-| `GridTrackMin` *(removing)* | `MinTrackSizingFunction` | frozen, unsendable | Opaque wrapper with static methods |
-| `GridTrackMax` *(removing)* | `MaxTrackSizingFunction` | frozen, unsendable | Opaque wrapper with static methods |
-| `Fraction` *(new)* | `MaxTrackSizingFunction::Fraction(f32)` | frozen | CSS `fr` unit |
-| `Minmax` *(new)* | `MinMax<MinTrackSizingFunction, MaxTrackSizingFunction>` | frozen | Explicit min/max pair; CSS `minmax()` |
-| `FitContent` *(new)* | `MaxTrackSizingFunction::FitContent(LengthPercentage)` | frozen | CSS `fit-content()` |
+| `Length` | `Dimension::Length(f32)` / `LengthPercentage::Length(f32)` / etc. | frozen | `Length(value)` — shared across all dimension/track contexts |
+| `Percent` | `Dimension::Percent(f32)` / `LengthPercentage::Percent(f32)` / etc. | frozen | `Percent(value)` — shared across all dimension/track contexts |
+| `Auto` | `Dimension::Auto` / `LengthPercentageAuto::Auto` / `GridPlacement::Auto` | frozen | `Auto()` — shared across dimensions and grid placement |
+| `MinContent` | `AvailableSpace::MinContent` / `MinTrackSizingFunction::MinContent` | frozen | CSS `min-content`; also a grid track min/max value |
+| `MaxContent` | `AvailableSpace::MaxContent` / `MinTrackSizingFunction::MaxContent` | frozen | CSS `max-content`; also a grid track min/max value |
+| `Definite` | `AvailableSpace::Definite(f32)` | frozen | Available space only |
+| `Fraction` | `MaxTrackSizingFunction::Fraction(f32)` | frozen | CSS `fr` unit; grid tracks only |
+| `Minmax` | `MinMax<MinTrackSizingFunction, MaxTrackSizingFunction>` | frozen | CSS `minmax()`; explicit min/max pair |
+| `FitContent` | `MaxTrackSizingFunction::FitContent(LengthPercentage)` | frozen | CSS `fit-content()`; grid tracks only |
+| `Line` | `GridPlacement::Line(GridLine)` where `GridLine(i16)` | frozen | 1-based grid line index; **naming conflict with geometry `Line`** — see note below |
+| `Span` | `GridPlacement::Span(u16)` | frozen | Span a number of grid tracks |
 
 Grid track getters recognize shorthand forms: `MinMax(length(v), length(v))` → `Length(v)`, `MinMax(auto, fr(v))` → `Fraction(v)`, etc.
 
-### Grid placement types (`src/grid.rs` / `src/values.rs`)
+**Naming conflict**: The grid placement `Line` (from taffy's `GridLine(i16)`) collides with the geometry `Line` (from taffy's `Line<f32>`). Resolution TBD.
+
+### Grid (`src/grid.rs`)
 
 | Waxy type | Taffy type | Markers | Notes |
 |---|---|---|---|
-| `GridPlacement` *(removing)* | `GridPlacement` (enum: `Auto \| Line(GridLine) \| Span(u16)`) | frozen, unsendable | Opaque wrapper with static methods |
-| `Line` *(new)* | `GridPlacement::Line(GridLine)` where `GridLine(i16)` | frozen | A 1-based grid line index; **naming conflict with geometry `Line`** — see note below |
-| `Span` *(new)* | `GridPlacement::Span(u16)` | frozen | Span a number of tracks |
-| `GridLine` | `Line<GridPlacement>` | frozen, unsendable | Start/end pair of placements; inputs/outputs change to new value types |
-
-`Auto` (from shared types above) covers `GridPlacement::Auto`.
-
-**Naming conflict**: The new `Line` (grid line index, from taffy's `GridLine(i16)`) collides with the existing geometry `Line` (from taffy's `Line<f32>`). Resolution TBD — see discussion in plan.
+| `GridLine` | `Line<GridPlacement>` | frozen, unsendable | Start/end pair; accepts/returns `Line \| Span \| Auto` |
 
 ### Style (`src/style.rs`)
 
 | Waxy type | Taffy type | Markers | Notes |
 |---|---|---|---|
-| `Style` | `Style` | frozen, unsendable | All-kwargs constructor; `__or__` merges; inputs/outputs change to new value types |
+| `Style` | `Style` | frozen, unsendable | All-kwargs constructor; `__or__` merges; accepts/returns new value types |
 
 ### Layout (`src/layout.rs`)
 
@@ -124,26 +109,13 @@ Grid track getters recognize shorthand forms: `MinMax(length(v), length(v))` →
 | `NodeId` | `NodeId` | frozen | Opaque node handle; `__eq__`, `__hash__` |
 | `TaffyTree` | `TaffyTree<PyObject>` | unsendable | Mutable tree; generic over node context type in `.pyi` stubs |
 
-### Helper functions (`src/helpers.rs` — all removing)
-
-| Waxy function | Returned type | Notes |
-|---|---|---|
-| `zero()` *(removing)* | `LengthPercentage` | Use `Length(0)` instead |
-| `auto()` *(removing)* | `Dimension` | Use `AUTO` or `Auto()` instead |
-| `length()` *(removing)* | `Dimension` | Use `Length(v)` instead |
-| `percent()` *(removing)* | `Dimension` | Use `Percent(v)` instead |
-| `min_content()` *(removing)* | `AvailableSpace` | Use `MIN_CONTENT` or `MinContent()` instead |
-| `max_content()` *(removing)* | `AvailableSpace` | Use `MAX_CONTENT` or `MaxContent()` instead |
-| `fr()` *(removing)* | `GridTrack` | Use `Fraction(v)` instead |
-| `minmax()` *(removing)* | `GridTrack` | Use `Minmax(min, max)` instead |
-
-### Module-level constants (`src/values.rs` — all new)
+### Module-level constants (`src/values.rs`)
 
 | Waxy constant | Type | Notes |
 |---|---|---|
-| `AUTO` *(new)* | `Auto` | Singleton convenience; `AUTO` is `Auto()` |
-| `MIN_CONTENT` *(new)* | `MinContent` | Singleton convenience |
-| `MAX_CONTENT` *(new)* | `MaxContent` | Singleton convenience |
+| `AUTO` | `Auto` | Singleton convenience; `AUTO` is `Auto()` |
+| `MIN_CONTENT` | `MinContent` | Singleton convenience |
+| `MAX_CONTENT` | `MaxContent` | Singleton convenience |
 
 ## Design: Standalone Value Types
 
