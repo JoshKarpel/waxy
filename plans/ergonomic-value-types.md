@@ -11,7 +11,7 @@ Style(
     padding_left=LengthPercentage.length(10),
     margin_left=LengthPercentageAuto.length(10),
     grid_template_columns=[GridTrack.length(200), GridTrack.flex(1), GridTrack.flex(2)],
-    grid_row=GridLine(start=GridPlacement.line(1), end=GridPlacement.span(2)),
+    grid_row=GridPlacement(start=GridPlacement.line(1), end=GridPlacement.span(2)),
 )
 ```
 
@@ -41,7 +41,7 @@ Complete mapping between waxy Python types and their underlying taffy 0.9.x Rust
 | `Size` | `Size<f32>` | `width` and `height` floats; also the return type for `Layout.size`, `Layout.content_size`, `Layout.scrollbar_size`; supports `area` property |
 | `Rect` | `Rect<f32>` | `left`, `right`, `top`, `bottom` floats; derived `width`, `height`, `size` properties; `contains(point)` hit-testing; corner/edge iteration; also the return type for `Layout.border`, `Layout.padding`, `Layout.margin` |
 | `Point` | `Point<f32>` | `x`, `y` floats; arithmetic ops (`+`, `-`, `*`, `/`, unary `-`); also the return type for `Layout.location` |
-| `Line` | `Line<f32>` | `start`, `end` floats — a 1D line segment; `length` and `contains(value)` methods; **naming conflict with grid placement `Line`** — see note below |
+| `Line` | `Line<f32>` | `start`, `end` floats — a 1D line segment; `length` and `contains(value)` methods |
 | `KnownDimensions` | `Size<Option<f32>>` | `width` and `height` as `float \| None`; passed to measure functions to indicate already-known dimensions |
 | `AvailableDimensions` | `Size<AvailableSpace>` | `width` and `height` as `Definite \| MinContent \| MaxContent`; passed to measure functions to indicate available layout space |
 
@@ -75,18 +75,16 @@ These replace the old `Dimension`, `LengthPercentage`, `LengthPercentageAuto`, `
 | `Fraction` | `MaxTrackSizingFunction::Fraction(f32)` | CSS `fr` unit — a fractional share of remaining grid space; `Fraction(value)` with a `value` property; used only in grid track sizing |
 | `Minmax` | `MinMax<MinTrackSizingFunction, MaxTrackSizingFunction>` | CSS `minmax()` — explicit min/max track sizing pair; `Minmax(min, max)` where `min` is `Length \| Percent \| Auto \| MinContent \| MaxContent` and `max` adds `Fraction \| FitContent`; used only in grid track sizing |
 | `FitContent` | `MaxTrackSizingFunction::FitContent(LengthPercentage)` | CSS `fit-content()` — grow up to a limit then clamp; `FitContent(limit)` where `limit` is `Length \| Percent`; used only in grid track sizing |
-| `Line` | `GridPlacement::Line(GridLine)` where `GridLine(i16)` | A 1-based grid line index (negative counts from end); `Line(index)` with an `index` property; used only in grid placement; **naming conflict with geometry `Line`** — see note below |
-| `Span` | `GridPlacement::Span(u16)` | Span a number of grid tracks; `Span(count)` with a `count` property; used only in grid placement |
+| `GridLine` | `GridPlacement::Line(GridLine)` where `GridLine(i16)` | A 1-based grid line index (negative counts from end); `GridLine(index)` with an `index` property; used only in grid placement |
+| `GridSpan` | `GridPlacement::Span(u16)` | Span a number of grid tracks; `GridSpan(count)` with a `count` property; used only in grid placement |
 
 Grid track getters recognize shorthand forms: `MinMax(length(v), length(v))` → `Length(v)`, `MinMax(auto, fr(v))` → `Fraction(v)`, etc. This means round-tripping preserves the concise form.
-
-**Naming conflict**: The grid placement `Line` (from taffy's `GridLine(i16)`) collides with the geometry `Line` (from taffy's `Line<f32>`). Resolution TBD.
 
 ### Grid (`src/grid.rs`)
 
 | Waxy type | Taffy type | Notes |
 |---|---|---|
-| `GridLine` | `Line<GridPlacement>` | A start/end pair of grid placements; `GridLine(start, end)` where each is `Line \| Span \| Auto` (defaults to `Auto`); wraps taffy's generic `Line<T>` specialized to grid placements |
+| `GridPlacement` | `Line<GridPlacement>` | A start/end pair of grid placements; `GridPlacement(start, end)` where each is `GridLine \| GridSpan \| Auto` (defaults to `Auto`); wraps taffy's generic `Line<T>` specialized to grid placements |
 
 ### Style (`src/style.rs`)
 
@@ -215,14 +213,14 @@ class FitContent:
 #### Grid placement only
 
 ```python
-class Line:
+class GridLine:
     """A grid line index (1-based, negative indices count from the end)."""
     __match_args__ = ("index",)
     def __init__(self, index: int) -> None: ...
     @property
     def index(self) -> int: ...
 
-class Span:
+class GridSpan:
     """Span a number of grid tracks."""
     __match_args__ = ("count",)
     def __init__(self, count: int) -> None: ...
@@ -249,7 +247,7 @@ class Span:
 | `GridTrack` | `Length \| Percent \| Auto \| MinContent \| MaxContent \| Fraction \| Minmax \| FitContent` | `grid_template_*`, `grid_auto_*` |
 | `GridTrackMin` | `Length \| Percent \| Auto \| MinContent \| MaxContent` | `Minmax.min` |
 | `GridTrackMax` | `Length \| Percent \| Auto \| MinContent \| MaxContent \| Fraction \| FitContent` | `Minmax.max` |
-| `GridPlacement` | `Line \| Span \| Auto` | `GridLine.start`, `GridLine.end` |
+| `GridPlacement` (old) | `GridLine \| GridSpan \| Auto` | `GridPlacement.start`, `GridPlacement.end` |
 
 The key insight: `Length`, `Percent`, `Auto`, `MinContent`, `MaxContent` are shared across many contexts. A single small set of types covers the entire API.
 
@@ -282,10 +280,10 @@ match track:
         print(f"fit-content({v}px)")
 
 # Grid placements
-match grid_line.start:
-    case Line(n):
+match placement.start:
+    case GridLine(n):
         print(f"line {n}")
-    case Span(n):
+    case GridSpan(n):
         print(f"span {n}")
     case Auto():
         print("auto")
@@ -304,7 +302,7 @@ class Style:
         padding_left: Length | Percent | None = None,
         margin_left: Length | Percent | Auto | None = None,
         grid_template_columns: list[Length | Percent | Auto | MinContent | MaxContent | Fraction | Minmax | FitContent] | None = None,
-        grid_row: GridLine | None = None,
+        grid_row: GridPlacement | None = None,
         ...
     ) -> None: ...
 ```
@@ -328,7 +326,7 @@ enum AvailableSpaceInput { Definite(Definite), MinContent(MinContent), MaxConten
 enum GridTrackInput { Length(Length), Percent(Percent), Auto(Auto), MinContent(MinContent), MaxContent(MaxContent), Fraction(Fraction), Minmax(Minmax), FitContent(FitContent) }
 
 #[derive(FromPyObject)]
-enum GridPlacementInput { Line(Line), Span(Span), Auto(Auto) }
+enum GridPlacementInput { GridLine(GridLine), GridSpan(GridSpan), Auto(Auto) }
 ```
 
 #### Getters
@@ -347,31 +345,31 @@ Style getters return the new types. Grid track getters recognize common shorthan
 
 This means what you put in is what you get back: `Fraction(1)` round-trips as `Fraction(1)`, not `Minmax(Auto(), Fraction(1))`.
 
-### GridLine Changes
+### GridPlacement Changes
 
-`GridLine` stays as a class, but its `start`/`end` accept and return the new types:
+`GridPlacement` (renamed from `GridLine`) stays as a class, but its `start`/`end` accept and return the new types:
 
 ```python
-class GridLine:
+class GridPlacement:
     def __init__(
         self,
-        start: Line | Span | Auto | None = None,  # None defaults to Auto
-        end: Line | Span | Auto | None = None,
+        start: GridLine | GridSpan | Auto | None = None,  # None defaults to Auto
+        end: GridLine | GridSpan | Auto | None = None,
     ) -> None: ...
     @property
-    def start(self) -> Line | Span | Auto: ...
+    def start(self) -> GridLine | GridSpan | Auto: ...
     @property
-    def end(self) -> Line | Span | Auto: ...
+    def end(self) -> GridLine | GridSpan | Auto: ...
 ```
 
 Before vs after:
 
 ```python
 # Before
-GridLine(start=GridPlacement.line(1), end=GridPlacement.span(3))
+GridPlacement(start=GridPlacement.line(1), end=GridPlacement.span(3))
 
 # After
-GridLine(start=Line(1), end=Span(3))
+GridPlacement(start=GridLine(1), end=GridSpan(3))
 ```
 
 ### Before / After Summary
@@ -384,7 +382,7 @@ Style(
     margin_left=LengthPercentageAuto.auto(),
     grid_template_columns=[GridTrack.length(200), GridTrack.flex(1), GridTrack.flex(2)],  # "flex" is taffy's name for CSS fr
     grid_template_rows=[GridTrack.auto(), GridTrack.minmax(GridTrackMin.length(100), GridTrackMax.fr(1))],
-    grid_row=GridLine(start=GridPlacement.line(1), end=GridPlacement.span(2)),
+    grid_row=GridPlacement(start=GridPlacement.line(1), end=GridPlacement.span(2)),
 )
 
 # After
@@ -394,7 +392,7 @@ Style(
     margin_left=AUTO,
     grid_template_columns=[Length(200), Fraction(1), Fraction(2)],
     grid_template_rows=[AUTO, Minmax(Length(100), Fraction(1))],
-    grid_row=GridLine(start=Line(1), end=Span(2)),
+    grid_row=GridPlacement(start=GridLine(1), end=GridSpan(2)),
 )
 ```
 
@@ -407,7 +405,7 @@ In a new file `src/values.rs`, add all new types:
 - **Shared**: `Length`, `Percent`, `Auto`, `MinContent`, `MaxContent` — frozen pyclasses with `__init__`, properties, `__repr__`, `__eq__`, `__hash__`, `__match_args__`
 - **Available space**: `Definite` — frozen pyclass with `f32` field
 - **Grid track**: `Fraction`, `FitContent`, `Minmax` — frozen pyclasses
-- **Grid placement**: `Line` (frozen pyclass with `i16` field), `Span` (frozen pyclass with `u16` field)
+- **Grid placement**: `GridLine` (frozen pyclass with `i16` field), `GridSpan` (frozen pyclass with `u16` field)
 - **Constants**: `AUTO`, `MIN_CONTENT`, `MAX_CONTENT` — registered via `m.add()`
 
 Every type gets a Rust doc comment (`/// ...`) which PyO3 surfaces as Python `__doc__`. Use the docstrings from the "New Types" section above — they should explain what the type represents in plain language, not just repeat the type name. For types that map to CSS concepts (`Fraction`, `Minmax`, `FitContent`, `MinContent`, `MaxContent`), mention the CSS equivalent so users coming from CSS can orient themselves.
@@ -427,7 +425,7 @@ In `src/values.rs`, define the input enums with `to_taffy()` methods:
 - `GridTrackInput` — `Length | Percent | Auto | MinContent | MaxContent | Fraction | Minmax | FitContent`
 - `GridTrackMinInput` — `Length | Percent | Auto | MinContent | MaxContent`
 - `GridTrackMaxInput` — `Length | Percent | Auto | MinContent | MaxContent | Fraction | FitContent`
-- `GridPlacementInput` — `Line | Span | Auto`
+- `GridPlacementInput` — `GridLine | GridSpan | Auto`
 
 ### Step 3: Add taffy→value-type conversion helpers
 
@@ -438,7 +436,7 @@ Functions that inspect taffy's internal types and return the appropriate new Pyt
 - `length_percentage_auto_to_py()` — for `taffy::LengthPercentageAuto` → `Length | Percent | Auto`
 - `available_space_to_py()` — for `taffy::AvailableSpace` → `Definite | MinContent | MaxContent`
 - `grid_track_to_py()` — for `TrackSizingFunction` → shorthand or `Minmax`
-- `grid_placement_to_py()` — for `TaffyGridPlacement` → `Line | Span | Auto`
+- `grid_placement_to_py()` — for `TaffyGridPlacement` → `GridLine | GridSpan | Auto`
 
 ### Step 4: Update Style constructor and getters
 
@@ -447,10 +445,11 @@ Functions that inspect taffy's internal types and return the appropriate new Pyt
 - Grid template fields accept `Vec<GridTrackInput>` and return converted lists
 - Remove all imports of old types from `style.rs`
 
-### Step 5: Update `GridLine`
+### Step 5: Update `GridPlacement` (renamed from `GridLine`)
 
+- Rename `GridLine` → `GridPlacement` in `src/grid.rs`
 - Constructor accepts `GridPlacementInput` for `start`/`end`
-- Properties return `Line | Span | Auto` via `grid_placement_to_py()`
+- Properties return `GridLine | GridSpan | Auto` via `grid_placement_to_py()`
 - Internal storage stays as `TaffyGridPlacement`
 
 ### Step 6: Update `AvailableDimensions`
@@ -466,14 +465,14 @@ In `src/geometry.rs`:
 - Delete `src/dimensions.rs` entirely
 - Delete `src/helpers.rs` entirely
 - Delete `AvailableSpace` from `src/enums.rs`
-- Delete `GridTrack`, `GridTrackMin`, `GridTrackMax`, `GridPlacement` from `src/grid.rs` (keep `GridLine`)
+- Delete `GridTrack`, `GridTrackMin`, `GridTrackMax`, old `GridPlacement` from `src/grid.rs` (keep the renamed `GridPlacement`)
 - Remove all registrations from `lib.rs`
 - Remove from `python/waxy/__init__.py` exports
 
 ### Step 8: Update Python exports and stubs
 
 - `python/waxy/__init__.py` — add new types to imports and `__all__`, remove old types
-- `python/waxy/__init__.pyi` — add type signatures for new types, update Style/GridLine/AvailableDimensions signatures, remove old type stubs. Every class gets a class-level docstring matching the Rust doc comment. Every `__init__` parameter and property that isn't self-evident gets a docstring. Follow the existing stub conventions (see current `.pyi` for examples).
+- `python/waxy/__init__.pyi` — add type signatures for new types, update Style/GridPlacement/AvailableDimensions signatures, remove old type stubs. Every class gets a class-level docstring matching the Rust doc comment. Every `__init__` parameter and property that isn't self-evident gets a docstring. Follow the existing stub conventions (see current `.pyi` for examples).
   - Add type aliases for the unions that appear repeatedly (e.g., `DimensionValue = Length | Percent | Auto`) to keep the Style signature readable — or spell them out inline if the aliases would obscure more than they help. Use judgment.
 
 ### Step 9: Update tests
@@ -488,7 +487,7 @@ In `src/geometry.rs`:
   - Style construction with new types (all field categories including grid)
   - Style getters return correct new types
   - Grid track round-tripping (e.g., `Fraction(1)` in → `Fraction(1)` out)
-  - `GridLine` with `Line`, `Span`, `Auto` for start/end
+  - `GridPlacement` with `GridLine`, `GridSpan`, `Auto` for start/end
   - `Minmax` and `FitContent` construction and destructuring
   - `AvailableDimensions` with new types
   - Measure function using pattern matching on `AvailableDimensions`
@@ -498,7 +497,7 @@ In `src/geometry.rs`:
 
 - Architecture table: replace `dimensions.rs` and `helpers.rs` entries with `values.rs`, update the contents column
 - Key design decisions: document that dimension-like values are now standalone frozen types (not enum-with-static-methods), list the new types, note that `CompactLength`/`unsendable` no longer applies to value types
-- Remove mentions of deleted types (`Dimension`, `LengthPercentage`, `LengthPercentageAuto`, `AvailableSpace`, `GridTrack`, `GridTrackMin`, `GridTrackMax`, `GridPlacement`) and deleted helpers
+- Remove mentions of deleted types (`Dimension`, `LengthPercentage`, `LengthPercentageAuto`, `AvailableSpace`, `GridTrack`, `GridTrackMin`, `GridTrackMax`, old `GridPlacement`, old `GridLine`) and deleted helpers
 
 ### Step 11: Verify docstrings
 
