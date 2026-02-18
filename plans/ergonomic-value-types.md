@@ -59,7 +59,6 @@ Complete mapping between waxy Python types and their underlying taffy 0.9.x Rust
 | `Overflow` | `Overflow` | `Visible`, `Clip`, `Hidden`, `Scroll` |
 | `GridAutoFlow` | `GridAutoFlow` | `Row`, `Column`, `RowDense`, `ColumnDense` |
 | `BoxSizing` | `BoxSizing` | `BorderBox`, `ContentBox` |
-| `TextAlign` | `TextAlign` | `Auto`, `LegacyLeft`, `LegacyRight`, `LegacyCenter`; these are **not** standard `text-align` — they implement the block-level child alignment behavior of HTML's `<center>` and `<div align="...">`, corresponding to browser-internal `-webkit-center` etc. The "Legacy" prefix distinguishes from standard text alignment (which is a text-rendering concern, not layout) |
 
 ### Value types (`src/values.rs`)
 
@@ -147,7 +146,6 @@ Taffy docs live on docs.rs; CSS concepts are documented on MDN. Link to both in 
 | `Overflow` | [Overflow](https://docs.rs/taffy/0.9.2/taffy/style/enum.Overflow.html) | [overflow](https://developer.mozilla.org/en-US/docs/Web/CSS/overflow) |
 | `GridAutoFlow` | [GridAutoFlow](https://docs.rs/taffy/0.9.2/taffy/style/enum.GridAutoFlow.html) | [grid-auto-flow](https://developer.mozilla.org/en-US/docs/Web/CSS/grid-auto-flow) |
 | `BoxSizing` | [BoxSizing](https://docs.rs/taffy/0.9.2/taffy/style/enum.BoxSizing.html) | [box-sizing](https://developer.mozilla.org/en-US/docs/Web/CSS/box-sizing) |
-| `TextAlign` | [TextAlign](https://docs.rs/taffy/0.9.2/taffy/style/enum.TextAlign.html) | [text-align](https://developer.mozilla.org/en-US/docs/Web/CSS/text-align) |
 
 ### Style fields
 
@@ -184,7 +182,6 @@ Taffy docs live on docs.rs; CSS concepts are documented on MDN. Link to both in 
 | `grid_auto_flow` | [Style::grid_auto_flow](https://docs.rs/taffy/0.9.2/taffy/struct.Style.html#structfield.grid_auto_flow) | [grid-auto-flow](https://developer.mozilla.org/en-US/docs/Web/CSS/grid-auto-flow) |
 | `grid_row` | [Style::grid_row](https://docs.rs/taffy/0.9.2/taffy/struct.Style.html#structfield.grid_row) | [grid-row](https://developer.mozilla.org/en-US/docs/Web/CSS/grid-row) |
 | `grid_column` | [Style::grid_column](https://docs.rs/taffy/0.9.2/taffy/struct.Style.html#structfield.grid_column) | [grid-column](https://developer.mozilla.org/en-US/docs/Web/CSS/grid-column) |
-| `text_align` | [Style::text_align](https://docs.rs/taffy/0.9.2/taffy/struct.Style.html#structfield.text_align) | [text-align](https://developer.mozilla.org/en-US/docs/Web/CSS/text-align) |
 
 ### Other types
 
@@ -545,6 +542,7 @@ Functions that inspect taffy's internal types and return the appropriate new Pyt
 - Change `set_field!` macro calls to use the new input enums
 - Change getters to return new types via the conversion helpers
 - Grid template fields accept `Vec<GridTrackInput>` and return converted lists
+- Remove the `text_align` field entirely (constructor kwarg, getter, merge, flag) — `TextAlign` is a legacy HTML feature (`<center>`, `<div align="...">`), not standard CSS text-align, and not useful for waxy's layout use cases
 - Remove all imports of old types from `style.rs`
 
 ### Step 5: Update `GridPlacement` (renamed from `GridLine`)
@@ -566,7 +564,7 @@ In `src/geometry.rs`:
 
 - Delete `src/dimensions.rs` entirely
 - Delete `src/helpers.rs` entirely
-- Delete `AvailableSpace` from `src/enums.rs`
+- Delete `AvailableSpace` and `TextAlign` from `src/enums.rs`
 - Delete `GridTrack`, `GridTrackMin`, `GridTrackMax`, old `GridPlacement` from `src/grid.rs` (keep the renamed `GridPlacement`)
 - Remove all registrations from `lib.rs`
 - Remove from `python/waxy/__init__.py` exports
