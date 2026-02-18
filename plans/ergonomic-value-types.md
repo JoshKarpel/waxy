@@ -33,6 +33,7 @@ Complete mapping between waxy Python types and their underlying taffy 0.9.x Rust
 | `InvalidParentNode` | `TaffyError::InvalidParentNode` | Raised when a parent `NodeId` doesn't exist in the tree |
 | `InvalidChildNode` | `TaffyError::InvalidChildNode` | Raised when a child `NodeId` doesn't exist in the tree |
 | `InvalidInputNode` | `TaffyError::InvalidInputNode` | Raised when an input `NodeId` doesn't exist in the tree |
+| `InvalidPercent` | — | Raised when `Percent(value)` is called with `value` outside 0.0–1.0; inherits from both `TaffyException` and `ValueError` |
 
 ### Geometry (`src/geometry.rs`)
 
@@ -42,8 +43,8 @@ Complete mapping between waxy Python types and their underlying taffy 0.9.x Rust
 | `Rect` | `Rect<f32>` | `left`, `right`, `top`, `bottom` floats; derived `width`, `height`, `size` properties; `contains(point)` hit-testing; corner/edge iteration; also the return type for `Layout.border`, `Layout.padding`, `Layout.margin` |
 | `Point` | `Point<f32>` | `x`, `y` floats; arithmetic ops (`+`, `-`, `*`, `/`, unary `-`); also the return type for `Layout.location` |
 | `Line` | `Line<f32>` | `start`, `end` floats — a 1D line segment; `length` and `contains(value)` methods |
-| `KnownDimensions` | `Size<Option<f32>>` | `width` and `height` as `float \| None`; passed to measure functions to indicate already-known dimensions |
-| `AvailableDimensions` | `Size<AvailableSpace>` | `width` and `height` as `Definite \| MinContent \| MaxContent`; passed to measure functions to indicate available layout space |
+| `KnownSize` | `Size<Option<f32>>` | `width` and `height` as `float \| None`; passed to measure functions to indicate already-known dimensions |
+| `AvailableSize` | `Size<AvailableSpace>` | `width` and `height` as `Definite \| MinContent \| MaxContent`; passed to measure functions to indicate available layout space |
 
 ### Enums (`src/enums.rs`)
 
@@ -58,7 +59,7 @@ Complete mapping between waxy Python types and their underlying taffy 0.9.x Rust
 | `Overflow` | `Overflow` | `Visible`, `Clip`, `Hidden`, `Scroll` |
 | `GridAutoFlow` | `GridAutoFlow` | `Row`, `Column`, `RowDense`, `ColumnDense` |
 | `BoxSizing` | `BoxSizing` | `BorderBox`, `ContentBox` |
-| `TextAlign` | `TextAlign` | `Auto`, `LegacyLeft`, `LegacyRight`, `LegacyCenter` |
+| `TextAlign` | `TextAlign` | `Auto`, `LegacyLeft`, `LegacyRight`, `LegacyCenter`; these are **not** standard `text-align` — they implement the block-level child alignment behavior of HTML's `<center>` and `<div align="...">`, corresponding to browser-internal `-webkit-center` etc. The "Legacy" prefix distinguishes from standard text alignment (which is a text-rendering concern, not layout) |
 
 ### Value types (`src/values.rs`)
 
@@ -67,11 +68,11 @@ These replace the old `Dimension`, `LengthPercentage`, `LengthPercentageAuto`, `
 | Waxy type | Taffy type | Notes |
 |---|---|---|
 | `Length` | `Dimension::Length(f32)`, `LengthPercentage::Length(f32)`, etc. | A length in pixels; `Length(value)` with a `value` property; shared across all dimension, padding/border/gap, margin/inset, and grid track contexts |
-| `Percent` | `Dimension::Percent(f32)`, `LengthPercentage::Percent(f32)`, etc. | A percentage (0.0–1.0); `Percent(value)` with a `value` property; shared across all the same contexts as `Length` |
+| `Percent` | `Dimension::Percent(f32)`, `LengthPercentage::Percent(f32)`, etc. | A percentage (0.0–1.0); `Percent(value)` with a `value` property; shared across all the same contexts as `Length`; constructor validates `0.0 <= value <= 1.0` and raises `InvalidPercent` if not |
 | `Auto` | `Dimension::Auto`, `LengthPercentageAuto::Auto`, `GridPlacement::Auto` | Automatic sizing / auto-placement; `Auto()` with no fields; shared across dimension, margin/inset, grid track, and grid placement contexts |
 | `MinContent` | `AvailableSpace::MinContent`, `MinTrackSizingFunction::MinContent` | CSS `min-content` intrinsic sizing; `MinContent()` with no fields; used in available space and grid track min/max sizing |
 | `MaxContent` | `AvailableSpace::MaxContent`, `MinTrackSizingFunction::MaxContent` | CSS `max-content` intrinsic sizing; `MaxContent()` with no fields; used in available space and grid track min/max sizing |
-| `Definite` | `AvailableSpace::Definite(f32)` | A definite available space in pixels; `Definite(value)` with a `value` property; used only in `AvailableDimensions` (measure function input) |
+| `Definite` | `AvailableSpace::Definite(f32)` | A definite available space in pixels; `Definite(value)` with a `value` property; used only in `AvailableSize` (measure function input) |
 | `Fraction` | `MaxTrackSizingFunction::Fraction(f32)` | CSS `fr` unit — a fractional share of remaining grid space; `Fraction(value)` with a `value` property; used only in grid track sizing |
 | `Minmax` | `MinMax<MinTrackSizingFunction, MaxTrackSizingFunction>` | CSS `minmax()` — explicit min/max track sizing pair; `Minmax(min, max)` where `min` is `Length \| Percent \| Auto \| MinContent \| MaxContent` and `max` adds `Fraction \| FitContent`; used only in grid track sizing |
 | `FitContent` | `MaxTrackSizingFunction::FitContent(LengthPercentage)` | CSS `fit-content()` — grow up to a limit then clamp; `FitContent(limit)` where `limit` is `Length \| Percent`; used only in grid track sizing |
@@ -113,6 +114,101 @@ Grid track getters recognize shorthand forms: `MinMax(length(v), length(v))` →
 | `MIN_CONTENT` | `MinContent` | Module-level singleton for `MinContent()` |
 | `MAX_CONTENT` | `MaxContent` | Module-level singleton for `MaxContent()` |
 
+## Documentation Links
+
+Taffy docs live on docs.rs; CSS concepts are documented on MDN. Link to both in Rust doc comments (which PyO3 surfaces as Python `__doc__`) and `.pyi` docstrings.
+
+### Value types
+
+| Waxy type | Taffy docs | MDN |
+|---|---|---|
+| `Length` | [Dimension::Length](https://docs.rs/taffy/0.9.2/taffy/style/enum.Dimension.html) | [&lt;length&gt;](https://developer.mozilla.org/en-US/docs/Web/CSS/length) |
+| `Percent` | [Dimension::Percent](https://docs.rs/taffy/0.9.2/taffy/style/enum.Dimension.html) | [&lt;percentage&gt;](https://developer.mozilla.org/en-US/docs/Web/CSS/percentage) |
+| `Auto` | [Dimension::Auto](https://docs.rs/taffy/0.9.2/taffy/style/enum.Dimension.html) | — (per-property) |
+| `MinContent` | [MinTrackSizingFunction::MinContent](https://docs.rs/taffy/0.9.2/taffy/style/enum.MinTrackSizingFunction.html) | [min-content](https://developer.mozilla.org/en-US/docs/Web/CSS/min-content) |
+| `MaxContent` | [MinTrackSizingFunction::MaxContent](https://docs.rs/taffy/0.9.2/taffy/style/enum.MinTrackSizingFunction.html) | [max-content](https://developer.mozilla.org/en-US/docs/Web/CSS/max-content) |
+| `Definite` | [AvailableSpace::Definite](https://docs.rs/taffy/0.9.2/taffy/style/enum.AvailableSpace.html) | — |
+| `Fraction` | [MaxTrackSizingFunction::Fraction](https://docs.rs/taffy/0.9.2/taffy/style/enum.MaxTrackSizingFunction.html) | [&lt;flex&gt;](https://developer.mozilla.org/en-US/docs/Web/CSS/flex_value) |
+| `Minmax` | [TrackSizingFunction](https://docs.rs/taffy/0.9.2/taffy/style/enum.TrackSizingFunction.html) | [minmax()](https://developer.mozilla.org/en-US/docs/Web/CSS/minmax) |
+| `FitContent` | [MaxTrackSizingFunction::FitContent](https://docs.rs/taffy/0.9.2/taffy/style/enum.MaxTrackSizingFunction.html) | [fit-content()](https://developer.mozilla.org/en-US/docs/Web/CSS/fit-content_function) |
+| `GridLine` | [GridPlacement::Line](https://docs.rs/taffy/0.9.2/taffy/style/enum.GridPlacement.html) | [Line-based placement](https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_grid_layout/Grid_layout_using_line-based_placement) |
+| `GridSpan` | [GridPlacement::Span](https://docs.rs/taffy/0.9.2/taffy/style/enum.GridPlacement.html) | [grid-column-start (span)](https://developer.mozilla.org/en-US/docs/Web/CSS/grid-column-start) |
+
+### Enums
+
+| Waxy type | Taffy docs | MDN |
+|---|---|---|
+| `Display` | [Display](https://docs.rs/taffy/0.9.2/taffy/style/enum.Display.html) | [display](https://developer.mozilla.org/en-US/docs/Web/CSS/display) |
+| `Position` | [Position](https://docs.rs/taffy/0.9.2/taffy/style/enum.Position.html) | [position](https://developer.mozilla.org/en-US/docs/Web/CSS/position) |
+| `FlexDirection` | [FlexDirection](https://docs.rs/taffy/0.9.2/taffy/style/enum.FlexDirection.html) | [flex-direction](https://developer.mozilla.org/en-US/docs/Web/CSS/flex-direction) |
+| `FlexWrap` | [FlexWrap](https://docs.rs/taffy/0.9.2/taffy/style/enum.FlexWrap.html) | [flex-wrap](https://developer.mozilla.org/en-US/docs/Web/CSS/flex-wrap) |
+| `AlignItems` | [AlignItems](https://docs.rs/taffy/0.9.2/taffy/style/enum.AlignItems.html) | [align-items](https://developer.mozilla.org/en-US/docs/Web/CSS/align-items) |
+| `AlignContent` | [AlignContent](https://docs.rs/taffy/0.9.2/taffy/style/enum.AlignContent.html) | [align-content](https://developer.mozilla.org/en-US/docs/Web/CSS/align-content) |
+| `Overflow` | [Overflow](https://docs.rs/taffy/0.9.2/taffy/style/enum.Overflow.html) | [overflow](https://developer.mozilla.org/en-US/docs/Web/CSS/overflow) |
+| `GridAutoFlow` | [GridAutoFlow](https://docs.rs/taffy/0.9.2/taffy/style/enum.GridAutoFlow.html) | [grid-auto-flow](https://developer.mozilla.org/en-US/docs/Web/CSS/grid-auto-flow) |
+| `BoxSizing` | [BoxSizing](https://docs.rs/taffy/0.9.2/taffy/style/enum.BoxSizing.html) | [box-sizing](https://developer.mozilla.org/en-US/docs/Web/CSS/box-sizing) |
+| `TextAlign` | [TextAlign](https://docs.rs/taffy/0.9.2/taffy/style/enum.TextAlign.html) | [text-align](https://developer.mozilla.org/en-US/docs/Web/CSS/text-align) |
+
+### Style fields
+
+| Style field | Taffy docs | MDN |
+|---|---|---|
+| `display` | [Style::display](https://docs.rs/taffy/0.9.2/taffy/struct.Style.html#structfield.display) | [display](https://developer.mozilla.org/en-US/docs/Web/CSS/display) |
+| `position` | [Style::position](https://docs.rs/taffy/0.9.2/taffy/struct.Style.html#structfield.position) | [position](https://developer.mozilla.org/en-US/docs/Web/CSS/position) |
+| `overflow_x`, `overflow_y` | [Style::overflow](https://docs.rs/taffy/0.9.2/taffy/struct.Style.html#structfield.overflow) | [overflow](https://developer.mozilla.org/en-US/docs/Web/CSS/overflow) |
+| `box_sizing` | [Style::box_sizing](https://docs.rs/taffy/0.9.2/taffy/struct.Style.html#structfield.box_sizing) | [box-sizing](https://developer.mozilla.org/en-US/docs/Web/CSS/box-sizing) |
+| `flex_direction` | [Style::flex_direction](https://docs.rs/taffy/0.9.2/taffy/struct.Style.html#structfield.flex_direction) | [flex-direction](https://developer.mozilla.org/en-US/docs/Web/CSS/flex-direction) |
+| `flex_wrap` | [Style::flex_wrap](https://docs.rs/taffy/0.9.2/taffy/struct.Style.html#structfield.flex_wrap) | [flex-wrap](https://developer.mozilla.org/en-US/docs/Web/CSS/flex-wrap) |
+| `flex_grow` | [Style::flex_grow](https://docs.rs/taffy/0.9.2/taffy/struct.Style.html#structfield.flex_grow) | [flex-grow](https://developer.mozilla.org/en-US/docs/Web/CSS/flex-grow) |
+| `flex_shrink` | [Style::flex_shrink](https://docs.rs/taffy/0.9.2/taffy/struct.Style.html#structfield.flex_shrink) | [flex-shrink](https://developer.mozilla.org/en-US/docs/Web/CSS/flex-shrink) |
+| `flex_basis` | [Style::flex_basis](https://docs.rs/taffy/0.9.2/taffy/struct.Style.html#structfield.flex_basis) | [flex-basis](https://developer.mozilla.org/en-US/docs/Web/CSS/flex-basis) |
+| `align_items` | [Style::align_items](https://docs.rs/taffy/0.9.2/taffy/struct.Style.html#structfield.align_items) | [align-items](https://developer.mozilla.org/en-US/docs/Web/CSS/align-items) |
+| `align_self` | [Style::align_self](https://docs.rs/taffy/0.9.2/taffy/struct.Style.html#structfield.align_self) | [align-self](https://developer.mozilla.org/en-US/docs/Web/CSS/align-self) |
+| `align_content` | [Style::align_content](https://docs.rs/taffy/0.9.2/taffy/struct.Style.html#structfield.align_content) | [align-content](https://developer.mozilla.org/en-US/docs/Web/CSS/align-content) |
+| `justify_items` | [Style::justify_items](https://docs.rs/taffy/0.9.2/taffy/struct.Style.html#structfield.justify_items) | [justify-items](https://developer.mozilla.org/en-US/docs/Web/CSS/justify-items) |
+| `justify_self` | [Style::justify_self](https://docs.rs/taffy/0.9.2/taffy/struct.Style.html#structfield.justify_self) | [justify-self](https://developer.mozilla.org/en-US/docs/Web/CSS/justify-self) |
+| `justify_content` | [Style::justify_content](https://docs.rs/taffy/0.9.2/taffy/struct.Style.html#structfield.justify_content) | [justify-content](https://developer.mozilla.org/en-US/docs/Web/CSS/justify-content) |
+| `size_width`, `size_height` | [Style::size](https://docs.rs/taffy/0.9.2/taffy/struct.Style.html#structfield.size) | [width](https://developer.mozilla.org/en-US/docs/Web/CSS/width), [height](https://developer.mozilla.org/en-US/docs/Web/CSS/height) |
+| `min_size_width`, `min_size_height` | [Style::min_size](https://docs.rs/taffy/0.9.2/taffy/struct.Style.html#structfield.min_size) | [min-width](https://developer.mozilla.org/en-US/docs/Web/CSS/min-width), [min-height](https://developer.mozilla.org/en-US/docs/Web/CSS/min-height) |
+| `max_size_width`, `max_size_height` | [Style::max_size](https://docs.rs/taffy/0.9.2/taffy/struct.Style.html#structfield.max_size) | [max-width](https://developer.mozilla.org/en-US/docs/Web/CSS/max-width), [max-height](https://developer.mozilla.org/en-US/docs/Web/CSS/max-height) |
+| `aspect_ratio` | [Style::aspect_ratio](https://docs.rs/taffy/0.9.2/taffy/struct.Style.html#structfield.aspect_ratio) | [aspect-ratio](https://developer.mozilla.org/en-US/docs/Web/CSS/aspect-ratio) |
+| `margin_*` | [Style::margin](https://docs.rs/taffy/0.9.2/taffy/struct.Style.html#structfield.margin) | [margin](https://developer.mozilla.org/en-US/docs/Web/CSS/margin) |
+| `padding_*` | [Style::padding](https://docs.rs/taffy/0.9.2/taffy/struct.Style.html#structfield.padding) | [padding](https://developer.mozilla.org/en-US/docs/Web/CSS/padding) |
+| `border_*` | [Style::border](https://docs.rs/taffy/0.9.2/taffy/struct.Style.html#structfield.border) | [border-width](https://developer.mozilla.org/en-US/docs/Web/CSS/border-width) |
+| `gap_row`, `gap_column` | [Style::gap](https://docs.rs/taffy/0.9.2/taffy/struct.Style.html#structfield.gap) | [gap](https://developer.mozilla.org/en-US/docs/Web/CSS/gap) |
+| `inset_*` | [Style::inset](https://docs.rs/taffy/0.9.2/taffy/struct.Style.html#structfield.inset) | [inset](https://developer.mozilla.org/en-US/docs/Web/CSS/inset) |
+| `grid_template_rows` | [Style::grid_template_rows](https://docs.rs/taffy/0.9.2/taffy/struct.Style.html#structfield.grid_template_rows) | [grid-template-rows](https://developer.mozilla.org/en-US/docs/Web/CSS/grid-template-rows) |
+| `grid_template_columns` | [Style::grid_template_columns](https://docs.rs/taffy/0.9.2/taffy/struct.Style.html#structfield.grid_template_columns) | [grid-template-columns](https://developer.mozilla.org/en-US/docs/Web/CSS/grid-template-columns) |
+| `grid_auto_rows` | [Style::grid_auto_rows](https://docs.rs/taffy/0.9.2/taffy/struct.Style.html#structfield.grid_auto_rows) | [grid-auto-rows](https://developer.mozilla.org/en-US/docs/Web/CSS/grid-auto-rows) |
+| `grid_auto_columns` | [Style::grid_auto_columns](https://docs.rs/taffy/0.9.2/taffy/struct.Style.html#structfield.grid_auto_columns) | [grid-auto-columns](https://developer.mozilla.org/en-US/docs/Web/CSS/grid-auto-columns) |
+| `grid_auto_flow` | [Style::grid_auto_flow](https://docs.rs/taffy/0.9.2/taffy/struct.Style.html#structfield.grid_auto_flow) | [grid-auto-flow](https://developer.mozilla.org/en-US/docs/Web/CSS/grid-auto-flow) |
+| `grid_row` | [Style::grid_row](https://docs.rs/taffy/0.9.2/taffy/struct.Style.html#structfield.grid_row) | [grid-row](https://developer.mozilla.org/en-US/docs/Web/CSS/grid-row) |
+| `grid_column` | [Style::grid_column](https://docs.rs/taffy/0.9.2/taffy/struct.Style.html#structfield.grid_column) | [grid-column](https://developer.mozilla.org/en-US/docs/Web/CSS/grid-column) |
+| `text_align` | [Style::text_align](https://docs.rs/taffy/0.9.2/taffy/struct.Style.html#structfield.text_align) | [text-align](https://developer.mozilla.org/en-US/docs/Web/CSS/text-align) |
+
+### Other types
+
+| Waxy type | Taffy docs |
+|---|---|
+| `Style` | [Style](https://docs.rs/taffy/0.9.2/taffy/struct.Style.html) |
+| `Layout` | [Layout](https://docs.rs/taffy/0.9.2/taffy/tree/struct.Layout.html) |
+| `NodeId` | [NodeId](https://docs.rs/taffy/0.9.2/taffy/tree/struct.NodeId.html) |
+| `TaffyTree` | [TaffyTree](https://docs.rs/taffy/0.9.2/taffy/struct.TaffyTree.html) |
+| `Size` | [Size](https://docs.rs/taffy/0.9.2/taffy/geometry/struct.Size.html) |
+| `Rect` | [Rect](https://docs.rs/taffy/0.9.2/taffy/geometry/struct.Rect.html) |
+| `Point` | [Point](https://docs.rs/taffy/0.9.2/taffy/geometry/struct.Point.html) |
+| `Line` | [Line](https://docs.rs/taffy/0.9.2/taffy/geometry/struct.Line.html) |
+| `GridPlacement` | [Line&lt;GridPlacement&gt;](https://docs.rs/taffy/0.9.2/taffy/geometry/struct.Line.html) |
+
+These links should be included in Rust doc comments (`/// ...`) and `.pyi` docstrings for each type and Style field. For example:
+
+```rust
+/// A percentage value (0.0 to 1.0).
+///
+/// See: [taffy `Dimension::Percent`](https://docs.rs/taffy/0.9.2/taffy/style/enum.Dimension.html),
+/// [MDN `<percentage>`](https://developer.mozilla.org/en-US/docs/Web/CSS/percentage)
+```
+
 ## Design: Standalone Value Types
 
 Replace the "enum with static methods" pattern with standalone Python classes — one per variant. This is the "poor man's Rust enum" approach: model each variant as its own type and use `Union` on the Python side.
@@ -136,7 +232,11 @@ class Length:
     def value(self) -> float: ...
 
 class Percent:
-    """A percentage value (0.0 to 1.0)."""
+    """A percentage value (0.0 to 1.0).
+
+    Raises InvalidPercent (a subclass of both TaffyException and ValueError)
+    if value is outside the range [0.0, 1.0].
+    """
     __match_args__ = ("value",)
     def __init__(self, value: float) -> None: ...
     @property
@@ -243,7 +343,7 @@ class GridSpan:
 | `Dimension` | `Length \| Percent \| Auto` | `size_*`, `min_size_*`, `max_size_*`, `flex_basis` |
 | `LengthPercentage` | `Length \| Percent` | `padding_*`, `border_*`, `gap_*` |
 | `LengthPercentageAuto` | `Length \| Percent \| Auto` | `margin_*`, `inset_*` |
-| `AvailableSpace` | `Definite \| MinContent \| MaxContent` | `AvailableDimensions` |
+| `AvailableSpace` | `Definite \| MinContent \| MaxContent` | `AvailableSize` |
 | `GridTrack` | `Length \| Percent \| Auto \| MinContent \| MaxContent \| Fraction \| Minmax \| FitContent` | `grid_template_*`, `grid_auto_*` |
 | `GridTrackMin` | `Length \| Percent \| Auto \| MinContent \| MaxContent` | `Minmax.min` |
 | `GridTrackMax` | `Length \| Percent \| Auto \| MinContent \| MaxContent \| Fraction \| FitContent` | `Minmax.max` |
@@ -408,7 +508,9 @@ In a new file `src/values.rs`, add all new types:
 - **Grid placement**: `GridLine` (frozen pyclass with `i16` field), `GridSpan` (frozen pyclass with `u16` field)
 - **Constants**: `AUTO`, `MIN_CONTENT`, `MAX_CONTENT` — registered via `m.add()`
 
-Every type gets a Rust doc comment (`/// ...`) which PyO3 surfaces as Python `__doc__`. Use the docstrings from the "New Types" section above — they should explain what the type represents in plain language, not just repeat the type name. For types that map to CSS concepts (`Fraction`, `Minmax`, `FitContent`, `MinContent`, `MaxContent`), mention the CSS equivalent so users coming from CSS can orient themselves.
+Every type gets a Rust doc comment (`/// ...`) which PyO3 surfaces as Python `__doc__`. Use the docstrings from the "New Types" section above — they should explain what the type represents in plain language, not just repeat the type name. For types that map to CSS concepts (`Fraction`, `Minmax`, `FitContent`, `MinContent`, `MaxContent`), mention the CSS equivalent so users coming from CSS can orient themselves. Include links to taffy docs and MDN where applicable — see the "Documentation Links" section above for the full URL reference.
+
+`Percent.__init__` validates `0.0 <= value <= 1.0` and raises `InvalidPercent` if not. Register `InvalidPercent` in `src/errors.rs` as a subclass of both `TaffyException` and `ValueError` (use `create_exception!` with `TaffyException` as the base, then set `__bases__` to include `ValueError` during module init).
 
 `Minmax` and `FitContent` store their inner values as `PyObject` (the new value types), not taffy types. Conversion to taffy happens at the point of use (Style constructor, etc.).
 
@@ -452,7 +554,7 @@ Functions that inspect taffy's internal types and return the appropriate new Pyt
 - Properties return `GridLine | GridSpan | Auto` via `grid_placement_to_py()`
 - Internal storage stays as `TaffyGridPlacement`
 
-### Step 6: Update `AvailableDimensions`
+### Step 6: Update `AvailableSize`
 
 In `src/geometry.rs`:
 
@@ -472,7 +574,7 @@ In `src/geometry.rs`:
 ### Step 8: Update Python exports and stubs
 
 - `python/waxy/__init__.py` — add new types to imports and `__all__`, remove old types
-- `python/waxy/__init__.pyi` — add type signatures for new types, update Style/GridPlacement/AvailableDimensions signatures, remove old type stubs. Every class gets a class-level docstring matching the Rust doc comment. Every `__init__` parameter and property that isn't self-evident gets a docstring. Follow the existing stub conventions (see current `.pyi` for examples).
+- `python/waxy/__init__.pyi` — add type signatures for new types, update Style/GridPlacement/AvailableSize signatures, remove old type stubs. Every class gets a class-level docstring matching the Rust doc comment, including links to taffy docs and MDN (see "Documentation Links" section). Every `__init__` parameter and property that isn't self-evident gets a docstring. Every Style field docstring should link to its MDN page. Follow the existing stub conventions (see current `.pyi` for examples).
   - Add type aliases for the unions that appear repeatedly (e.g., `DimensionValue = Length | Percent | Auto`) to keep the Style signature readable — or spell them out inline if the aliases would obscure more than they help. Use judgment.
 
 ### Step 9: Update tests
@@ -489,8 +591,8 @@ In `src/geometry.rs`:
   - Grid track round-tripping (e.g., `Fraction(1)` in → `Fraction(1)` out)
   - `GridPlacement` with `GridLine`, `GridSpan`, `Auto` for start/end
   - `Minmax` and `FitContent` construction and destructuring
-  - `AvailableDimensions` with new types
-  - Measure function using pattern matching on `AvailableDimensions`
+  - `AvailableSize` with new types
+  - Measure function using pattern matching on `AvailableSize`
 - Update existing tests that use old types (in `test_style.py`, `test_integration.py`, `test_measure.py`, etc.)
 
 ### Step 10: Update CLAUDE.md
