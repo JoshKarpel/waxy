@@ -22,83 +22,109 @@ Two problems:
 
 ## Waxy ↔ Taffy Type Reference
 
-Complete mapping between waxy Python types and their underlying taffy 0.9.x Rust types. Types marked with *(removing)* are deleted by this plan; types marked with *(new)* are added.
+Complete mapping between waxy Python types and their underlying taffy 0.9.x Rust types. Types marked with *(removing)* are deleted by this plan; types marked with *(new)* are added. All others are unchanged.
 
-### Geometry
+`#[pyclass]` markers: **frozen** = immutable from Python; **unsendable** = wraps taffy's `CompactLength` (contains `*const ()`, not `Send`).
 
-| Waxy type | Taffy type | Notes |
-|---|---|---|
-| `Size` | `Size<f32>` | Frozen; `width`, `height` |
-| `Rect` | `Rect<f32>` | Frozen; `left`, `right`, `top`, `bottom` |
-| `Point` | `Point<f32>` | Frozen; `x`, `y` |
-| `Line` | `Line<f32>` | Frozen; `start`, `end` — a 1D segment |
-| `KnownDimensions` | `Size<Option<f32>>` | Frozen; optional `width`/`height` for measure functions |
-| `AvailableDimensions` | `Size<AvailableSpace>` | Frozen; inputs/outputs change to new value types |
+### Exceptions (`src/errors.rs`)
 
-### Enums (unchanged by this plan)
+| Waxy type | Taffy type | Markers | Notes |
+|---|---|---|---|
+| `TaffyException` | `TaffyError` | — | Base exception; maps from `TaffyError` variants |
+| `ChildIndexOutOfBounds` | `TaffyError::ChildIndexOutOfBounds` | — | Subclass of `TaffyException` |
+| `InvalidParentNode` | `TaffyError::InvalidParentNode` | — | Subclass of `TaffyException` |
+| `InvalidChildNode` | `TaffyError::InvalidChildNode` | — | Subclass of `TaffyException` |
+| `InvalidInputNode` | `TaffyError::InvalidInputNode` | — | Subclass of `TaffyException` |
 
-| Waxy type | Taffy type | Notes |
-|---|---|---|
-| `Display` | `Display` | `Nil` maps to taffy's `None` (Python keyword) |
-| `Position` | `Position` | |
-| `FlexDirection` | `FlexDirection` | |
-| `FlexWrap` | `FlexWrap` | |
-| `AlignItems` | `AlignItems` | Also serves as `AlignSelf`, `JustifySelf`, `JustifyItems` |
-| `AlignContent` | `AlignContent` | Also serves as `JustifyContent` |
-| `Overflow` | `Overflow` | |
-| `GridAutoFlow` | `GridAutoFlow` | |
-| `BoxSizing` | `BoxSizing` | |
-| `TextAlign` | `TextAlign` | |
+### Geometry (`src/geometry.rs`)
 
-### Dimension & available-space types
+| Waxy type | Taffy type | Markers | Notes |
+|---|---|---|---|
+| `Size` | `Size<f32>` | frozen | `width`, `height`; also used for `Layout` fields |
+| `Rect` | `Rect<f32>` | frozen | `left`, `right`, `top`, `bottom` |
+| `Point` | `Point<f32>` | frozen | `x`, `y`; arithmetic ops supported |
+| `Line` | `Line<f32>` | frozen | `start`, `end` — a 1D line segment |
+| `KnownDimensions` | `Size<Option<f32>>` | frozen | Optional `width`/`height` for measure functions |
+| `AvailableDimensions` | `Size<AvailableSpace>` | frozen, unsendable | Inputs/outputs change to new value types |
 
-| Waxy type | Taffy type | Notes |
-|---|---|---|
-| `Dimension` *(removing)* | `Dimension` | Opaque wrapper with static methods |
-| `LengthPercentage` *(removing)* | `LengthPercentage` | Opaque wrapper with static methods |
-| `LengthPercentageAuto` *(removing)* | `LengthPercentageAuto` | Opaque wrapper with static methods |
-| `AvailableSpace` *(removing)* | `AvailableSpace` | Opaque wrapper with static methods |
-| `Length` *(new)* | Variant of `Dimension` / `LengthPercentage` / etc. | `Length(value)` — shared across all dimension contexts |
-| `Percent` *(new)* | Variant of `Dimension` / `LengthPercentage` / etc. | `Percent(value)` — shared across all dimension contexts |
-| `Auto` *(new)* | Variant of `Dimension` / `LengthPercentageAuto` / etc. | `Auto()` — shared across dimensions and grid placement |
-| `MinContent` *(new)* | `AvailableSpace::MinContent` | Also used in grid track sizing |
-| `MaxContent` *(new)* | `AvailableSpace::MaxContent` | Also used in grid track sizing |
-| `Definite` *(new)* | `AvailableSpace::Definite(f32)` | Available space only |
+### Enums (`src/enums.rs`)
 
-### Grid track types
+| Waxy type | Taffy type | Markers | Notes |
+|---|---|---|---|
+| `Display` | `Display` | — | `Nil` maps to taffy's `None` (Python keyword conflict) |
+| `Position` | `Position` | — | `Relative`, `Absolute` |
+| `FlexDirection` | `FlexDirection` | — | `Row`, `Column`, `RowReverse`, `ColumnReverse` |
+| `FlexWrap` | `FlexWrap` | — | `NoWrap`, `Wrap`, `WrapReverse` |
+| `AlignItems` | `AlignItems` | — | Also serves as `AlignSelf`, `JustifySelf`, `JustifyItems` (type aliases in taffy) |
+| `AlignContent` | `AlignContent` | — | Also serves as `JustifyContent` (type alias in taffy) |
+| `Overflow` | `Overflow` | — | `Visible`, `Clip`, `Hidden`, `Scroll` |
+| `GridAutoFlow` | `GridAutoFlow` | — | `Row`, `Column`, `RowDense`, `ColumnDense` |
+| `BoxSizing` | `BoxSizing` | — | `BorderBox`, `ContentBox` |
+| `TextAlign` | `TextAlign` | — | `Auto`, `LegacyLeft`, `LegacyRight`, `LegacyCenter` |
 
-| Waxy type | Taffy type | Notes |
-|---|---|---|
-| `GridTrack` *(removing)* | `MinMax<MinTrackSizingFunction, MaxTrackSizingFunction>` | Opaque wrapper with static methods |
-| `GridTrackMin` *(removing)* | `MinTrackSizingFunction` | Opaque wrapper with static methods |
-| `GridTrackMax` *(removing)* | `MaxTrackSizingFunction` | Opaque wrapper with static methods |
-| `Fraction` *(new)* | `MaxTrackSizingFunction::Fraction(f32)` | CSS `fr` unit |
-| `Minmax` *(new)* | `MinMax<MinTrackSizingFunction, MaxTrackSizingFunction>` | Explicit min/max pair |
-| `FitContent` *(new)* | `MaxTrackSizingFunction::FitContent(LengthPercentage)` | CSS `fit-content()` |
+### Dimension & available-space types (`src/dimensions.rs` → `src/values.rs`)
+
+| Waxy type | Taffy type | Markers | Notes |
+|---|---|---|---|
+| `Dimension` *(removing)* | `Dimension` | frozen, unsendable | Opaque wrapper with static methods |
+| `LengthPercentage` *(removing)* | `LengthPercentage` | frozen, unsendable | Opaque wrapper with static methods |
+| `LengthPercentageAuto` *(removing)* | `LengthPercentageAuto` | frozen, unsendable | Opaque wrapper with static methods |
+| `AvailableSpace` *(removing)* | `AvailableSpace` | unsendable | Opaque wrapper with static methods; in `src/enums.rs` |
+| `Length` *(new)* | Variant of `Dimension` / `LengthPercentage` / etc. | frozen | `Length(value)` — shared across all dimension contexts |
+| `Percent` *(new)* | Variant of `Dimension` / `LengthPercentage` / etc. | frozen | `Percent(value)` — shared across all dimension contexts |
+| `Auto` *(new)* | Variant of `Dimension` / `LengthPercentageAuto` / `GridPlacement` | frozen | `Auto()` — shared across dimensions and grid placement |
+| `MinContent` *(new)* | `AvailableSpace::MinContent` / `MinTrackSizingFunction::MinContent` | frozen | Also used in grid track sizing |
+| `MaxContent` *(new)* | `AvailableSpace::MaxContent` / `MinTrackSizingFunction::MaxContent` | frozen | Also used in grid track sizing |
+| `Definite` *(new)* | `AvailableSpace::Definite(f32)` | frozen | Available space only |
+
+New types don't wrap `CompactLength`, so none need `unsendable`.
+
+### Grid track types (`src/grid.rs` → `src/values.rs`)
+
+| Waxy type | Taffy type | Markers | Notes |
+|---|---|---|---|
+| `GridTrack` *(removing)* | `MinMax<MinTrackSizingFunction, MaxTrackSizingFunction>` | frozen, unsendable | Opaque wrapper with static methods |
+| `GridTrackMin` *(removing)* | `MinTrackSizingFunction` | frozen, unsendable | Opaque wrapper with static methods |
+| `GridTrackMax` *(removing)* | `MaxTrackSizingFunction` | frozen, unsendable | Opaque wrapper with static methods |
+| `Fraction` *(new)* | `MaxTrackSizingFunction::Fraction(f32)` | frozen | CSS `fr` unit |
+| `Minmax` *(new)* | `MinMax<MinTrackSizingFunction, MaxTrackSizingFunction>` | frozen | Explicit min/max pair; CSS `minmax()` |
+| `FitContent` *(new)* | `MaxTrackSizingFunction::FitContent(LengthPercentage)` | frozen | CSS `fit-content()` |
 
 Grid track getters recognize shorthand forms: `MinMax(length(v), length(v))` → `Length(v)`, `MinMax(auto, fr(v))` → `Fraction(v)`, etc.
 
-### Grid placement types
+### Grid placement types (`src/grid.rs` / `src/values.rs`)
 
-| Waxy type | Taffy type | Notes |
-|---|---|---|
-| `GridPlacement` *(removing)* | `GridPlacement` (enum) | Opaque wrapper with static methods |
-| `Line` *(new)* | `GridPlacement::Line(GridLine)` | A 1-based grid line index; `GridLine` is taffy's `i16` newtype |
-| `Span` *(new)* | `GridPlacement::Span(u16)` | Span a number of tracks |
-| `GridLine` | `Line<GridPlacement>` | Start/end pair of placements; inputs/outputs change to new value types |
+| Waxy type | Taffy type | Markers | Notes |
+|---|---|---|---|
+| `GridPlacement` *(removing)* | `GridPlacement` (enum: `Auto \| Line(GridLine) \| Span(u16)`) | frozen, unsendable | Opaque wrapper with static methods |
+| `Line` *(new)* | `GridPlacement::Line(GridLine)` where `GridLine(i16)` | frozen | A 1-based grid line index; **naming conflict with geometry `Line`** — see note below |
+| `Span` *(new)* | `GridPlacement::Span(u16)` | frozen | Span a number of tracks |
+| `GridLine` | `Line<GridPlacement>` | frozen, unsendable | Start/end pair of placements; inputs/outputs change to new value types |
 
 `Auto` (from shared types above) covers `GridPlacement::Auto`.
 
-### Style, layout, tree
+**Naming conflict**: The new `Line` (grid line index, from taffy's `GridLine(i16)`) collides with the existing geometry `Line` (from taffy's `Line<f32>`). Resolution TBD — see discussion in plan.
 
-| Waxy type | Taffy type | Notes |
-|---|---|---|
-| `Style` | `Style` | All-kwargs constructor; frozen; inputs/outputs change to new value types |
-| `Layout` | `Layout` | Read-only computed layout result |
-| `NodeId` | `NodeId` | Opaque node handle |
-| `TaffyTree` | `TaffyTree<PyObject>` | Mutable tree; `unsendable` |
+### Style (`src/style.rs`)
 
-### Helper functions (all removing)
+| Waxy type | Taffy type | Markers | Notes |
+|---|---|---|---|
+| `Style` | `Style` | frozen, unsendable | All-kwargs constructor; `__or__` merges; inputs/outputs change to new value types |
+
+### Layout (`src/layout.rs`)
+
+| Waxy type | Taffy type | Markers | Notes |
+|---|---|---|---|
+| `Layout` | `Layout` | frozen | Read-only computed layout; `order`, `location`, `size`, `content_size`, `scrollbar_size`, `border`, `padding`, `margin` |
+
+### Node & tree (`src/node.rs`, `src/tree.rs`)
+
+| Waxy type | Taffy type | Markers | Notes |
+|---|---|---|---|
+| `NodeId` | `NodeId` | frozen | Opaque node handle; `__eq__`, `__hash__` |
+| `TaffyTree` | `TaffyTree<PyObject>` | unsendable | Mutable tree; generic over node context type in `.pyi` stubs |
+
+### Helper functions (`src/helpers.rs` — all removing)
 
 | Waxy function | Returned type | Notes |
 |---|---|---|
@@ -110,6 +136,14 @@ Grid track getters recognize shorthand forms: `MinMax(length(v), length(v))` →
 | `max_content()` *(removing)* | `AvailableSpace` | Use `MAX_CONTENT` or `MaxContent()` instead |
 | `fr()` *(removing)* | `GridTrack` | Use `Fraction(v)` instead |
 | `minmax()` *(removing)* | `GridTrack` | Use `Minmax(min, max)` instead |
+
+### Module-level constants (`src/values.rs` — all new)
+
+| Waxy constant | Type | Notes |
+|---|---|---|
+| `AUTO` *(new)* | `Auto` | Singleton convenience; `AUTO` is `Auto()` |
+| `MIN_CONTENT` *(new)* | `MinContent` | Singleton convenience |
+| `MAX_CONTENT` *(new)* | `MaxContent` | Singleton convenience |
 
 ## Design: Standalone Value Types
 
