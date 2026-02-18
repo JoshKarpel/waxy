@@ -20,6 +20,97 @@ Two problems:
 1. **Verbosity**: `LengthPercentageAuto.length(10)` and `GridTrack.flex(1)` are painful to type. Users want `Length(10)` and `Fraction(1)`. The old helpers (`length()`, `percent()`, `auto()`) only returned `Dimension`, so they couldn't even be used for padding, margin, border, gap, or inset fields.
 2. **No pattern matching**: Dimension-like values are opaque objects. Users can call `is_auto()` but can't destructure them with Python 3.10+ `match`/`case`. Similarly, `AvailableSpace.value()` returns `float | None`, defeating mypy narrowing after `is_definite()` guards.
 
+## Waxy ↔ Taffy Type Reference
+
+Complete mapping between waxy Python types and their underlying taffy 0.9.x Rust types. Types marked with *(removing)* are deleted by this plan; types marked with *(new)* are added.
+
+### Geometry
+
+| Waxy type | Taffy type | Notes |
+|---|---|---|
+| `Size` | `Size<f32>` | Frozen; `width`, `height` |
+| `Rect` | `Rect<f32>` | Frozen; `left`, `right`, `top`, `bottom` |
+| `Point` | `Point<f32>` | Frozen; `x`, `y` |
+| `Line` | `Line<f32>` | Frozen; `start`, `end` — a 1D segment |
+| `KnownDimensions` | `Size<Option<f32>>` | Frozen; optional `width`/`height` for measure functions |
+| `AvailableDimensions` | `Size<AvailableSpace>` | Frozen; inputs/outputs change to new value types |
+
+### Enums (unchanged by this plan)
+
+| Waxy type | Taffy type | Notes |
+|---|---|---|
+| `Display` | `Display` | `Nil` maps to taffy's `None` (Python keyword) |
+| `Position` | `Position` | |
+| `FlexDirection` | `FlexDirection` | |
+| `FlexWrap` | `FlexWrap` | |
+| `AlignItems` | `AlignItems` | Also serves as `AlignSelf`, `JustifySelf`, `JustifyItems` |
+| `AlignContent` | `AlignContent` | Also serves as `JustifyContent` |
+| `Overflow` | `Overflow` | |
+| `GridAutoFlow` | `GridAutoFlow` | |
+| `BoxSizing` | `BoxSizing` | |
+| `TextAlign` | `TextAlign` | |
+
+### Dimension & available-space types
+
+| Waxy type | Taffy type | Notes |
+|---|---|---|
+| `Dimension` *(removing)* | `Dimension` | Opaque wrapper with static methods |
+| `LengthPercentage` *(removing)* | `LengthPercentage` | Opaque wrapper with static methods |
+| `LengthPercentageAuto` *(removing)* | `LengthPercentageAuto` | Opaque wrapper with static methods |
+| `AvailableSpace` *(removing)* | `AvailableSpace` | Opaque wrapper with static methods |
+| `Length` *(new)* | Variant of `Dimension` / `LengthPercentage` / etc. | `Length(value)` — shared across all dimension contexts |
+| `Percent` *(new)* | Variant of `Dimension` / `LengthPercentage` / etc. | `Percent(value)` — shared across all dimension contexts |
+| `Auto` *(new)* | Variant of `Dimension` / `LengthPercentageAuto` / etc. | `Auto()` — shared across dimensions and grid placement |
+| `MinContent` *(new)* | `AvailableSpace::MinContent` | Also used in grid track sizing |
+| `MaxContent` *(new)* | `AvailableSpace::MaxContent` | Also used in grid track sizing |
+| `Definite` *(new)* | `AvailableSpace::Definite(f32)` | Available space only |
+
+### Grid track types
+
+| Waxy type | Taffy type | Notes |
+|---|---|---|
+| `GridTrack` *(removing)* | `MinMax<MinTrackSizingFunction, MaxTrackSizingFunction>` | Opaque wrapper with static methods |
+| `GridTrackMin` *(removing)* | `MinTrackSizingFunction` | Opaque wrapper with static methods |
+| `GridTrackMax` *(removing)* | `MaxTrackSizingFunction` | Opaque wrapper with static methods |
+| `Fraction` *(new)* | `MaxTrackSizingFunction::Fraction(f32)` | CSS `fr` unit |
+| `Minmax` *(new)* | `MinMax<MinTrackSizingFunction, MaxTrackSizingFunction>` | Explicit min/max pair |
+| `FitContent` *(new)* | `MaxTrackSizingFunction::FitContent(LengthPercentage)` | CSS `fit-content()` |
+
+Grid track getters recognize shorthand forms: `MinMax(length(v), length(v))` → `Length(v)`, `MinMax(auto, fr(v))` → `Fraction(v)`, etc.
+
+### Grid placement types
+
+| Waxy type | Taffy type | Notes |
+|---|---|---|
+| `GridPlacement` *(removing)* | `GridPlacement` (enum) | Opaque wrapper with static methods |
+| `Line` *(new)* | `GridPlacement::Line(GridLine)` | A 1-based grid line index; `GridLine` is taffy's `i16` newtype |
+| `Span` *(new)* | `GridPlacement::Span(u16)` | Span a number of tracks |
+| `GridLine` | `Line<GridPlacement>` | Start/end pair of placements; inputs/outputs change to new value types |
+
+`Auto` (from shared types above) covers `GridPlacement::Auto`.
+
+### Style, layout, tree
+
+| Waxy type | Taffy type | Notes |
+|---|---|---|
+| `Style` | `Style` | All-kwargs constructor; frozen; inputs/outputs change to new value types |
+| `Layout` | `Layout` | Read-only computed layout result |
+| `NodeId` | `NodeId` | Opaque node handle |
+| `TaffyTree` | `TaffyTree<PyObject>` | Mutable tree; `unsendable` |
+
+### Helper functions (all removing)
+
+| Waxy function | Returned type | Notes |
+|---|---|---|
+| `zero()` *(removing)* | `LengthPercentage` | Use `Length(0)` instead |
+| `auto()` *(removing)* | `Dimension` | Use `AUTO` or `Auto()` instead |
+| `length()` *(removing)* | `Dimension` | Use `Length(v)` instead |
+| `percent()` *(removing)* | `Dimension` | Use `Percent(v)` instead |
+| `min_content()` *(removing)* | `AvailableSpace` | Use `MIN_CONTENT` or `MinContent()` instead |
+| `max_content()` *(removing)* | `AvailableSpace` | Use `MAX_CONTENT` or `MaxContent()` instead |
+| `fr()` *(removing)* | `GridTrack` | Use `Fraction(v)` instead |
+| `minmax()` *(removing)* | `GridTrack` | Use `Minmax(min, max)` instead |
+
 ## Design: Standalone Value Types
 
 Replace the "enum with static methods" pattern with standalone Python classes — one per variant. This is the "poor man's Rust enum" approach: model each variant as its own type and use `Union` on the Python side.
