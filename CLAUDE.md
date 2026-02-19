@@ -4,7 +4,7 @@ A Python wrapper around the Rust `taffy` UI layout library, built with PyO3/matu
 
 ## Key Files
 
-- `plans/` — Design documents: `initial-concept.md` (project goals, tooling, design decisions), `measure-functions.md` (measure function design).
+- `plans/` — Design documents: `initial-concept.md` (project goals, tooling, design decisions), `measure-functions.md` (measure function design), `ergonomic-value-types.md` (value type refactor).
 
 ## Architecture
 
@@ -13,26 +13,27 @@ The Rust source (`src/`) exposes a flat PyO3 module `_waxy`, which Python (`pyth
 | File | Contents |
 |------|----------|
 | `src/lib.rs` | PyO3 module definition, wires all submodules |
-| `src/errors.rs` | `TaffyException` + 4 subclasses via `create_exception!` |
-| `src/geometry.rs` | `Size`, `Rect`, `Point`, `Line`, `KnownDimensions`, `AvailableDimensions` |
-| `src/dimensions.rs` | `Dimension`, `LengthPercentage`, `LengthPercentageAuto` |
-| `src/enums.rs` | All layout enums + `AvailableSpace` (class with static methods) |
-| `src/grid.rs` | `GridTrack`, `GridTrackMin`, `GridTrackMax`, `GridPlacement`, `GridLine` |
+| `src/errors.rs` | `WaxyException`, `TaffyException` + 4 subclasses, `InvalidPercent` |
+| `src/geometry.rs` | `Size`, `Rect`, `Point`, `Line`, `KnownSize`, `AvailableSize` |
+| `src/values.rs` | `Length`, `Percent`, `Auto`, `MinContent`, `MaxContent`, `Definite`, `Fraction`, `FitContent`, `Minmax`, `GridLine`, `GridSpan`; module constants `AUTO`, `MIN_CONTENT`, `MAX_CONTENT` |
+| `src/enums.rs` | All layout enums (`Display`, `Position`, `FlexDirection`, etc.) |
+| `src/grid.rs` | `GridPlacement` |
 | `src/style.rs` | `Style` struct with all-kwargs constructor and getter/setter properties |
 | `src/node.rs` | `NodeId` wrapper |
 | `src/layout.rs` | `Layout` result struct (read-only) |
 | `src/tree.rs` | `TaffyTree` — core API |
-| `src/helpers.rs` | Convenience functions: `zero()`, `auto()`, `length()`, `percent()`, `fr()`, etc. |
 
 ## Key Design Decisions
 
-- **`#[pyclass(unsendable)]`** is required on all types that wrap taffy's `CompactLength` (which contains `*const ()`, not `Send`). This includes: `Dimension`, `LengthPercentage`, `LengthPercentageAuto`, `GridTrack`, `GridTrackMin`, `GridTrackMax`, `GridPlacement`, `GridLine`, `Style`, `TaffyTree`.
+- **`#[pyclass(unsendable)]`** is required on all types that wrap taffy's `CompactLength` (which contains `*const ()`, not `Send`). This includes: `GridPlacement`, `Style`, `TaffyTree`. Value types in `src/values.rs` convert *to* taffy types but don't store them, so they don't need `unsendable`.
 - **`#[pyclass(frozen)]`** is used on all types except `TaffyTree` (which is inherently mutable). All structs are immutable from Python — construct new instances instead of mutating.
+- **Value types** (`Length`, `Percent`, `Auto`, `MinContent`, `MaxContent`, `Definite`, `Fraction`, `FitContent`, `Minmax`, `GridLine`, `GridSpan`) are standalone frozen pyclasses, not enum variants. They support `match`/`case` pattern matching via `__match_args__`. Module-level constants `AUTO`, `MIN_CONTENT`, `MAX_CONTENT` are provided for the zero-argument types.
+- **Exception hierarchy**: `WaxyException(Exception)` is the root. `TaffyException(WaxyException)` covers taffy errors with 4 subclasses. `InvalidPercent(WaxyException, ValueError)` is raised when `Percent` is constructed outside `[0.0, 1.0]`.
 - **`Display.Nil`** maps to taffy's `Display::None`. We use `#[pyo3(name = "Nil")]` because `None` is a Python keyword.
 - **`AlignSelf`/`JustifySelf`/`JustifyItems`** are type aliases for `AlignItems` in taffy. **`JustifyContent`** is an alias for `AlignContent`. We reuse the same Python enum types.
-- **`AvailableSpace`** has data variants (`Definite(f32)`) so it's a `#[pyclass]` with static method constructors, not a PyO3 enum.
 - **Grid template tracks** — `GridTemplateComponent<String>` repeat variants are silently skipped when converting from taffy. Only `Single(TrackSizingFunction)` is round-tripped.
-- **Measure functions** are supported via an optional `measure` kwarg on `compute_layout`. The Rust closure auto-skips nodes without context (returns `Size::ZERO`) and short-circuits when both dimensions are known. The user's Python measure function receives `(known_dimensions, available_space, context)` — taffy also passes `node_id` and `style` internally, but waxy doesn't forward them (the context identifies the node, and the tree is mutably borrowed so you can't call back into it). See `plans/measure-functions.md` for full design rationale.
+- **Measure functions** are supported via an optional `measure` kwarg on `compute_layout`. The Rust closure auto-skips nodes without context (returns `Size::ZERO`) and short-circuits when both dimensions are known. The user's Python measure function receives `(known_size, available_size, context)` — taffy also passes `node_id` and `style` internally, but waxy doesn't forward them (the context identifies the node, and the tree is mutably borrowed so you can't call back into it). See `plans/measure-functions.md` for full design rationale.
+- **`compute_layout`** takes an `available` kwarg (type `AvailableSize | None`), not `available_space`.
 - **Node context** — `TaffyTree` uses `TaffyTree<PyObject>` internally. Nodes can have arbitrary Python objects attached via `new_leaf_with_context` / `set_node_context` / `get_node_context`. The `.pyi` stub uses `TaffyTree[T]` (PEP 695) for generic type safety.
 - **Removed node access** causes a Rust panic (slotmap behavior), not a `TaffyError`.
 - **`.pyi` method order** — Within each class: `__init__` first, then other dunder methods (`__repr__`, `__eq__`, `__iter__`, etc.), then properties, then regular methods.

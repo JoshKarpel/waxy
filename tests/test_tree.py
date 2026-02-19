@@ -98,7 +98,7 @@ def test_set_and_get_style() -> None:
 
 def test_dirty() -> None:
     tree = waxy.TaffyTree()
-    node = tree.new_leaf(waxy.Style(size_width=waxy.Dimension.length(100.0)))
+    node = tree.new_leaf(waxy.Style(size_width=waxy.Length(100.0)))
     assert tree.dirty(node)
     tree.compute_layout(node)
     assert not tree.dirty(node)
@@ -109,8 +109,8 @@ def test_dirty() -> None:
 def test_compute_layout() -> None:
     tree = waxy.TaffyTree()
     style = waxy.Style(
-        size_width=waxy.Dimension.length(100.0),
-        size_height=waxy.Dimension.length(50.0),
+        size_width=waxy.Length(100.0),
+        size_height=waxy.Length(50.0),
     )
     node = tree.new_leaf(style)
     tree.compute_layout(node)
@@ -124,15 +124,15 @@ def test_compute_layout() -> None:
 def test_compute_layout_with_available_space() -> None:
     tree = waxy.TaffyTree()
     style = waxy.Style(
-        size_width=waxy.Dimension.length(100.0),
-        size_height=waxy.Dimension.length(50.0),
+        size_width=waxy.Length(100.0),
+        size_height=waxy.Length(50.0),
     )
     node = tree.new_leaf(style)
     tree.compute_layout(
         node,
-        available_space=waxy.AvailableDimensions(
-            waxy.AvailableSpace.definite(200.0),
-            waxy.AvailableSpace.definite(200.0),
+        available=waxy.AvailableSize(
+            waxy.Definite(200.0),
+            waxy.Definite(200.0),
         ),
     )
     layout = tree.layout(node)
@@ -143,8 +143,8 @@ def test_compute_layout_with_available_space() -> None:
 def test_rounding() -> None:
     tree = waxy.TaffyTree()
     style = waxy.Style(
-        size_width=waxy.Dimension.length(10.5),
-        size_height=waxy.Dimension.length(20.3),
+        size_width=waxy.Length(10.5),
+        size_height=waxy.Length(20.3),
     )
     node = tree.new_leaf(style)
     tree.compute_layout(node)

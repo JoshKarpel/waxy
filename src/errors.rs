@@ -1,12 +1,18 @@
 use pyo3::create_exception;
-use pyo3::exceptions::PyException;
+use pyo3::exceptions::{PyException, PyValueError};
 use pyo3::prelude::*;
 use taffy::TaffyError;
 
 create_exception!(
     waxy,
-    TaffyException,
+    WaxyException,
     PyException,
+    "Base exception for all waxy errors."
+);
+create_exception!(
+    waxy,
+    TaffyException,
+    WaxyException,
     "Base exception for all taffy errors."
 );
 create_exception!(
@@ -33,6 +39,14 @@ create_exception!(
     TaffyException,
     "Input node is invalid."
 );
+// InvalidPercent is defined as a subclass of WaxyException initially; we set __bases__
+// to (WaxyException, ValueError) in register() to achieve multi-inheritance.
+create_exception!(
+    waxy,
+    InvalidPercent,
+    WaxyException,
+    "Raised when Percent(value) is called with value outside [0.0, 1.0]."
+);
 
 pub fn taffy_error_to_py(err: TaffyError) -> PyErr {
     match err {
@@ -56,13 +70,25 @@ pub fn taffy_error_to_py(err: TaffyError) -> PyErr {
 }
 
 pub fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add("TaffyException", m.py().get_type::<TaffyException>())?;
+    let py = m.py();
+
+    m.add("WaxyException", py.get_type::<WaxyException>())?;
+    m.add("TaffyException", py.get_type::<TaffyException>())?;
     m.add(
         "ChildIndexOutOfBounds",
-        m.py().get_type::<ChildIndexOutOfBounds>(),
+        py.get_type::<ChildIndexOutOfBounds>(),
     )?;
-    m.add("InvalidParentNode", m.py().get_type::<InvalidParentNode>())?;
-    m.add("InvalidChildNode", m.py().get_type::<InvalidChildNode>())?;
-    m.add("InvalidInputNode", m.py().get_type::<InvalidInputNode>())?;
+    m.add("InvalidParentNode", py.get_type::<InvalidParentNode>())?;
+    m.add("InvalidChildNode", py.get_type::<InvalidChildNode>())?;
+    m.add("InvalidInputNode", py.get_type::<InvalidInputNode>())?;
+
+    // Set InvalidPercent.__bases__ = (WaxyException, ValueError) for multi-inheritance.
+    let invalid_percent_type = py.get_type::<InvalidPercent>();
+    let waxy_exc_type = py.get_type::<WaxyException>();
+    let value_error_type = py.get_type::<PyValueError>();
+    let bases = pyo3::types::PyTuple::new(py, [waxy_exc_type, value_error_type])?;
+    invalid_percent_type.setattr("__bases__", bases)?;
+    m.add("InvalidPercent", invalid_percent_type)?;
+
     Ok(())
 }

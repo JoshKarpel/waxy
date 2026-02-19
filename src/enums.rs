@@ -330,80 +330,6 @@ impl From<&TextAlign> for taffy::TextAlign {
     }
 }
 
-/// Available space for layout.
-#[pyclass(unsendable, frozen, from_py_object, module = "waxy")]
-#[derive(Clone, Debug)]
-pub struct AvailableSpace {
-    inner: taffy::AvailableSpace,
-}
-
-#[pymethods]
-impl AvailableSpace {
-    /// Create a definite available space.
-    #[staticmethod]
-    fn definite(value: f32) -> Self {
-        Self {
-            inner: taffy::AvailableSpace::Definite(value),
-        }
-    }
-
-    /// Create a min-content available space.
-    #[staticmethod]
-    fn min_content() -> Self {
-        Self {
-            inner: taffy::AvailableSpace::MinContent,
-        }
-    }
-
-    /// Create a max-content available space.
-    #[staticmethod]
-    fn max_content() -> Self {
-        Self {
-            inner: taffy::AvailableSpace::MaxContent,
-        }
-    }
-
-    fn is_definite(&self) -> bool {
-        self.inner.is_definite()
-    }
-
-    fn is_min_content(&self) -> bool {
-        matches!(self.inner, taffy::AvailableSpace::MinContent)
-    }
-
-    fn is_max_content(&self) -> bool {
-        matches!(self.inner, taffy::AvailableSpace::MaxContent)
-    }
-
-    /// Return the definite value, or None for min-content/max-content.
-    fn value(&self) -> Option<f32> {
-        match self.inner {
-            taffy::AvailableSpace::Definite(v) => Some(v),
-            _ => None,
-        }
-    }
-
-    fn __repr__(&self) -> String {
-        match self.inner {
-            taffy::AvailableSpace::Definite(v) => format!("AvailableSpace.definite({v})"),
-            taffy::AvailableSpace::MinContent => "AvailableSpace.min_content()".to_string(),
-            taffy::AvailableSpace::MaxContent => "AvailableSpace.max_content()".to_string(),
-        }
-    }
-}
-
-impl From<taffy::AvailableSpace> for AvailableSpace {
-    fn from(a: taffy::AvailableSpace) -> Self {
-        Self { inner: a }
-    }
-}
-
-impl From<&AvailableSpace> for taffy::AvailableSpace {
-    fn from(a: &AvailableSpace) -> Self {
-        a.inner
-    }
-}
-
 pub fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Display>()?;
     m.add_class::<Position>()?;
@@ -415,6 +341,5 @@ pub fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<GridAutoFlow>()?;
     m.add_class::<BoxSizing>()?;
     m.add_class::<TextAlign>()?;
-    m.add_class::<AvailableSpace>()?;
     Ok(())
 }
