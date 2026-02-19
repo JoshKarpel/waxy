@@ -686,6 +686,10 @@ impl GridPlacementInput {
 }
 
 // ─── Taffy → Python conversion helpers ────────────────────────────────────
+// These helpers bypass `Percent::new()` validation and construct `Percent` directly.
+// This is intentional: Taffy only stores values that were originally inserted by us,
+// and all user-facing Percent construction goes through `Percent::new()` which validates
+// the [0.0, 1.0] range. Values round-tripped through Taffy are guaranteed to be valid.
 
 pub fn dimension_to_py(py: Python<'_>, d: taffy::Dimension) -> PyResult<Py<PyAny>> {
     let raw = d.into_raw();
