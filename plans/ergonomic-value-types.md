@@ -28,12 +28,13 @@ Complete mapping between waxy Python types and their underlying taffy 0.9.x Rust
 
 | Waxy type | Taffy type | Notes |
 |---|---|---|
-| `TaffyException` | `TaffyError` | Base exception for all taffy errors; each `TaffyError` variant maps to a subclass below |
+| `WaxyException` | — | Base exception for all waxy exceptions; catch this to handle any waxy error |
+| `TaffyException` | `TaffyError` | Base exception for taffy errors; subclass of `WaxyException`; each `TaffyError` variant maps to a subclass below |
 | `ChildIndexOutOfBounds` | `TaffyError::ChildIndexOutOfBounds` | Raised when accessing a child by index beyond `child_count` |
 | `InvalidParentNode` | `TaffyError::InvalidParentNode` | Raised when a parent `NodeId` doesn't exist in the tree |
 | `InvalidChildNode` | `TaffyError::InvalidChildNode` | Raised when a child `NodeId` doesn't exist in the tree |
 | `InvalidInputNode` | `TaffyError::InvalidInputNode` | Raised when an input `NodeId` doesn't exist in the tree |
-| `InvalidPercent` | — | Raised when `Percent(value)` is called with `value` outside 0.0–1.0; inherits from both `TaffyException` and `ValueError` |
+| `InvalidPercent` | — | Raised when `Percent(value)` is called with `value` outside 0.0–1.0; inherits from both `WaxyException` and `ValueError` |
 
 ### Geometry (`src/geometry.rs`)
 
@@ -234,7 +235,7 @@ class Length:
 class Percent:
     """A percentage value (0.0 to 1.0).
 
-    Raises InvalidPercent (a subclass of both TaffyException and ValueError)
+    Raises InvalidPercent (a subclass of both WaxyException and ValueError)
     if value is outside the range [0.0, 1.0].
     """
     __match_args__ = ("value",)
@@ -510,7 +511,7 @@ In a new file `src/values.rs`, add all new types:
 
 Every type gets a Rust doc comment (`/// ...`) which PyO3 surfaces as Python `__doc__`. Use the docstrings from the "New Types" section above — they should explain what the type represents in plain language, not just repeat the type name. For types that map to CSS concepts (`Fraction`, `Minmax`, `FitContent`, `MinContent`, `MaxContent`), mention the CSS equivalent so users coming from CSS can orient themselves. Include links to taffy docs and MDN where applicable — see the "Documentation Links" section above for the full URL reference.
 
-`Percent.__init__` validates `0.0 <= value <= 1.0` and raises `InvalidPercent` if not. Register `InvalidPercent` in `src/errors.rs` as a subclass of both `TaffyException` and `ValueError` (use `create_exception!` with `TaffyException` as the base, then set `__bases__` to include `ValueError` during module init).
+`Percent.__init__` validates `0.0 <= value <= 1.0` and raises `InvalidPercent` if not. In `src/errors.rs`, add `WaxyException` as a new root (subclass of `PyException`), make `TaffyException` a subclass of `WaxyException`, and register `InvalidPercent` as a subclass of both `WaxyException` and `ValueError` (use `create_exception!` with `WaxyException` as the base, then set `__bases__` to include `ValueError` during module init).
 
 `Minmax` and `FitContent` store their inner values as `PyObject` (the new value types), not taffy types. Conversion to taffy happens at the point of use (Style constructor, etc.).
 
