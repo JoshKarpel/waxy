@@ -54,6 +54,24 @@
 
 ::: waxy.GridSpan
 
+::: waxy.GridPlacement
+
+## Type aliases
+
+::: waxy.DimensionValue
+
+::: waxy.LengthPercentageValue
+
+::: waxy.GridTrackValue
+
+::: waxy.GridTrackMinValue
+
+::: waxy.GridTrackMaxValue
+
+::: waxy.GridPlacementValue
+
+::: waxy.AvailableSpaceValue
+
 ## Enums
 
 ::: waxy.Display
@@ -75,10 +93,6 @@
 ::: waxy.BoxSizing
 
 ::: waxy.TextAlign
-
-## Grid
-
-::: waxy.GridPlacement
 
 ## Exceptions
 

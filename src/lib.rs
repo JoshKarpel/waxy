@@ -3,7 +3,6 @@ use pyo3::prelude::*;
 mod enums;
 mod errors;
 mod geometry;
-mod grid;
 mod layout;
 mod node;
 mod style;
@@ -16,7 +15,6 @@ fn _waxy(m: &Bound<'_, PyModule>) -> PyResult<()> {
     geometry::register(m)?;
     values::register(m)?;
     enums::register(m)?;
-    grid::register(m)?;
     style::register(m)?;
     node::register(m)?;
     layout::register(m)?;

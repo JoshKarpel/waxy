@@ -15,9 +15,8 @@ The Rust source (`src/`) exposes a flat PyO3 module `_waxy`, which Python (`pyth
 | `src/lib.rs` | PyO3 module definition, wires all submodules |
 | `src/errors.rs` | `WaxyException`, `TaffyException` + 4 subclasses, `InvalidPercent` |
 | `src/geometry.rs` | `Size`, `Rect`, `Point`, `Line`, `KnownSize`, `AvailableSize` |
-| `src/values.rs` | `Length`, `Percent`, `Auto`, `MinContent`, `MaxContent`, `Definite`, `Fraction`, `FitContent`, `Minmax`, `GridLine`, `GridSpan`; module constants `AUTO`, `MIN_CONTENT`, `MAX_CONTENT` |
+| `src/values.rs` | `Length`, `Percent`, `Auto`, `MinContent`, `MaxContent`, `Definite`, `Fraction`, `FitContent`, `Minmax`, `GridLine`, `GridSpan`, `GridPlacement`; module constants `AUTO`, `MIN_CONTENT`, `MAX_CONTENT` |
 | `src/enums.rs` | All layout enums (`Display`, `Position`, `FlexDirection`, etc.) |
-| `src/grid.rs` | `GridPlacement` |
 | `src/style.rs` | `Style` struct with all-kwargs constructor and getter/setter properties |
 | `src/node.rs` | `NodeId` wrapper |
 | `src/layout.rs` | `Layout` result struct (read-only) |
@@ -67,9 +66,15 @@ Add Python packages with `uv add <package>` (not by editing `pyproject.toml`) an
 2. Add `From` conversions in both directions (taffy ↔ wrapper)
 3. Register the class/function in that file's `register()` function
 4. Add the export to `python/waxy/__init__.py`
-5. Add the type signature to `python/waxy/__init__.pyi`
+5. Add the type signature **and docstrings** to `python/waxy/__init__.pyi` (docstrings are required for members to appear in the rendered docs)
 6. Add tests in `tests/`
 7. Run `just check`
+
+## Documentation (mkdocstrings)
+
+Docstrings for the API reference come from **`python/waxy/__init__.pyi`**, not from Rust `///` doc comments. griffe (the backend for mkdocstrings-python) reads stub files for compiled PyO3 extensions; Rust `///` comments on `#[getter]` functions produce empty `__doc__` strings at runtime and are not useful for docs.
+
+`show_if_no_docstring` defaults to `False` in mkdocstrings-python, so **any property or method without a docstring in the `.pyi` file will be silently omitted from the rendered docs**. Always add docstrings to `.pyi` entries when you want them to appear.
 
 ## Taffy Version
 

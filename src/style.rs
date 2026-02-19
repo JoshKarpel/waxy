@@ -5,10 +5,10 @@ use crate::enums::{
     AlignContent, AlignItems, BoxSizing, Display, FlexDirection, FlexWrap, GridAutoFlow, Overflow,
     Position, TextAlign,
 };
-use crate::grid::GridPlacement;
 use crate::values::{
     dimension_to_py, grid_track_to_py, length_percentage_auto_to_py, length_percentage_to_py,
-    DimensionInput, GridTrackInput, LengthPercentageAutoInput, LengthPercentageInput,
+    DimensionInput, GridPlacement, GridTrackInput, LengthPercentageAutoInput,
+    LengthPercentageInput,
 };
 
 // Bit positions for tracking which fields are explicitly set.

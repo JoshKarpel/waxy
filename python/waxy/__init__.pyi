@@ -151,6 +151,7 @@ class KnownSize:
     def height(self) -> float | None: ...
 
 type AvailableSpaceValue = Definite | MinContent | MaxContent
+"""Available space value for measure functions: Definite, MinContent, or MaxContent."""
 
 class AvailableSize:
     """
@@ -318,10 +319,15 @@ class Fraction:
     def value(self) -> float: ...
 
 type GridTrackMinValue = Length | Percent | Auto | MinContent | MaxContent
+"""Minimum sizing bound for a Minmax grid track."""
+
 type GridTrackMaxValue = Length | Percent | Auto | MinContent | MaxContent | Fraction | FitContent
+"""Maximum sizing bound for a Minmax grid track."""
+
 type GridTrackValue = (
     Length | Percent | Auto | MinContent | MaxContent | Fraction | Minmax | FitContent
 )
+"""A grid track sizing value used in grid_template_* and grid_auto_* fields."""
 
 class FitContent:
     """
@@ -494,15 +500,14 @@ class TextAlign:
     LegacyRight: TextAlign
     LegacyCenter: TextAlign
 
-# Grid
-
 type GridPlacementValue = GridLine | GridSpan | Auto
+"""A grid placement value used in GridPlacement start and end: GridLine, GridSpan, or Auto."""
 
 class GridPlacement:
     """
     A start/end pair of grid placements for a child item.
 
-    Each of start and end is a GridLine | GridSpan | Auto value.
+    Each of start and end is a GridPlacementValue (GridLine | GridSpan | Auto).
     Defaults both to Auto (the CSS default for unplaced items).
 
     See: [taffy `Line<GridPlacement>`](https://docs.rs/taffy/0.9.2/taffy/geometry/struct.Line.html),
@@ -560,7 +565,10 @@ class Layout:
 # Style
 
 type DimensionValue = Length | Percent | Auto
+"""A dimension value used for sizes, margins, insets, and flex-basis: Length, Percent, or Auto."""
+
 type LengthPercentageValue = Length | Percent
+"""A length-or-percentage value used for padding, border, and gap: Length or Percent."""
 
 class Style:
     """
@@ -625,109 +633,218 @@ class Style:
         grid_auto_flow: GridAutoFlow | None = None,
         grid_row: GridPlacement | None = None,
         grid_column: GridPlacement | None = None,
-    ) -> None: ...
+    ) -> None:
+        """
+        Construct a Style with the given fields set.
+
+        All arguments are keyword-only. Omitting or passing None for a field uses
+        the taffy default value for that field. See each property for documentation
+        of individual fields.
+
+        Args:
+            display: How the node is laid out (Block, Flex, Grid, or Nil).
+            box_sizing: Whether size includes border and padding (BorderBox) or not (ContentBox).
+            overflow_x: How overflowing content is handled horizontally.
+            overflow_y: How overflowing content is handled vertically.
+            scrollbar_width: Width of the scrollbar gutter in pixels.
+            position: Whether the node is positioned relative to its parent or absolutely.
+            inset_left: Left offset for absolutely-positioned nodes.
+            inset_right: Right offset for absolutely-positioned nodes.
+            inset_top: Top offset for absolutely-positioned nodes.
+            inset_bottom: Bottom offset for absolutely-positioned nodes.
+            size_width: Preferred width of the node.
+            size_height: Preferred height of the node.
+            min_size_width: Minimum width of the node.
+            min_size_height: Minimum height of the node.
+            max_size_width: Maximum width of the node.
+            max_size_height: Maximum height of the node.
+            aspect_ratio: Preferred aspect ratio (width / height), or None.
+            margin_left: Left outer spacing.
+            margin_right: Right outer spacing.
+            margin_top: Top outer spacing.
+            margin_bottom: Bottom outer spacing.
+            padding_left: Left inner spacing.
+            padding_right: Right inner spacing.
+            padding_top: Top inner spacing.
+            padding_bottom: Bottom inner spacing.
+            border_left: Left border width.
+            border_right: Right border width.
+            border_top: Top border width.
+            border_bottom: Bottom border width.
+            align_items: Default alignment of children along the cross axis.
+            align_self: Override alignment of this node along the parent's cross axis.
+            justify_items: Default alignment of children along the main axis.
+            justify_self: Override alignment of this node along the parent's main axis.
+            align_content: Alignment of rows/columns when there is extra space in the cross axis.
+            justify_content: Distribution of children along the main axis.
+            gap_width: Horizontal gap between grid/flex items.
+            gap_height: Vertical gap between grid/flex items.
+            text_align: Text alignment within the node.
+            flex_direction: Direction of the flex container's main axis.
+            flex_wrap: Whether flex items wrap onto multiple lines.
+            flex_basis: Default size of a flex item before growing or shrinking.
+            flex_grow: Rate at which a flex item grows to fill available space.
+            flex_shrink: Rate at which a flex item shrinks when space is tight.
+            grid_template_rows: Explicit row track sizing in a grid container.
+            grid_template_columns: Explicit column track sizing in a grid container.
+            grid_auto_rows: Sizing of implicitly-created row tracks.
+            grid_auto_columns: Sizing of implicitly-created column tracks.
+            grid_auto_flow: How auto-placed items are inserted in the grid.
+            grid_row: Row placement of this item in a grid container.
+            grid_column: Column placement of this item in a grid container.
+        """
     def __repr__(self) -> str: ...
     def __or__(self, other: Style) -> Style: ...
     @property
-    def display(self) -> Display: ...
+    def display(self) -> Display:
+        """How the node is laid out (Block, Flex, Grid, or Nil)."""
     @property
-    def box_sizing(self) -> BoxSizing: ...
+    def box_sizing(self) -> BoxSizing:
+        """Whether size includes border and padding (BorderBox) or not (ContentBox)."""
     @property
-    def overflow_x(self) -> Overflow: ...
+    def overflow_x(self) -> Overflow:
+        """How overflowing content is handled horizontally."""
     @property
-    def overflow_y(self) -> Overflow: ...
+    def overflow_y(self) -> Overflow:
+        """How overflowing content is handled vertically."""
     @property
-    def scrollbar_width(self) -> float: ...
+    def scrollbar_width(self) -> float:
+        """Width of the scrollbar gutter in pixels."""
     @property
-    def position(self) -> Position: ...
+    def position(self) -> Position:
+        """Whether the node is positioned relative to its parent or absolutely."""
     @property
-    def inset_left(self) -> DimensionValue: ...
+    def inset_left(self) -> DimensionValue:
+        """Left offset for absolutely-positioned nodes."""
     @property
-    def inset_right(self) -> DimensionValue: ...
+    def inset_right(self) -> DimensionValue:
+        """Right offset for absolutely-positioned nodes."""
     @property
-    def inset_top(self) -> DimensionValue: ...
+    def inset_top(self) -> DimensionValue:
+        """Top offset for absolutely-positioned nodes."""
     @property
-    def inset_bottom(self) -> DimensionValue: ...
+    def inset_bottom(self) -> DimensionValue:
+        """Bottom offset for absolutely-positioned nodes."""
     @property
-    def size_width(self) -> DimensionValue: ...
+    def size_width(self) -> DimensionValue:
+        """Preferred width of the node."""
     @property
-    def size_height(self) -> DimensionValue: ...
+    def size_height(self) -> DimensionValue:
+        """Preferred height of the node."""
     @property
-    def min_size_width(self) -> DimensionValue: ...
+    def min_size_width(self) -> DimensionValue:
+        """Minimum width of the node."""
     @property
-    def min_size_height(self) -> DimensionValue: ...
+    def min_size_height(self) -> DimensionValue:
+        """Minimum height of the node."""
     @property
-    def max_size_width(self) -> DimensionValue: ...
+    def max_size_width(self) -> DimensionValue:
+        """Maximum width of the node."""
     @property
-    def max_size_height(self) -> DimensionValue: ...
+    def max_size_height(self) -> DimensionValue:
+        """Maximum height of the node."""
     @property
-    def aspect_ratio(self) -> float | None: ...
+    def aspect_ratio(self) -> float | None:
+        """Preferred aspect ratio (width / height), or None."""
     @property
-    def margin_left(self) -> DimensionValue: ...
+    def margin_left(self) -> DimensionValue:
+        """Left outer spacing."""
     @property
-    def margin_right(self) -> DimensionValue: ...
+    def margin_right(self) -> DimensionValue:
+        """Right outer spacing."""
     @property
-    def margin_top(self) -> DimensionValue: ...
+    def margin_top(self) -> DimensionValue:
+        """Top outer spacing."""
     @property
-    def margin_bottom(self) -> DimensionValue: ...
+    def margin_bottom(self) -> DimensionValue:
+        """Bottom outer spacing."""
     @property
-    def padding_left(self) -> LengthPercentageValue: ...
+    def padding_left(self) -> LengthPercentageValue:
+        """Left inner spacing."""
     @property
-    def padding_right(self) -> LengthPercentageValue: ...
+    def padding_right(self) -> LengthPercentageValue:
+        """Right inner spacing."""
     @property
-    def padding_top(self) -> LengthPercentageValue: ...
+    def padding_top(self) -> LengthPercentageValue:
+        """Top inner spacing."""
     @property
-    def padding_bottom(self) -> LengthPercentageValue: ...
+    def padding_bottom(self) -> LengthPercentageValue:
+        """Bottom inner spacing."""
     @property
-    def border_left(self) -> LengthPercentageValue: ...
+    def border_left(self) -> LengthPercentageValue:
+        """Left border width."""
     @property
-    def border_right(self) -> LengthPercentageValue: ...
+    def border_right(self) -> LengthPercentageValue:
+        """Right border width."""
     @property
-    def border_top(self) -> LengthPercentageValue: ...
+    def border_top(self) -> LengthPercentageValue:
+        """Top border width."""
     @property
-    def border_bottom(self) -> LengthPercentageValue: ...
+    def border_bottom(self) -> LengthPercentageValue:
+        """Bottom border width."""
     @property
-    def align_items(self) -> AlignItems | None: ...
+    def align_items(self) -> AlignItems | None:
+        """Default alignment of children along the cross axis."""
     @property
-    def align_self(self) -> AlignItems | None: ...
+    def align_self(self) -> AlignItems | None:
+        """Override alignment of this node along the parent's cross axis."""
     @property
-    def justify_items(self) -> AlignItems | None: ...
+    def justify_items(self) -> AlignItems | None:
+        """Default alignment of children along the main axis."""
     @property
-    def justify_self(self) -> AlignItems | None: ...
+    def justify_self(self) -> AlignItems | None:
+        """Override alignment of this node along the parent's main axis."""
     @property
-    def align_content(self) -> AlignContent | None: ...
+    def align_content(self) -> AlignContent | None:
+        """Alignment of rows/columns when there is extra space in the cross axis."""
     @property
-    def justify_content(self) -> AlignContent | None: ...
+    def justify_content(self) -> AlignContent | None:
+        """Distribution of children along the main axis."""
     @property
-    def gap_width(self) -> LengthPercentageValue: ...
+    def gap_width(self) -> LengthPercentageValue:
+        """Horizontal gap between grid/flex items."""
     @property
-    def gap_height(self) -> LengthPercentageValue: ...
+    def gap_height(self) -> LengthPercentageValue:
+        """Vertical gap between grid/flex items."""
     @property
-    def text_align(self) -> TextAlign: ...
+    def text_align(self) -> TextAlign:
+        """Text alignment within the node."""
     @property
-    def flex_direction(self) -> FlexDirection: ...
+    def flex_direction(self) -> FlexDirection:
+        """Direction of the flex container's main axis."""
     @property
-    def flex_wrap(self) -> FlexWrap: ...
+    def flex_wrap(self) -> FlexWrap:
+        """Whether flex items wrap onto multiple lines."""
     @property
-    def flex_basis(self) -> DimensionValue: ...
+    def flex_basis(self) -> DimensionValue:
+        """Default size of a flex item before growing or shrinking."""
     @property
-    def flex_grow(self) -> float: ...
+    def flex_grow(self) -> float:
+        """Rate at which a flex item grows to fill available space."""
     @property
-    def flex_shrink(self) -> float: ...
+    def flex_shrink(self) -> float:
+        """Rate at which a flex item shrinks when space is tight."""
     @property
-    def grid_template_rows(self) -> list[GridTrackValue]: ...
+    def grid_template_rows(self) -> list[GridTrackValue]:
+        """Explicit row track sizing in a grid container."""
     @property
-    def grid_template_columns(self) -> list[GridTrackValue]: ...
+    def grid_template_columns(self) -> list[GridTrackValue]:
+        """Explicit column track sizing in a grid container."""
     @property
-    def grid_auto_rows(self) -> list[GridTrackValue]: ...
+    def grid_auto_rows(self) -> list[GridTrackValue]:
+        """Sizing of implicitly-created row tracks."""
     @property
-    def grid_auto_columns(self) -> list[GridTrackValue]: ...
+    def grid_auto_columns(self) -> list[GridTrackValue]:
+        """Sizing of implicitly-created column tracks."""
     @property
-    def grid_auto_flow(self) -> GridAutoFlow: ...
+    def grid_auto_flow(self) -> GridAutoFlow:
+        """How auto-placed items are inserted in the grid."""
     @property
-    def grid_row(self) -> GridPlacement: ...
+    def grid_row(self) -> GridPlacement:
+        """Row placement of this item in a grid container."""
     @property
-    def grid_column(self) -> GridPlacement: ...
+    def grid_column(self) -> GridPlacement:
+        """Column placement of this item in a grid container."""
 
 # Tree
 
