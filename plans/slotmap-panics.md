@@ -4,7 +4,19 @@
 
 ## Background
 
-When a node is removed from a `TaffyTree`, its `NodeId` becomes a stale handle. Taffy stores nodes in a `SlotMap`, and accessing a removed node panics with `"invalid SlotMap key used"`. PyO3 catches this panic and raises `pyo3_runtime.PanicException` — a subclass of `BaseException`, not `Exception`. This is problematic because:
+When a node is removed from a `TaffyTree`, its `NodeId` becomes a stale handle. Taffy stores nodes in three `SlotMap`s (`nodes`, `children`, `parents`). While `SlotMap.get()` safely returns `None` for invalid keys, taffy's methods pervasively use `[]` bracket indexing instead. The `SlotMap` `Index` trait implementation calls `.get()` internally and panics on `None`:
+
+```rust
+// From slotmap's Index impl:
+fn index(&self, key: K) -> &V {
+    match self.get(key) {
+        Some(r) => r,
+        None => panic!("invalid SlotMap key used"),
+    }
+}
+```
+
+So when waxy calls e.g. `taffy_tree.children(node)` with a removed `NodeId`, taffy internally does `self.children[parent.into()]`, which hits this panic path. PyO3 catches the panic and raises `pyo3_runtime.PanicException` — a subclass of `BaseException`, not `Exception`. This is problematic because:
 
 1. **`except Exception` doesn't catch it.** Users writing normal error-handling code will miss it entirely. The panic propagates to the top level and kills the program.
 2. **It's not importable.** `pyo3_runtime.PanicException` can't be imported from Python, so you can't catch it by type — only by `BaseException` with a message match, which is fragile.
@@ -20,7 +32,7 @@ node = tree.new_leaf(Style())
 tree.remove(node)
 
 tree.children(node)
-# raises BaseException("called `SlotMap::get` on an invalid key")
+# raises BaseException("invalid SlotMap key used")
 # — can only be caught with `except BaseException`
 ```
 
@@ -35,7 +47,20 @@ tree.children(node)
 
 ## Scope of the Problem
 
-Taffy's `TaffyTree` internally uses three `SlotMap`s: `nodes`, `children`, and `parents`. Many methods index directly into these maps without bounds checking. The affected waxy methods fall into two categories:
+Taffy's `TaffyTree` struct has three `SlotMap`s:
+
+```rust
+nodes: SlotMap<DefaultKey, NodeData>,                    // node style, layout, cache
+children: SlotMap<DefaultKey, ChildrenVec<NodeId>>,      // parent → children mapping
+parents: SlotMap<DefaultKey, Option<NodeId>>,             // child → parent mapping
+node_context_data: SparseSecondaryMap<DefaultKey, NodeContext>,  // optional context
+```
+
+When `remove()` is called, it deletes the key from `nodes`, `children`, and `parents`. Any subsequent `[]` access on these slotmaps with the stale key panics. Note that `SparseSecondaryMap` has the same `Index` behavior (panics with `"invalid SparseSecondaryMap key used"`), but taffy accesses `node_context_data` via `.get()` / `.get_mut()`, so it's safe.
+
+Taffy could avoid these panics by using `.get()` and returning `TaffyError` variants, but it doesn't — most methods use `[]` indexing for conciseness. The `TaffyError` enum even has `InvalidParentNode`, `InvalidChildNode`, and `InvalidInputNode` variants, but they're only used for a handful of pre-validation checks, not for slotmap access.
+
+The affected waxy methods fall into two categories:
 
 ### Methods that return `Result<T, TaffyError>` but still panic on invalid keys
 
@@ -49,7 +74,8 @@ These methods go through `taffy_error_to_py` in waxy, but the slotmap panic happ
 | `layout(node)` | `self.nodes[node.into()]` |
 | `mark_dirty(node)` | `self.nodes[node_key]` (recursive) |
 | `dirty(node)` | `self.nodes[node.into()]` |
-| `set_node_context(node, ctx)` | `self.nodes[key]` |
+| `set_node_context(node, ctx)` | `self.nodes[key]` (sets `has_context` flag) |
+| `remove(node)` | `self.parents[key]` (panics on double-remove) |
 | `add_child(parent, child)` | `self.parents[child_key]`, `self.children[parent_key]` |
 | `insert_child_at_index(…)` | `self.children[parent_key]` |
 | `set_children(parent, children)` | `self.children[parent_key]` |
@@ -75,7 +101,7 @@ These methods go through `taffy_error_to_py` in waxy, but the slotmap panic happ
 |---|---|
 | `new_leaf(style)` | Creates a new node, never indexes |
 | `new_leaf_with_context(…)` | Creates a new node |
-| `remove(node)` | Uses `.get()` (returns `Option`), never direct indexing |
+| `get_node_context(node)` | Uses `self.node_context_data.get()` which returns `Option` |
 | `clear()` | Clears everything |
 | `total_node_count()` | Returns `.len()` |
 | `enable_rounding()` | No node access |
@@ -160,7 +186,7 @@ The `AssertUnwindSafe` wrapper is needed because `TaffyTree` contains `Py<PyAny>
 
 ### Which methods need wrapping
 
-Every method listed in the "Scope of the Problem" section above needs `catch_unwind`. The safe methods (`new_leaf`, `remove`, `clear`, etc.) do not need wrapping.
+Every method listed in the "Scope of the Problem" section above needs `catch_unwind`. The safe methods (`new_leaf`, `get_node_context`, `clear`, etc.) do not need wrapping.
 
 #### Methods returning `PyResult` (already have `.map_err(taffy_error_to_py)`)
 
@@ -283,22 +309,25 @@ Affected methods (21 total):
 5. `mark_dirty(node)` — `catch_node_panic(node, …)`
 6. `dirty(node)` — `catch_node_panic(node, …)`
 7. `set_node_context(node, ctx)` — `catch_node_panic(node, …)`
-8. `add_child(parent, child)` — `catch_panic(…)` (two nodes)
-9. `insert_child_at_index(parent, idx, child)` — `catch_panic(…)` (two nodes)
-10. `set_children(parent, children)` — `catch_panic(…)` (multiple nodes)
-11. `remove_child(parent, child)` — `catch_panic(…)` (two nodes)
-12. `remove_child_at_index(parent, idx)` — `catch_node_panic(parent, …)`
-13. `replace_child_at_index(parent, idx, new_child)` — `catch_panic(…)` (two nodes)
-14. `child_at_index(parent, idx)` — `catch_node_panic(parent, …)`
-15. `new_with_children(style, children)` — `catch_panic(…)` (multiple nodes)
-16. `compute_layout(node, …)` — `catch_panic(…)` (traverses tree)
+8. `remove(node)` — `catch_node_panic(node, …)` (panics on double-remove)
+9. `add_child(parent, child)` — `catch_panic(…)` (two nodes)
+10. `insert_child_at_index(parent, idx, child)` — `catch_panic(…)` (two nodes)
+11. `set_children(parent, children)` — `catch_panic(…)` (multiple nodes)
+12. `remove_child(parent, child)` — `catch_panic(…)` (two nodes)
+13. `remove_child_at_index(parent, idx)` — `catch_node_panic(parent, …)`
+14. `replace_child_at_index(parent, idx, new_child)` — `catch_panic(…)` (two nodes)
+15. `child_at_index(parent, idx)` — `catch_node_panic(parent, …)`
+16. `new_with_children(style, children)` — `catch_panic(…)` (multiple nodes)
+17. `compute_layout(node, …)` — `catch_panic(…)` (traverses tree)
 
 **Currently don't return `PyResult` — change return type and add wrapper:**
-17. `child_count(parent)` → `PyResult<usize>` — `catch_node_panic(parent, …)`
-18. `parent(child)` → `PyResult<Option<NodeId>>` — `catch_node_panic(child, …)`
-19. `unrounded_layout(node)` → `PyResult<Layout>` — `catch_node_panic(node, …)`
-20. `print_tree(root)` → `PyResult<()>` — `catch_node_panic(root, …)`
-21. `get_node_context(node)` → `PyResult<Option<…>>` — `catch_node_panic(node, …)`
+18. `child_count(parent)` → `PyResult<usize>` — `catch_node_panic(parent, …)`
+19. `parent(child)` → `PyResult<Option<NodeId>>` — `catch_node_panic(child, …)`
+20. `unrounded_layout(node)` → `PyResult<Layout>` — `catch_node_panic(node, …)`
+21. `print_tree(root)` → `PyResult<()>` — `catch_node_panic(root, …)`
+
+**Safe — no wrapping needed:**
+- `get_node_context(node)` — uses `SparseSecondaryMap.get()` which returns `Option`, not `[]` indexing
 
 ### Step 4: Update Python exports
 
