@@ -539,11 +539,11 @@ def test_measure_with_available_size_pattern_match() -> None:
     root = tree.new_with_children(waxy.Style(display=waxy.Display.Flex), [node])
 
     def measure(
-        known_dimensions: waxy.KnownSize,
-        available_space: waxy.AvailableSize,
+        known: waxy.KnownSize,
+        available: waxy.AvailableSize,
         context: FixedContent,
     ) -> waxy.Size:
-        kw, kh = known_dimensions
+        kw, kh = known
         return waxy.Size(
             kw if kw is not None else context.width,
             kh if kh is not None else context.height,

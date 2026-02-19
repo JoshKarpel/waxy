@@ -222,11 +222,7 @@ impl TaffyTree {
                 let result = self.inner.compute_layout_with_measure(
                     node.inner,
                     avail,
-                    |known_dimensions,
-                     available_space,
-                     _node_id,
-                     node_context: Option<&mut Py<PyAny>>,
-                     _style| {
+                    |known, available, _node_id, node_context: Option<&mut Py<PyAny>>, _style| {
                         // If we already have a Python error, short-circuit.
                         if py_err.is_some() {
                             return taffy::Size::ZERO;
@@ -236,7 +232,7 @@ impl TaffyTree {
                         if let taffy::Size {
                             width: Some(w),
                             height: Some(h),
-                        } = known_dimensions
+                        } = known
                         {
                             return taffy::Size {
                                 width: w,
@@ -250,8 +246,8 @@ impl TaffyTree {
                         };
 
                         // Convert to Python types and call the measure function.
-                        let py_known = KnownSize::from(known_dimensions);
-                        let py_avail = AvailableSize::from(available_space);
+                        let py_known = KnownSize::from(known);
+                        let py_avail = AvailableSize::from(available);
 
                         let call_result =
                             measure_fn.call1(py, (py_known, py_avail, context.clone_ref(py)));

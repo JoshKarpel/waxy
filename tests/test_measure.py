@@ -165,8 +165,8 @@ def test_compute_layout_with_fixed_measure() -> None:
     root = tree.new_with_children(waxy.Style(display=waxy.Display.Flex), [node])
 
     def measure(
-        known_dimensions: waxy.KnownSize,
-        available_space: waxy.AvailableSize,
+        known: waxy.KnownSize,
+        available: waxy.AvailableSize,
         context: FixedContent,
     ) -> waxy.Size:
         return waxy.Size(context.width, context.height)
@@ -193,12 +193,12 @@ def test_compute_layout_text_wrapping() -> None:
     char_height = 16.0
 
     def measure(
-        known_dimensions: waxy.KnownSize,
-        available_space: waxy.AvailableSize,
+        known: waxy.KnownSize,
+        available: waxy.AvailableSize,
         context: TextContent,
     ) -> waxy.Size:
-        kw, _ = known_dimensions
-        avail_w, _ = available_space
+        kw, _ = known
+        avail_w, _ = available
         text = context.text
 
         if kw is not None:
@@ -216,7 +216,7 @@ def test_compute_layout_text_wrapping() -> None:
 
     tree.compute_layout(root, measure=measure)
     layout = tree.layout(text_node)
-    # Text wraps at 100px width — known_dimensions provides kw=100
+    # Text wraps at 100px width — known provides kw=100
     assert layout.size.width == 100.0
     assert layout.size.height > char_height  # Multiple lines
 
@@ -233,12 +233,12 @@ def test_measure_receives_known_dimensions_from_style() -> None:
     received_kd: list[waxy.KnownSize] = []
 
     def measure(
-        known_dimensions: waxy.KnownSize,
-        available_space: waxy.AvailableSize,
+        known: waxy.KnownSize,
+        available: waxy.AvailableSize,
         context: str,
     ) -> waxy.Size:
-        received_kd.append(known_dimensions)
-        kw, kh = known_dimensions
+        received_kd.append(known)
+        kw, kh = known
         w = kw if kw is not None else 50.0
         h = kh if kh is not None else 30.0
         return waxy.Size(w, h)
@@ -286,8 +286,8 @@ def test_measure_error_propagation() -> None:
     root = tree.new_with_children(waxy.Style(display=waxy.Display.Flex), [node])
 
     def bad_measure(
-        known_dimensions: waxy.KnownSize,
-        available_space: waxy.AvailableSize,
+        known: waxy.KnownSize,
+        available: waxy.AvailableSize,
         context: str,
     ) -> waxy.Size:
         msg = "measure failed!"
@@ -310,11 +310,11 @@ def test_compute_layout_with_available_space_param() -> None:
     )
 
     def measure(
-        known_dimensions: waxy.KnownSize,
-        available_space: waxy.AvailableSize,
+        known: waxy.KnownSize,
+        available: waxy.AvailableSize,
         context: TextContent,
     ) -> waxy.Size:
-        kw, _ = known_dimensions
+        kw, _ = known
         w = kw if kw is not None else len(context.text) * 8.0
         return waxy.Size(w, 16.0)
 
@@ -341,12 +341,12 @@ def test_measure_with_max_content_available_space() -> None:
     char_height = 16.0
 
     def measure(
-        known_dimensions: waxy.KnownSize,
-        available_space: waxy.AvailableSize,
+        known: waxy.KnownSize,
+        available: waxy.AvailableSize,
         context: TextContent,
     ) -> waxy.Size:
-        kw, _ = known_dimensions
-        avail_w, _ = available_space
+        kw, _ = known
+        avail_w, _ = available
 
         if kw is not None:
             return waxy.Size(kw, char_height)
@@ -358,7 +358,7 @@ def test_measure_with_max_content_available_space() -> None:
         # Definite: use the available width
         return waxy.Size(avail_w.value, char_height)
 
-    # Default available_space is max-content — node should get full single-line width
+    # Default available is max-content — node should get full single-line width
     tree.compute_layout(root, measure=measure)
     layout = tree.layout(text_node)
     assert layout.size.width == len("Hello world") * char_width  # 88.0
@@ -378,12 +378,12 @@ def test_measure_with_min_content_available_space() -> None:
     char_height = 16.0
 
     def measure(
-        known_dimensions: waxy.KnownSize,
-        available_space: waxy.AvailableSize,
+        known: waxy.KnownSize,
+        available: waxy.AvailableSize,
         context: TextContent,
     ) -> waxy.Size:
-        kw, _ = known_dimensions
-        avail_w, _ = available_space
+        kw, _ = known
+        avail_w, _ = available
 
         if kw is not None:
             return waxy.Size(kw, char_height)
