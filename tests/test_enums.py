@@ -1,5 +1,3 @@
-from collections.abc import Callable
-
 import pytest
 
 import waxy
@@ -34,17 +32,16 @@ def test_enum_variants(enum_class: type, variants: list[str]) -> None:
         assert getattr(enum_class, name) is not None
 
 
-@pytest.mark.parametrize(
-    ("factory", "is_definite"),
-    [
-        (lambda: waxy.AvailableSpace.definite(100.0), True),
-        (waxy.AvailableSpace.min_content, False),
-        (waxy.AvailableSpace.max_content, False),
-    ],
-    ids=["definite", "min_content", "max_content"],
-)
-def test_available_space(factory: Callable[[], waxy.AvailableSpace], is_definite: bool) -> None:
-    assert factory().is_definite() == is_definite
+def test_available_space_types() -> None:
+    assert isinstance(waxy.Definite(100.0), waxy.Definite)
+    assert isinstance(waxy.MinContent(), waxy.MinContent)
+    assert isinstance(waxy.MaxContent(), waxy.MaxContent)
+
+
+def test_definite_is_not_min_or_max_content() -> None:
+    d = waxy.Definite(100.0)
+    assert not isinstance(d, waxy.MinContent)
+    assert not isinstance(d, waxy.MaxContent)
 
 
 def test_enum_equality() -> None:

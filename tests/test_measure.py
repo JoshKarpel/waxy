@@ -6,107 +6,102 @@ import pytest
 
 import waxy
 
-# --- KnownDimensions ---
+# --- KnownSize ---
 
 
-def test_known_dimensions_construction() -> None:
-    kd = waxy.KnownDimensions(width=100.0, height=None)
+def test_known_size_construction() -> None:
+    kd = waxy.KnownSize(width=100.0, height=None)
     assert kd.width == 100.0
     assert kd.height is None
 
 
-def test_known_dimensions_defaults() -> None:
-    kd = waxy.KnownDimensions()
+def test_known_size_defaults() -> None:
+    kd = waxy.KnownSize()
     assert kd.width is None
     assert kd.height is None
 
 
-def test_known_dimensions_unpacking() -> None:
-    kd = waxy.KnownDimensions(width=50.0, height=75.0)
+def test_known_size_unpacking() -> None:
+    kd = waxy.KnownSize(width=50.0, height=75.0)
     w, h = kd
     assert w == 50.0
     assert h == 75.0
 
 
-def test_known_dimensions_repr() -> None:
-    kd = waxy.KnownDimensions(width=10.0, height=None)
+def test_known_size_repr() -> None:
+    kd = waxy.KnownSize(width=10.0, height=None)
     assert "10" in repr(kd)
     assert "None" in repr(kd)
 
 
-def test_known_dimensions_eq() -> None:
-    assert waxy.KnownDimensions(width=1.0) == waxy.KnownDimensions(width=1.0)
-    assert waxy.KnownDimensions(width=1.0) != waxy.KnownDimensions(width=2.0)
+def test_known_size_eq() -> None:
+    assert waxy.KnownSize(width=1.0) == waxy.KnownSize(width=1.0)
+    assert waxy.KnownSize(width=1.0) != waxy.KnownSize(width=2.0)
 
 
-# --- AvailableDimensions ---
+# --- AvailableSize ---
 
 
-def test_available_dimensions_construction() -> None:
-    ad = waxy.AvailableDimensions(
-        width=waxy.AvailableSpace.definite(100.0),
-        height=waxy.AvailableSpace.max_content(),
+def test_available_size_construction() -> None:
+    ad = waxy.AvailableSize(
+        width=waxy.Definite(100.0),
+        height=waxy.MaxContent(),
     )
-    assert ad.width.is_definite()
-    assert ad.width.value() == 100.0
-    assert not ad.height.is_definite()
+    assert isinstance(ad.width, waxy.Definite)
+    assert ad.width.value == 100.0
+    assert isinstance(ad.height, waxy.MaxContent)
 
 
-def test_available_dimensions_unpacking() -> None:
-    ad = waxy.AvailableDimensions(
-        width=waxy.AvailableSpace.definite(200.0),
-        height=waxy.AvailableSpace.min_content(),
+def test_available_size_unpacking() -> None:
+    ad = waxy.AvailableSize(
+        width=waxy.Definite(200.0),
+        height=waxy.MinContent(),
     )
     w, h = ad
-    assert w.is_definite()
-    assert w.value() == 200.0
-    assert not h.is_definite()
+    assert isinstance(w, waxy.Definite)
+    assert w.value == 200.0
+    assert isinstance(h, waxy.MinContent)
 
 
-def test_available_dimensions_repr() -> None:
-    ad = waxy.AvailableDimensions(
-        width=waxy.AvailableSpace.definite(100.0),
-        height=waxy.AvailableSpace.max_content(),
+def test_available_size_repr() -> None:
+    ad = waxy.AvailableSize(
+        width=waxy.Definite(100.0),
+        height=waxy.MaxContent(),
     )
     r = repr(ad)
-    assert "AvailableDimensions" in r
+    assert "AvailableSize" in r
     assert "100" in r
 
 
-def test_available_dimensions_eq() -> None:
-    a = waxy.AvailableDimensions(
-        width=waxy.AvailableSpace.definite(100.0),
-        height=waxy.AvailableSpace.max_content(),
+def test_available_size_eq() -> None:
+    a = waxy.AvailableSize(
+        width=waxy.Definite(100.0),
+        height=waxy.MaxContent(),
     )
-    b = waxy.AvailableDimensions(
-        width=waxy.AvailableSpace.definite(100.0),
-        height=waxy.AvailableSpace.max_content(),
+    b = waxy.AvailableSize(
+        width=waxy.Definite(100.0),
+        height=waxy.MaxContent(),
     )
     assert a == b
 
 
-# --- AvailableSpace.value() ---
+# --- Definite / MinContent / MaxContent ---
 
 
-def test_available_space_value_definite() -> None:
-    assert waxy.AvailableSpace.definite(42.0).value() == 42.0
+def test_definite_value() -> None:
+    assert waxy.Definite(42.0).value == 42.0
 
 
-def test_available_space_value_none_for_non_definite() -> None:
-    assert waxy.AvailableSpace.min_content().value() is None
-    assert waxy.AvailableSpace.max_content().value() is None
+def test_min_content_identity() -> None:
+    assert isinstance(waxy.MinContent(), waxy.MinContent)
+    assert not isinstance(waxy.MaxContent(), waxy.MinContent)
+    assert not isinstance(waxy.Definite(100.0), waxy.MinContent)
 
 
-def test_available_space_is_min_content() -> None:
-    assert waxy.AvailableSpace.min_content().is_min_content()
-    assert not waxy.AvailableSpace.max_content().is_min_content()
-    assert not waxy.AvailableSpace.definite(100.0).is_min_content()
-
-
-def test_available_space_is_max_content() -> None:
-    assert waxy.AvailableSpace.max_content().is_max_content()
-    assert not waxy.AvailableSpace.min_content().is_max_content()
-    assert not waxy.AvailableSpace.definite(100.0).is_max_content()
+def test_max_content_identity() -> None:
+    assert isinstance(waxy.MaxContent(), waxy.MaxContent)
+    assert not isinstance(waxy.MinContent(), waxy.MaxContent)
+    assert not isinstance(waxy.Definite(100.0), waxy.MaxContent)
 
 
 # --- Node context ---
@@ -170,8 +165,8 @@ def test_compute_layout_with_fixed_measure() -> None:
     root = tree.new_with_children(waxy.Style(display=waxy.Display.Flex), [node])
 
     def measure(
-        known_dimensions: waxy.KnownDimensions,
-        available_space: waxy.AvailableDimensions,
+        known: waxy.KnownSize,
+        available: waxy.AvailableSize,
         context: FixedContent,
     ) -> waxy.Size:
         return waxy.Size(context.width, context.height)
@@ -186,7 +181,7 @@ def test_compute_layout_text_wrapping() -> None:
     tree = waxy.TaffyTree[TextContent]()
     # Give the text node an explicit width so it wraps
     text_node = tree.new_leaf_with_context(
-        waxy.Style(size_width=waxy.length(100)),
+        waxy.Style(size_width=waxy.Length(100)),
         TextContent("Hello world, this is some text"),
     )
     root = tree.new_with_children(
@@ -198,18 +193,18 @@ def test_compute_layout_text_wrapping() -> None:
     char_height = 16.0
 
     def measure(
-        known_dimensions: waxy.KnownDimensions,
-        available_space: waxy.AvailableDimensions,
+        known: waxy.KnownSize,
+        available: waxy.AvailableSize,
         context: TextContent,
     ) -> waxy.Size:
-        kw, _ = known_dimensions
-        avail_w, _ = available_space
+        kw, _ = known
+        avail_w, _ = available
         text = context.text
 
         if kw is not None:
             inline_size = kw
-        elif avail_w.is_definite():
-            inline_size = avail_w.value()  # type: ignore[assignment]
+        elif isinstance(avail_w, waxy.Definite):
+            inline_size = avail_w.value
         else:
             inline_size = len(text) * char_width
 
@@ -221,7 +216,7 @@ def test_compute_layout_text_wrapping() -> None:
 
     tree.compute_layout(root, measure=measure)
     layout = tree.layout(text_node)
-    # Text wraps at 100px width — known_dimensions provides kw=100
+    # Text wraps at 100px width — known provides kw=100
     assert layout.size.width == 100.0
     assert layout.size.height > char_height  # Multiple lines
 
@@ -230,20 +225,20 @@ def test_measure_receives_known_dimensions_from_style() -> None:
     tree = waxy.TaffyTree[str]()
     # Node with explicit width in style
     node = tree.new_leaf_with_context(
-        waxy.Style(size_width=waxy.length(150)),
+        waxy.Style(size_width=waxy.Length(150)),
         "test",
     )
     root = tree.new_with_children(waxy.Style(display=waxy.Display.Flex), [node])
 
-    received_kd: list[waxy.KnownDimensions] = []
+    received_kd: list[waxy.KnownSize] = []
 
     def measure(
-        known_dimensions: waxy.KnownDimensions,
-        available_space: waxy.AvailableDimensions,
+        known: waxy.KnownSize,
+        available: waxy.AvailableSize,
         context: str,
     ) -> waxy.Size:
-        received_kd.append(known_dimensions)
-        kw, kh = known_dimensions
+        received_kd.append(known)
+        kw, kh = known
         w = kw if kw is not None else 50.0
         h = kh if kh is not None else 30.0
         return waxy.Size(w, h)
@@ -291,8 +286,8 @@ def test_measure_error_propagation() -> None:
     root = tree.new_with_children(waxy.Style(display=waxy.Display.Flex), [node])
 
     def bad_measure(
-        known_dimensions: waxy.KnownDimensions,
-        available_space: waxy.AvailableDimensions,
+        known: waxy.KnownSize,
+        available: waxy.AvailableSize,
         context: str,
     ) -> waxy.Size:
         msg = "measure failed!"
@@ -310,24 +305,24 @@ def test_compute_layout_with_available_space_param() -> None:
     )
     # Give the root an explicit size so it fills the viewport
     root = tree.new_with_children(
-        waxy.Style(display=waxy.Display.Flex, size_width=waxy.length(800)),
+        waxy.Style(display=waxy.Display.Flex, size_width=waxy.Length(800)),
         [node],
     )
 
     def measure(
-        known_dimensions: waxy.KnownDimensions,
-        available_space: waxy.AvailableDimensions,
+        known: waxy.KnownSize,
+        available: waxy.AvailableSize,
         context: TextContent,
     ) -> waxy.Size:
-        kw, _ = known_dimensions
+        kw, _ = known
         w = kw if kw is not None else len(context.text) * 8.0
         return waxy.Size(w, 16.0)
 
-    viewport = waxy.AvailableDimensions(
-        width=waxy.AvailableSpace.definite(800.0),
-        height=waxy.AvailableSpace.definite(600.0),
+    viewport = waxy.AvailableSize(
+        width=waxy.Definite(800.0),
+        height=waxy.Definite(600.0),
     )
-    tree.compute_layout(root, measure=measure, available_space=viewport)
+    tree.compute_layout(root, measure=measure, available=viewport)
 
     layout = tree.layout(root)
     assert layout.size.width == 800.0
@@ -346,24 +341,24 @@ def test_measure_with_max_content_available_space() -> None:
     char_height = 16.0
 
     def measure(
-        known_dimensions: waxy.KnownDimensions,
-        available_space: waxy.AvailableDimensions,
+        known: waxy.KnownSize,
+        available: waxy.AvailableSize,
         context: TextContent,
     ) -> waxy.Size:
-        kw, _ = known_dimensions
-        avail_w, _ = available_space
+        kw, _ = known
+        avail_w, _ = available
 
         if kw is not None:
             return waxy.Size(kw, char_height)
 
         # Max-content: report full single-line width
-        if not avail_w.is_definite():
+        if not isinstance(avail_w, waxy.Definite):
             return waxy.Size(len(context.text) * char_width, char_height)
 
         # Definite: use the available width
-        return waxy.Size(avail_w.value(), char_height)  # type: ignore[arg-type]
+        return waxy.Size(avail_w.value, char_height)
 
-    # Default available_space is max-content — node should get full single-line width
+    # Default available is max-content — node should get full single-line width
     tree.compute_layout(root, measure=measure)
     layout = tree.layout(text_node)
     assert layout.size.width == len("Hello world") * char_width  # 88.0
@@ -383,21 +378,21 @@ def test_measure_with_min_content_available_space() -> None:
     char_height = 16.0
 
     def measure(
-        known_dimensions: waxy.KnownDimensions,
-        available_space: waxy.AvailableDimensions,
+        known: waxy.KnownSize,
+        available: waxy.AvailableSize,
         context: TextContent,
     ) -> waxy.Size:
-        kw, _ = known_dimensions
-        avail_w, _ = available_space
+        kw, _ = known
+        avail_w, _ = available
 
         if kw is not None:
             return waxy.Size(kw, char_height)
 
-        if avail_w.is_definite():
-            return waxy.Size(avail_w.value(), char_height)  # type: ignore[arg-type]
+        if isinstance(avail_w, waxy.Definite):
+            return waxy.Size(avail_w.value, char_height)
 
         text = context.text
-        if avail_w.is_min_content():
+        if isinstance(avail_w, waxy.MinContent):
             # Min-content: width of the longest word
             longest_word = max(text.split(), key=len)
             return waxy.Size(len(longest_word) * char_width, char_height)
@@ -406,11 +401,11 @@ def test_measure_with_min_content_available_space() -> None:
         return waxy.Size(len(text) * char_width, char_height)
 
     # Use min_content available space
-    viewport = waxy.AvailableDimensions(
-        width=waxy.AvailableSpace.min_content(),
-        height=waxy.AvailableSpace.min_content(),
+    viewport = waxy.AvailableSize(
+        width=waxy.MinContent(),
+        height=waxy.MinContent(),
     )
-    tree.compute_layout(root, measure=measure, available_space=viewport)
+    tree.compute_layout(root, measure=measure, available=viewport)
     layout = tree.layout(text_node)
     # "world" is the longest word (5 chars), so min-content width = 40.0
     assert layout.size.width == len("world") * char_width  # 40.0
@@ -421,8 +416,8 @@ def test_compute_layout_without_measure_still_works() -> None:
     """Existing behavior: leaf nodes without measure get zero intrinsic size."""
     tree = waxy.TaffyTree()
     style = waxy.Style(
-        size_width=waxy.Dimension.length(100.0),
-        size_height=waxy.Dimension.length(50.0),
+        size_width=waxy.Length(100.0),
+        size_height=waxy.Length(50.0),
     )
     node = tree.new_leaf(style)
     tree.compute_layout(node)

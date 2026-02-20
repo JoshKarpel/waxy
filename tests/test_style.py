@@ -37,31 +37,31 @@ def test_style_flex_properties() -> None:
 
 def test_style_size() -> None:
     s = waxy.Style(
-        size_width=waxy.Dimension.length(100.0),
-        size_height=waxy.Dimension.percent(0.5),
+        size_width=waxy.Length(100.0),
+        size_height=waxy.Percent(0.5),
     )
-    assert s.size_width == waxy.Dimension.length(100.0)
-    assert s.size_height == waxy.Dimension.percent(0.5)
+    assert s.size_width == waxy.Length(100.0)
+    assert s.size_height == waxy.Percent(0.5)
 
 
 def test_style_padding() -> None:
     s = waxy.Style(
-        padding_left=waxy.LengthPercentage.length(10.0),
-        padding_right=waxy.LengthPercentage.length(10.0),
-        padding_top=waxy.LengthPercentage.length(5.0),
-        padding_bottom=waxy.LengthPercentage.length(5.0),
+        padding_left=waxy.Length(10.0),
+        padding_right=waxy.Length(10.0),
+        padding_top=waxy.Length(5.0),
+        padding_bottom=waxy.Length(5.0),
     )
-    assert s.padding_left == waxy.LengthPercentage.length(10.0)
-    assert s.padding_top == waxy.LengthPercentage.length(5.0)
+    assert s.padding_left == waxy.Length(10.0)
+    assert s.padding_top == waxy.Length(5.0)
 
 
 def test_style_margin() -> None:
     s = waxy.Style(
-        margin_left=waxy.LengthPercentageAuto.length(10.0),
-        margin_right=waxy.LengthPercentageAuto.auto(),
+        margin_left=waxy.Length(10.0),
+        margin_right=waxy.AUTO,
     )
-    assert s.margin_left == waxy.LengthPercentageAuto.length(10.0)
-    assert s.margin_right.is_auto()
+    assert s.margin_left == waxy.Length(10.0)
+    assert isinstance(s.margin_right, waxy.Auto)
 
 
 def test_style_alignment() -> None:
@@ -83,8 +83,8 @@ def test_style_grid() -> None:
     s = waxy.Style(
         display=waxy.Display.Grid,
         grid_template_columns=[
-            waxy.GridTrack.length(100.0),
-            waxy.GridTrack.flex(1.0),
+            waxy.Length(100.0),
+            waxy.Fraction(1.0),
         ],
     )
     assert s.display == waxy.Display.Grid
@@ -141,13 +141,13 @@ def test_style_or_alignment_fields() -> None:
 
 def test_style_or_size_fields() -> None:
     a = waxy.Style(
-        size_width=waxy.Dimension.length(100.0),
-        size_height=waxy.Dimension.length(200.0),
+        size_width=waxy.Length(100.0),
+        size_height=waxy.Length(200.0),
     )
-    b = waxy.Style(size_width=waxy.Dimension.percent(0.5))
+    b = waxy.Style(size_width=waxy.Percent(0.5))
     result = a | b
-    assert result.size_width == waxy.Dimension.percent(0.5)
-    assert result.size_height == waxy.Dimension.length(200.0)
+    assert result.size_width == waxy.Percent(0.5)
+    assert result.size_height == waxy.Length(200.0)
 
 
 def test_style_or_does_not_mutate_operands() -> None:
@@ -184,10 +184,10 @@ def test_style_or_explicit_none_aspect_ratio() -> None:
 
 def test_style_or_grid_tracks() -> None:
     a = waxy.Style(
-        grid_template_columns=[waxy.GridTrack.length(100.0)],
+        grid_template_columns=[waxy.Length(100.0)],
     )
     b = waxy.Style(
-        grid_template_rows=[waxy.GridTrack.flex(1.0)],
+        grid_template_rows=[waxy.Fraction(1.0)],
     )
     result = a | b
     assert len(result.grid_template_columns) == 1

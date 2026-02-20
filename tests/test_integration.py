@@ -6,8 +6,8 @@ def test_flexbox_row() -> None:
     tree = waxy.TaffyTree()
 
     child_style = waxy.Style(
-        size_width=waxy.Dimension.length(100.0),
-        size_height=waxy.Dimension.length(50.0),
+        size_width=waxy.Length(100.0),
+        size_height=waxy.Length(50.0),
     )
 
     c1 = tree.new_leaf(child_style)
@@ -18,8 +18,8 @@ def test_flexbox_row() -> None:
         waxy.Style(
             display=waxy.Display.Flex,
             flex_direction=waxy.FlexDirection.Row,
-            size_width=waxy.Dimension.length(300.0),
-            size_height=waxy.Dimension.length(50.0),
+            size_width=waxy.Length(300.0),
+            size_height=waxy.Length(50.0),
         ),
         [c1, c2, c3],
     )
@@ -44,8 +44,8 @@ def test_flexbox_column() -> None:
     tree = waxy.TaffyTree()
 
     child_style = waxy.Style(
-        size_width=waxy.Dimension.length(100.0),
-        size_height=waxy.Dimension.length(30.0),
+        size_width=waxy.Length(100.0),
+        size_height=waxy.Length(30.0),
     )
 
     c1 = tree.new_leaf(child_style)
@@ -55,7 +55,7 @@ def test_flexbox_column() -> None:
         waxy.Style(
             display=waxy.Display.Flex,
             flex_direction=waxy.FlexDirection.Column,
-            size_width=waxy.Dimension.length(100.0),
+            size_width=waxy.Length(100.0),
         ),
         [c1, c2],
     )
@@ -73,14 +73,14 @@ def test_flex_grow() -> None:
     """Two children with flex_grow in a 300px container."""
     tree = waxy.TaffyTree()
 
-    c1 = tree.new_leaf(waxy.Style(flex_grow=1.0, size_height=waxy.Dimension.length(50.0)))
-    c2 = tree.new_leaf(waxy.Style(flex_grow=2.0, size_height=waxy.Dimension.length(50.0)))
+    c1 = tree.new_leaf(waxy.Style(flex_grow=1.0, size_height=waxy.Length(50.0)))
+    c2 = tree.new_leaf(waxy.Style(flex_grow=2.0, size_height=waxy.Length(50.0)))
 
     parent = tree.new_with_children(
         waxy.Style(
             display=waxy.Display.Flex,
-            size_width=waxy.Dimension.length(300.0),
-            size_height=waxy.Dimension.length(50.0),
+            size_width=waxy.Length(300.0),
+            size_height=waxy.Length(50.0),
         ),
         [c1, c2],
     )
@@ -98,16 +98,16 @@ def test_grid_layout() -> None:
     """Simple 2-column grid layout."""
     tree = waxy.TaffyTree()
 
-    c1 = tree.new_leaf(waxy.Style(size_height=waxy.Dimension.length(40.0)))
-    c2 = tree.new_leaf(waxy.Style(size_height=waxy.Dimension.length(40.0)))
+    c1 = tree.new_leaf(waxy.Style(size_height=waxy.Length(40.0)))
+    c2 = tree.new_leaf(waxy.Style(size_height=waxy.Length(40.0)))
 
     parent = tree.new_with_children(
         waxy.Style(
             display=waxy.Display.Grid,
-            size_width=waxy.Dimension.length(200.0),
+            size_width=waxy.Length(200.0),
             grid_template_columns=[
-                waxy.GridTrack.length(100.0),
-                waxy.GridTrack.length(100.0),
+                waxy.Length(100.0),
+                waxy.Length(100.0),
             ],
         ),
         [c1, c2],
@@ -130,14 +130,14 @@ def test_nested_layout() -> None:
 
     leaf1 = tree.new_leaf(
         waxy.Style(
-            size_width=waxy.Dimension.length(50.0),
-            size_height=waxy.Dimension.length(50.0),
+            size_width=waxy.Length(50.0),
+            size_height=waxy.Length(50.0),
         )
     )
     leaf2 = tree.new_leaf(
         waxy.Style(
-            size_width=waxy.Dimension.length(50.0),
-            size_height=waxy.Dimension.length(50.0),
+            size_width=waxy.Length(50.0),
+            size_height=waxy.Length(50.0),
         )
     )
 
@@ -151,8 +151,8 @@ def test_nested_layout() -> None:
 
     outer_leaf = tree.new_leaf(
         waxy.Style(
-            size_width=waxy.Dimension.length(100.0),
-            size_height=waxy.Dimension.length(100.0),
+            size_width=waxy.Length(100.0),
+            size_height=waxy.Length(100.0),
         )
     )
 
@@ -160,7 +160,7 @@ def test_nested_layout() -> None:
         waxy.Style(
             display=waxy.Display.Flex,
             flex_direction=waxy.FlexDirection.Row,
-            size_width=waxy.Dimension.length(200.0),
+            size_width=waxy.Length(200.0),
         ),
         [inner, outer_leaf],
     )
@@ -188,12 +188,12 @@ def test_padding_and_border() -> None:
     parent = tree.new_with_children(
         waxy.Style(
             display=waxy.Display.Flex,
-            size_width=waxy.Dimension.length(100.0),
-            size_height=waxy.Dimension.length(100.0),
-            padding_left=waxy.LengthPercentage.length(10.0),
-            padding_right=waxy.LengthPercentage.length(10.0),
-            padding_top=waxy.LengthPercentage.length(5.0),
-            padding_bottom=waxy.LengthPercentage.length(5.0),
+            size_width=waxy.Length(100.0),
+            size_height=waxy.Length(100.0),
+            padding_left=waxy.Length(10.0),
+            padding_right=waxy.Length(10.0),
+            padding_top=waxy.Length(5.0),
+            padding_bottom=waxy.Length(5.0),
         ),
         [child],
     )
@@ -214,18 +214,18 @@ def test_absolute_positioning() -> None:
     abs_child = tree.new_leaf(
         waxy.Style(
             position=waxy.Position.Absolute,
-            size_width=waxy.Dimension.length(50.0),
-            size_height=waxy.Dimension.length(50.0),
-            inset_left=waxy.LengthPercentageAuto.length(10.0),
-            inset_top=waxy.LengthPercentageAuto.length(10.0),
+            size_width=waxy.Length(50.0),
+            size_height=waxy.Length(50.0),
+            inset_left=waxy.Length(10.0),
+            inset_top=waxy.Length(10.0),
         )
     )
 
     parent = tree.new_with_children(
         waxy.Style(
             display=waxy.Display.Flex,
-            size_width=waxy.Dimension.length(200.0),
-            size_height=waxy.Dimension.length(200.0),
+            size_width=waxy.Length(200.0),
+            size_height=waxy.Length(200.0),
         ),
         [abs_child],
     )
