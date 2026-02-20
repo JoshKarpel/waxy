@@ -24,7 +24,7 @@ The Rust source (`src/`) exposes a flat PyO3 module `_waxy`, which Python (`pyth
 
 ## Key Design Decisions
 
-- **`#[pyclass(unsendable)]`** is required on all types that wrap taffy's `CompactLength` (which contains `*const ()`, not `Send`). This includes: `GridPlacement`, `Style`, `TaffyTree`. Value types in `src/values.rs` convert *to* taffy types but don't store them, so they don't need `unsendable`.
+- **`#[pyclass(unsendable)]`** is required on types that are not `Send` from Rust's perspective. Currently this applies to `Style` and `TaffyTree`, which wrap taffy's `CompactLength` (containing `*const ()`, not `Send`). Value types in `src/values.rs` convert *to* taffy types but don't store them, so they don't need `unsendable`.
 - **`#[pyclass(frozen)]`** is used on all types except `TaffyTree` (which is inherently mutable). All structs are immutable from Python — construct new instances instead of mutating.
 - **Value types** (`Length`, `Percent`, `Auto`, `MinContent`, `MaxContent`, `Definite`, `Fraction`, `FitContent`, `Minmax`, `GridLine`, `GridSpan`) are standalone frozen pyclasses, not enum variants. They support `match`/`case` pattern matching via `__match_args__`. Module-level constants `AUTO`, `MIN_CONTENT`, `MAX_CONTENT` are provided for the zero-argument types.
 - **Exception hierarchy**: `WaxyException(Exception)` is the root. `TaffyException(WaxyException)` covers taffy errors with 4 subclasses. Validation exceptions are `WaxyException + ValueError` via multi-inheritance (achieved by setting `__bases__` in `register()` in `src/errors.rs`): `InvalidPercent` (Percent outside [0.0, 1.0]), `InvalidLength` (NaN), `InvalidGridLine` (index 0), `InvalidGridSpan` (count 0).
