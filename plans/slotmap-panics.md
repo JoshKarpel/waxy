@@ -58,7 +58,20 @@ node_context_data: SparseSecondaryMap<DefaultKey, NodeContext>,  // optional con
 
 When `remove()` is called, it deletes the key from `nodes`, `children`, and `parents`. Any subsequent `[]` access on these slotmaps with the stale key panics. Note that `SparseSecondaryMap` has the same `Index` behavior (panics with `"invalid SparseSecondaryMap key used"`), but taffy accesses `node_context_data` via `.get()` / `.get_mut()`, so it's safe.
 
-Taffy could avoid these panics by using `.get()` and returning `TaffyError` variants, but it doesn't — most methods use `[]` indexing for conciseness. The `TaffyError` enum even has `InvalidParentNode`, `InvalidChildNode`, and `InvalidInputNode` variants, but they're only used for a handful of pre-validation checks, not for slotmap access.
+### Why taffy uses `[]` instead of `.get()`
+
+This is a known issue upstream. [Issue #519](https://github.com/DioxusLabs/taffy/issues/519) and [PR #520](https://github.com/DioxusLabs/taffy/pull/520) ("Don't return `TaffyResult` when Taffy methods can't fail") document the situation:
+
+- Many taffy methods return `TaffyResult` (a `Result` type) despite never actually returning an `Err` — they panic on invalid keys instead. The `TaffyResult` wrapper is misleading because errors are not recoverable through the `Result` path.
+- PR #520 proposes removing `TaffyResult` from these methods to honestly reflect that they either succeed or panic. The PR has been open since July 2023 and remains unmerged.
+- Taffy's maintainer (nicoburns) acknowledged the problem: *"Some of these methods are currently using array indexing to access node data (which will panic if the `NodeId` is invalid)"* and suggested *"Possibly we ought to have both panicking and result-returning variants of these methods?"*
+- The deeper structural issue is that `NodeId` values can be cloned and persist after the node is removed. Making `NodeId` borrow-based was suggested but rejected because taffy needs cloneable IDs internally during layout computation.
+
+So the `[]` indexing is essentially a conscious trade-off: taffy treats invalid `NodeId` access as a programming error (like indexing out of bounds on a `Vec`) rather than a recoverable error. The `TaffyError` enum has `InvalidParentNode`, `InvalidChildNode`, and `InvalidInputNode` variants, but they're only used for a handful of pre-validation checks (like child index bounds), not for slotmap access.
+
+Downstream consumers like Bevy have also hit this: [bevyengine/bevy#12403](https://github.com/bevyengine/bevy/issues/12403) documents the same `"invalid SlotMap key used"` panic when entities are despawned in the wrong order, fixed by reordering operations ([bevyengine/bevy#13990](https://github.com/bevyengine/bevy/pull/13990)).
+
+Since this is an upstream design choice that's unlikely to change soon (the PR has been open for 2+ years), waxy needs to handle it at our boundary.
 
 The affected waxy methods fall into two categories:
 
