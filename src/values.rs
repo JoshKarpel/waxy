@@ -764,12 +764,13 @@ impl GridPlacementInput {
 }
 
 // ─── Taffy → Python conversion helpers ────────────────────────────────────
-// These helpers bypass `Percent::new()` validation and construct `Percent` directly.
-// This is intentional: Taffy stores lengths/percentages internally as `CompactLength`
-// and does not perform validation at that layer. The only `Percent` values that ever
-// reach Taffy are ones we constructed via `Percent::new()`, which validates the [0.0, 1.0]
-// range. When we read back from Taffy we are only round-tripping previously-validated
-// values, not accepting arbitrary unvalidated Taffy data.
+// These helpers bypass the `Length::new()` / `Percent::new()` constructors and
+// construct `Length`/`Percent` directly from Taffy’s internal `CompactLength`
+// representation. This is intentional: Taffy stores lengths/percentages internally
+// without re-validating them. The only `Length`/`Percent` values that ever reach Taffy
+// are ones we constructed via the validated constructors, so when we read back from
+// Taffy we are only round-tripping previously-validated values, not accepting arbitrary
+// unvalidated Taffy data.
 
 pub fn dimension_to_py(py: Python<'_>, d: taffy::Dimension) -> PyResult<Py<PyAny>> {
     let raw = d.into_raw();
