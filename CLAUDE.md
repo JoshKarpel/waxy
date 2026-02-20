@@ -32,7 +32,7 @@ The Rust source (`src/`) exposes a flat PyO3 module `_waxy`, which Python (`pyth
 - **`AlignSelf`/`JustifySelf`/`JustifyItems`** are type aliases for `AlignItems` in taffy. **`JustifyContent`** is an alias for `AlignContent`. We reuse the same Python enum types.
 - **Grid template tracks** — `GridTemplateComponent<String>` repeat variants are silently skipped when converting from taffy. Only `Single(TrackSizingFunction)` is round-tripped.
 - **Measure functions** are supported via an optional `measure` kwarg on `compute_layout`. The Rust closure auto-skips nodes without context (returns `Size::ZERO`) and short-circuits when both dimensions are known. The user's Python measure function receives `(known_size, available_size, context)` — taffy also passes `node_id` and `style` internally, but waxy doesn't forward them (the context identifies the node, and the tree is mutably borrowed so you can't call back into it). See `plans/measure-functions.md` for full design rationale.
-- **`compute_layout`** takes an `available` kwarg (type `AvailableSize | None`), not `available`.
+- **`compute_layout`** takes an `available` kwarg (type `AvailableSize | None`), not `available_space`.
 - **Node context** — `TaffyTree` uses `TaffyTree<PyObject>` internally. Nodes can have arbitrary Python objects attached via `new_leaf_with_context` / `set_node_context` / `get_node_context`. The `.pyi` stub uses `TaffyTree[T]` (PEP 695) for generic type safety.
 - **Removed node access** causes a Rust panic (slotmap behavior), not a `TaffyError`.
 - **`.pyi` method order** — Within each class: `__init__` first, then other dunder methods (`__repr__`, `__eq__`, `__iter__`, etc.), then properties, then regular methods.
