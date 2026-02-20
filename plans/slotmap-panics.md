@@ -125,34 +125,22 @@ These methods go through `taffy_error_to_py` in waxy, but the slotmap panic happ
 
 ### New exception: `InvalidNodeId`
 
-Add a new exception that inherits from both `TaffyException` and `KeyError`:
+Add a new exception using `create_exception!` with `TaffyException` as the base, then use the `__bases__` override pattern (already used for `InvalidPercent`, `InvalidLength`, etc.) to add `KeyError` as a second base class:
 
 ```rust
+// In errors.rs:
 create_exception!(waxy, InvalidNodeId, TaffyException, "Node ID is not valid (node may have been removed).");
+
+// In register():
+let taffy_exc_type = py.get_type::<TaffyException>();
+let key_error_type = py.get_type::<PyKeyError>();
+let bases = pyo3::types::PyTuple::new(py, [taffy_exc_type, key_error_type])?;
+let invalid_node_id_type = py.get_type::<InvalidNodeId>();
+invalid_node_id_type.setattr("__bases__", &bases)?;
+m.add("InvalidNodeId", invalid_node_id_type)?;
 ```
 
-For the `KeyError` inheritance, we need a Python-side class that uses multiple inheritance. PyO3's `create_exception!` only supports a single base class. There are two approaches:
-
-#### Option A: Pure `TaffyException` subclass (no `KeyError`)
-
-```rust
-create_exception!(waxy, InvalidNodeId, TaffyException, "Node ID is not valid.");
-```
-
-Simple, consistent with the existing exception hierarchy. Users catch it with `except InvalidNodeId` or `except TaffyException` or `except Exception`.
-
-#### Option B: Multiple inheritance via Python-defined class
-
-Define `InvalidNodeId` in Python (`__init__.py`) as:
-
-```python
-class InvalidNodeId(TaffyException, KeyError):
-    """Node ID is not valid (node may have been removed)."""
-```
-
-Then import it on the Rust side, or have the Rust code look it up from the module and raise it. This gives `isinstance(e, KeyError)` support, matching the issue's suggestion.
-
-**Recommendation: Option A.** Multiple inheritance with `KeyError` adds complexity for marginal benefit. The semantics don't perfectly match `KeyError` — the user didn't pass a "key" they constructed, they passed a `NodeId` handle that became stale. `InvalidNodeId` as a `TaffyException` subclass is clear, consistent, and catchable with `except Exception`. If `KeyError` inheritance is desired later, it can be added.
+This gives `isinstance(e, KeyError)` support, matching the issue's suggestion, with no additional complexity — it's the same pattern used for the validation exceptions. Users can catch it with `except InvalidNodeId`, `except KeyError`, `except TaffyException`, or `except Exception`.
 
 ### Strategy: `catch_unwind` wrapper
 
@@ -300,7 +288,7 @@ where
 
 In `src/errors.rs`:
 - Add `create_exception!(waxy, InvalidNodeId, TaffyException, "Node ID is not valid.");`
-- Register it in `register()`
+- In `register()`, use the `__bases__` override pattern to set bases to `(TaffyException, KeyError)`, then add to the module
 
 ### Step 2: Add `catch_panic` helpers
 
@@ -375,6 +363,9 @@ def test_invalid_node_id_on_removed_node():
 def test_invalid_node_id_is_taffy_exception():
     assert issubclass(waxy.InvalidNodeId, waxy.TaffyException)
 
+def test_invalid_node_id_is_key_error():
+    assert issubclass(waxy.InvalidNodeId, KeyError)
+
 def test_invalid_node_id_is_exception():
     # Verify it's catchable with `except Exception`
     assert issubclass(waxy.InvalidNodeId, Exception)
@@ -417,7 +408,7 @@ def test_invalid_node_id_set_style():
 
 ## Resolved Questions
 
-1. **Should `InvalidNodeId` inherit from `KeyError`?** No. While the issue suggests it, `KeyError` semantics don't match well — the user didn't construct or look up a key, they used a handle that became stale. `TaffyException` subclass is consistent with the existing hierarchy and sufficient for all error-handling patterns. This can be reconsidered later if needed.
+1. **Should `InvalidNodeId` inherit from `KeyError`?** Yes. We use the same `__bases__` override pattern already established for validation exceptions (`InvalidPercent`, `InvalidLength`, etc.). This gives users `except KeyError` catchability at no additional complexity.
 
 2. **Should we pre-validate node IDs instead of using `catch_unwind`?** No. Taffy doesn't expose a `contains_node()` method, the slotmap is private, and pre-validation would be subject to TOCTOU issues. `catch_unwind` is the correct approach.
 
