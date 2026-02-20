@@ -26,13 +26,51 @@
 
 ::: waxy.Line
 
-## Dimensions
+::: waxy.KnownSize
 
-::: waxy.Dimension
+::: waxy.AvailableSize
 
-::: waxy.LengthPercentage
+## Value types
 
-::: waxy.LengthPercentageAuto
+::: waxy.Length
+
+::: waxy.Percent
+
+::: waxy.Auto
+
+::: waxy.MinContent
+
+::: waxy.MaxContent
+
+::: waxy.Definite
+
+::: waxy.Fraction
+
+::: waxy.FitContent
+
+::: waxy.Minmax
+
+::: waxy.GridLine
+
+::: waxy.GridSpan
+
+::: waxy.GridPlacement
+
+## Type aliases
+
+::: waxy.DimensionValue
+
+::: waxy.LengthPercentageValue
+
+::: waxy.GridTrackValue
+
+::: waxy.GridTrackMinValue
+
+::: waxy.GridTrackMaxValue
+
+::: waxy.GridPlacementValue
+
+::: waxy.AvailableSpaceValue
 
 ## Enums
 
@@ -56,23 +94,19 @@
 
 ::: waxy.TextAlign
 
-::: waxy.AvailableSpace
-
-## Grid
-
-::: waxy.GridTrack
-
-::: waxy.GridTrackMin
-
-::: waxy.GridTrackMax
-
-::: waxy.GridPlacement
-
-::: waxy.GridLine
-
 ## Exceptions
 
+::: waxy.WaxyException
+
 ::: waxy.TaffyException
+
+::: waxy.InvalidPercent
+
+::: waxy.InvalidLength
+
+::: waxy.InvalidGridLine
+
+::: waxy.InvalidGridSpan
 
 ::: waxy.ChildIndexOutOfBounds
 
@@ -81,21 +115,3 @@
 ::: waxy.InvalidChildNode
 
 ::: waxy.InvalidInputNode
-
-## Helper Functions
-
-::: waxy.zero
-
-::: waxy.auto
-
-::: waxy.length
-
-::: waxy.percent
-
-::: waxy.min_content
-
-::: waxy.max_content
-
-::: waxy.fr
-
-::: waxy.minmax

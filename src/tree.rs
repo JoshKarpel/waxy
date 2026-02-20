@@ -3,7 +3,7 @@ use taffy::prelude as tp;
 use taffy::TraversePartialTree;
 
 use crate::errors::taffy_error_to_py;
-use crate::geometry::{AvailableDimensions, KnownDimensions};
+use crate::geometry::{AvailableSize, KnownSize};
 use crate::layout::Layout;
 use crate::node::NodeId;
 use crate::style::Style;
@@ -197,16 +197,16 @@ impl TaffyTree {
     }
 
     /// Compute the layout of a tree rooted at the given node.
-    #[pyo3(signature = (node, available_space=None, measure=None))]
+    #[pyo3(signature = (node, available=None, measure=None))]
     fn compute_layout(
         &mut self,
         py: Python<'_>,
         node: &NodeId,
-        available_space: Option<&AvailableDimensions>,
+        available: Option<&AvailableSize>,
         measure: Option<Py<PyAny>>,
     ) -> PyResult<()> {
         let avail: taffy::Size<taffy::AvailableSpace> =
-            available_space.map(|a| a.into()).unwrap_or(taffy::Size {
+            available.map(|a| a.into()).unwrap_or(taffy::Size {
                 width: taffy::AvailableSpace::MaxContent,
                 height: taffy::AvailableSpace::MaxContent,
             });
@@ -222,11 +222,7 @@ impl TaffyTree {
                 let result = self.inner.compute_layout_with_measure(
                     node.inner,
                     avail,
-                    |known_dimensions,
-                     available_space,
-                     _node_id,
-                     node_context: Option<&mut Py<PyAny>>,
-                     _style| {
+                    |known, available, _node_id, node_context: Option<&mut Py<PyAny>>, _style| {
                         // If we already have a Python error, short-circuit.
                         if py_err.is_some() {
                             return taffy::Size::ZERO;
@@ -236,7 +232,7 @@ impl TaffyTree {
                         if let taffy::Size {
                             width: Some(w),
                             height: Some(h),
-                        } = known_dimensions
+                        } = known
                         {
                             return taffy::Size {
                                 width: w,
@@ -250,8 +246,8 @@ impl TaffyTree {
                         };
 
                         // Convert to Python types and call the measure function.
-                        let py_known = KnownDimensions::from(known_dimensions);
-                        let py_avail = AvailableDimensions::from(available_space);
+                        let py_known = KnownSize::from(known);
+                        let py_avail = AvailableSize::from(available);
 
                         let call_result =
                             measure_fn.call1(py, (py_known, py_avail, context.clone_ref(py)));

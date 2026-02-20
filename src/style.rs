@@ -1,12 +1,15 @@
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 
-use crate::dimensions::{Dimension, LengthPercentage, LengthPercentageAuto};
 use crate::enums::{
     AlignContent, AlignItems, BoxSizing, Display, FlexDirection, FlexWrap, GridAutoFlow, Overflow,
     Position, TextAlign,
 };
-use crate::grid::{GridLine, GridTrack};
+use crate::values::{
+    dimension_to_py, grid_track_to_py, length_percentage_auto_to_py, length_percentage_to_py,
+    DimensionInput, GridPlacement, GridTrackInput, LengthPercentageAutoInput,
+    LengthPercentageInput,
+};
 
 // Bit positions for tracking which fields are explicitly set.
 const F_DISPLAY: u64 = 1 << 0;
@@ -91,36 +94,48 @@ fn opt_align_content_to_taffy(v: &Option<AlignContent>) -> Option<taffy::AlignCo
     v.as_ref().map(|a| a.into())
 }
 
-fn tracks_to_taffy(tracks: &[GridTrack]) -> Vec<taffy::style::GridTemplateComponent<String>> {
+fn tracks_to_taffy(
+    py: Python<'_>,
+    tracks: &[GridTrackInput],
+) -> Vec<taffy::style::GridTemplateComponent<String>> {
     tracks
         .iter()
-        .map(|t| taffy::style::GridTemplateComponent::Single(t.inner))
+        .map(|t| taffy::style::GridTemplateComponent::Single(t.to_taffy(py)))
         .collect()
 }
 
-fn tracks_from_taffy(tracks: &[taffy::style::GridTemplateComponent<String>]) -> Vec<GridTrack> {
+fn tracks_from_taffy(
+    py: Python<'_>,
+    tracks: &[taffy::style::GridTemplateComponent<String>],
+) -> PyResult<Vec<Py<PyAny>>> {
     tracks
         .iter()
         .filter_map(|t| match t {
-            taffy::style::GridTemplateComponent::Single(tsf) => Some(GridTrack { inner: *tsf }),
+            taffy::style::GridTemplateComponent::Single(tsf) => Some(grid_track_to_py(py, *tsf)),
             _ => None, // Skip repeat() for now
         })
         .collect()
 }
 
-fn auto_tracks_to_taffy(tracks: &[GridTrack]) -> Vec<taffy::style::TrackSizingFunction> {
-    tracks.iter().map(|t| t.inner).collect()
+fn auto_tracks_to_taffy(
+    py: Python<'_>,
+    tracks: &[GridTrackInput],
+) -> Vec<taffy::style::TrackSizingFunction> {
+    tracks.iter().map(|t| t.to_taffy(py)).collect()
 }
 
-fn auto_tracks_from_taffy(tracks: &[taffy::style::TrackSizingFunction]) -> Vec<GridTrack> {
-    tracks.iter().map(|t| GridTrack { inner: *t }).collect()
+fn auto_tracks_from_taffy(
+    py: Python<'_>,
+    tracks: &[taffy::style::TrackSizingFunction],
+) -> PyResult<Vec<Py<PyAny>>> {
+    tracks.iter().map(|t| grid_track_to_py(py, *t)).collect()
 }
 
 #[pymethods]
 impl Style {
     #[new]
     #[pyo3(signature = (**kwargs))]
-    fn new(kwargs: Option<&Bound<'_, PyDict>>) -> PyResult<Self> {
+    fn new(py: Python<'_>, kwargs: Option<&Bound<'_, PyDict>>) -> PyResult<Self> {
         let mut style = taffy::Style::DEFAULT;
         let mut set_fields: u64 = 0;
 
@@ -179,85 +194,107 @@ impl Style {
         });
 
         // Inset
-        set_field!("inset_left", F_INSET_LEFT, |v: LengthPercentageAuto| {
-            style.inset.left = (&v).into()
+        set_field!(
+            "inset_left",
+            F_INSET_LEFT,
+            |v: LengthPercentageAutoInput| { style.inset.left = v.to_taffy() }
+        );
+        set_field!(
+            "inset_right",
+            F_INSET_RIGHT,
+            |v: LengthPercentageAutoInput| { style.inset.right = v.to_taffy() }
+        );
+        set_field!("inset_top", F_INSET_TOP, |v: LengthPercentageAutoInput| {
+            style.inset.top = v.to_taffy()
         });
-        set_field!("inset_right", F_INSET_RIGHT, |v: LengthPercentageAuto| {
-            style.inset.right = (&v).into()
-        });
-        set_field!("inset_top", F_INSET_TOP, |v: LengthPercentageAuto| {
-            style.inset.top = (&v).into()
-        });
-        set_field!("inset_bottom", F_INSET_BOTTOM, |v: LengthPercentageAuto| {
-            style.inset.bottom = (&v).into()
-        });
+        set_field!(
+            "inset_bottom",
+            F_INSET_BOTTOM,
+            |v: LengthPercentageAutoInput| { style.inset.bottom = v.to_taffy() }
+        );
 
         // Size
-        set_field!("size_width", F_SIZE_WIDTH, |v: Dimension| {
-            style.size.width = (&v).into()
+        set_field!("size_width", F_SIZE_WIDTH, |v: DimensionInput| {
+            style.size.width = v.to_taffy()
         });
-        set_field!("size_height", F_SIZE_HEIGHT, |v: Dimension| {
-            style.size.height = (&v).into()
+        set_field!("size_height", F_SIZE_HEIGHT, |v: DimensionInput| {
+            style.size.height = v.to_taffy()
         });
-        set_field!("min_size_width", F_MIN_SIZE_WIDTH, |v: Dimension| {
-            style.min_size.width = (&v).into()
+        set_field!("min_size_width", F_MIN_SIZE_WIDTH, |v: DimensionInput| {
+            style.min_size.width = v.to_taffy()
         });
-        set_field!("min_size_height", F_MIN_SIZE_HEIGHT, |v: Dimension| {
-            style.min_size.height = (&v).into()
+        set_field!("min_size_height", F_MIN_SIZE_HEIGHT, |v: DimensionInput| {
+            style.min_size.height = v.to_taffy()
         });
-        set_field!("max_size_width", F_MAX_SIZE_WIDTH, |v: Dimension| {
-            style.max_size.width = (&v).into()
+        set_field!("max_size_width", F_MAX_SIZE_WIDTH, |v: DimensionInput| {
+            style.max_size.width = v.to_taffy()
         });
-        set_field!("max_size_height", F_MAX_SIZE_HEIGHT, |v: Dimension| {
-            style.max_size.height = (&v).into()
+        set_field!("max_size_height", F_MAX_SIZE_HEIGHT, |v: DimensionInput| {
+            style.max_size.height = v.to_taffy()
         });
         set_opt_field!("aspect_ratio", F_ASPECT_RATIO, |v: Option<f32>| {
             style.aspect_ratio = v
         });
 
         // Margin
-        set_field!("margin_left", F_MARGIN_LEFT, |v: LengthPercentageAuto| {
-            style.margin.left = (&v).into()
-        });
-        set_field!("margin_right", F_MARGIN_RIGHT, |v: LengthPercentageAuto| {
-            style.margin.right = (&v).into()
-        });
-        set_field!("margin_top", F_MARGIN_TOP, |v: LengthPercentageAuto| {
-            style.margin.top = (&v).into()
-        });
+        set_field!(
+            "margin_left",
+            F_MARGIN_LEFT,
+            |v: LengthPercentageAutoInput| { style.margin.left = v.to_taffy() }
+        );
+        set_field!(
+            "margin_right",
+            F_MARGIN_RIGHT,
+            |v: LengthPercentageAutoInput| { style.margin.right = v.to_taffy() }
+        );
+        set_field!(
+            "margin_top",
+            F_MARGIN_TOP,
+            |v: LengthPercentageAutoInput| { style.margin.top = v.to_taffy() }
+        );
         set_field!(
             "margin_bottom",
             F_MARGIN_BOTTOM,
-            |v: LengthPercentageAuto| { style.margin.bottom = (&v).into() }
+            |v: LengthPercentageAutoInput| { style.margin.bottom = v.to_taffy() }
         );
 
         // Padding
-        set_field!("padding_left", F_PADDING_LEFT, |v: LengthPercentage| {
-            style.padding.left = (&v).into()
+        set_field!(
+            "padding_left",
+            F_PADDING_LEFT,
+            |v: LengthPercentageInput| { style.padding.left = v.to_taffy() }
+        );
+        set_field!(
+            "padding_right",
+            F_PADDING_RIGHT,
+            |v: LengthPercentageInput| { style.padding.right = v.to_taffy() }
+        );
+        set_field!("padding_top", F_PADDING_TOP, |v: LengthPercentageInput| {
+            style.padding.top = v.to_taffy()
         });
-        set_field!("padding_right", F_PADDING_RIGHT, |v: LengthPercentage| {
-            style.padding.right = (&v).into()
-        });
-        set_field!("padding_top", F_PADDING_TOP, |v: LengthPercentage| {
-            style.padding.top = (&v).into()
-        });
-        set_field!("padding_bottom", F_PADDING_BOTTOM, |v: LengthPercentage| {
-            style.padding.bottom = (&v).into()
-        });
+        set_field!(
+            "padding_bottom",
+            F_PADDING_BOTTOM,
+            |v: LengthPercentageInput| { style.padding.bottom = v.to_taffy() }
+        );
 
         // Border
-        set_field!("border_left", F_BORDER_LEFT, |v: LengthPercentage| {
-            style.border.left = (&v).into()
+        set_field!("border_left", F_BORDER_LEFT, |v: LengthPercentageInput| {
+            style.border.left = v.to_taffy()
         });
-        set_field!("border_right", F_BORDER_RIGHT, |v: LengthPercentage| {
-            style.border.right = (&v).into()
+        set_field!(
+            "border_right",
+            F_BORDER_RIGHT,
+            |v: LengthPercentageInput| { style.border.right = v.to_taffy() }
+        );
+        set_field!("border_top", F_BORDER_TOP, |v: LengthPercentageInput| {
+            style.border.top = v.to_taffy()
         });
-        set_field!("border_top", F_BORDER_TOP, |v: LengthPercentage| {
-            style.border.top = (&v).into()
-        });
-        set_field!("border_bottom", F_BORDER_BOTTOM, |v: LengthPercentage| {
-            style.border.bottom = (&v).into()
-        });
+        set_field!(
+            "border_bottom",
+            F_BORDER_BOTTOM,
+            |v: LengthPercentageInput| { style.border.bottom = v.to_taffy() }
+        );
 
         // Alignment (these accept None to explicitly clear)
         set_opt_field!("align_items", F_ALIGN_ITEMS, |v: Option<AlignItems>| {
@@ -284,11 +321,11 @@ impl Style {
         });
 
         // Gap
-        set_field!("gap_width", F_GAP_WIDTH, |v: LengthPercentage| {
-            style.gap.width = (&v).into()
+        set_field!("gap_width", F_GAP_WIDTH, |v: LengthPercentageInput| {
+            style.gap.width = v.to_taffy()
         });
-        set_field!("gap_height", F_GAP_HEIGHT, |v: LengthPercentage| {
-            style.gap.height = (&v).into()
+        set_field!("gap_height", F_GAP_HEIGHT, |v: LengthPercentageInput| {
+            style.gap.height = v.to_taffy()
         });
 
         // Block
@@ -303,8 +340,8 @@ impl Style {
         set_field!("flex_wrap", F_FLEX_WRAP, |v: FlexWrap| {
             style.flex_wrap = (&v).into()
         });
-        set_field!("flex_basis", F_FLEX_BASIS, |v: Dimension| {
-            style.flex_basis = (&v).into()
+        set_field!("flex_basis", F_FLEX_BASIS, |v: DimensionInput| {
+            style.flex_basis = v.to_taffy()
         });
         set_field!("flex_grow", F_FLEX_GROW, |v: f32| style.flex_grow = v);
         set_field!("flex_shrink", F_FLEX_SHRINK, |v: f32| {
@@ -313,30 +350,32 @@ impl Style {
 
         // Grid
         set_field!("grid_template_rows", F_GRID_TEMPLATE_ROWS, |v: Vec<
-            GridTrack,
+            GridTrackInput,
         >| {
-            style.grid_template_rows = tracks_to_taffy(&v)
+            style.grid_template_rows = tracks_to_taffy(py, &v)
         });
         set_field!(
             "grid_template_columns",
             F_GRID_TEMPLATE_COLUMNS,
-            |v: Vec<GridTrack>| { style.grid_template_columns = tracks_to_taffy(&v) }
+            |v: Vec<GridTrackInput>| { style.grid_template_columns = tracks_to_taffy(py, &v) }
         );
-        set_field!("grid_auto_rows", F_GRID_AUTO_ROWS, |v: Vec<GridTrack>| {
-            style.grid_auto_rows = auto_tracks_to_taffy(&v)
+        set_field!("grid_auto_rows", F_GRID_AUTO_ROWS, |v: Vec<
+            GridTrackInput,
+        >| {
+            style.grid_auto_rows = auto_tracks_to_taffy(py, &v)
         });
         set_field!("grid_auto_columns", F_GRID_AUTO_COLUMNS, |v: Vec<
-            GridTrack,
+            GridTrackInput,
         >| {
-            style.grid_auto_columns = auto_tracks_to_taffy(&v)
+            style.grid_auto_columns = auto_tracks_to_taffy(py, &v)
         });
         set_field!("grid_auto_flow", F_GRID_AUTO_FLOW, |v: GridAutoFlow| {
             style.grid_auto_flow = (&v).into()
         });
-        set_field!("grid_row", F_GRID_ROW, |v: GridLine| {
+        set_field!("grid_row", F_GRID_ROW, |v: GridPlacement| {
             style.grid_row = (&v).into()
         });
-        set_field!("grid_column", F_GRID_COLUMN, |v: GridLine| {
+        set_field!("grid_column", F_GRID_COLUMN, |v: GridPlacement| {
             style.grid_column = (&v).into()
         });
 
@@ -380,46 +419,46 @@ impl Style {
 
     // Inset
     #[getter]
-    fn get_inset_left(&self) -> LengthPercentageAuto {
-        self.inner.inset.left.into()
+    fn get_inset_left(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        length_percentage_auto_to_py(py, self.inner.inset.left)
     }
     #[getter]
-    fn get_inset_right(&self) -> LengthPercentageAuto {
-        self.inner.inset.right.into()
+    fn get_inset_right(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        length_percentage_auto_to_py(py, self.inner.inset.right)
     }
     #[getter]
-    fn get_inset_top(&self) -> LengthPercentageAuto {
-        self.inner.inset.top.into()
+    fn get_inset_top(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        length_percentage_auto_to_py(py, self.inner.inset.top)
     }
     #[getter]
-    fn get_inset_bottom(&self) -> LengthPercentageAuto {
-        self.inner.inset.bottom.into()
+    fn get_inset_bottom(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        length_percentage_auto_to_py(py, self.inner.inset.bottom)
     }
 
     // Size
     #[getter]
-    fn get_size_width(&self) -> Dimension {
-        self.inner.size.width.into()
+    fn get_size_width(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        dimension_to_py(py, self.inner.size.width)
     }
     #[getter]
-    fn get_size_height(&self) -> Dimension {
-        self.inner.size.height.into()
+    fn get_size_height(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        dimension_to_py(py, self.inner.size.height)
     }
     #[getter]
-    fn get_min_size_width(&self) -> Dimension {
-        self.inner.min_size.width.into()
+    fn get_min_size_width(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        dimension_to_py(py, self.inner.min_size.width)
     }
     #[getter]
-    fn get_min_size_height(&self) -> Dimension {
-        self.inner.min_size.height.into()
+    fn get_min_size_height(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        dimension_to_py(py, self.inner.min_size.height)
     }
     #[getter]
-    fn get_max_size_width(&self) -> Dimension {
-        self.inner.max_size.width.into()
+    fn get_max_size_width(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        dimension_to_py(py, self.inner.max_size.width)
     }
     #[getter]
-    fn get_max_size_height(&self) -> Dimension {
-        self.inner.max_size.height.into()
+    fn get_max_size_height(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        dimension_to_py(py, self.inner.max_size.height)
     }
 
     #[getter]
@@ -429,56 +468,56 @@ impl Style {
 
     // Margin
     #[getter]
-    fn get_margin_left(&self) -> LengthPercentageAuto {
-        self.inner.margin.left.into()
+    fn get_margin_left(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        length_percentage_auto_to_py(py, self.inner.margin.left)
     }
     #[getter]
-    fn get_margin_right(&self) -> LengthPercentageAuto {
-        self.inner.margin.right.into()
+    fn get_margin_right(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        length_percentage_auto_to_py(py, self.inner.margin.right)
     }
     #[getter]
-    fn get_margin_top(&self) -> LengthPercentageAuto {
-        self.inner.margin.top.into()
+    fn get_margin_top(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        length_percentage_auto_to_py(py, self.inner.margin.top)
     }
     #[getter]
-    fn get_margin_bottom(&self) -> LengthPercentageAuto {
-        self.inner.margin.bottom.into()
+    fn get_margin_bottom(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        length_percentage_auto_to_py(py, self.inner.margin.bottom)
     }
 
     // Padding
     #[getter]
-    fn get_padding_left(&self) -> LengthPercentage {
-        self.inner.padding.left.into()
+    fn get_padding_left(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        length_percentage_to_py(py, self.inner.padding.left)
     }
     #[getter]
-    fn get_padding_right(&self) -> LengthPercentage {
-        self.inner.padding.right.into()
+    fn get_padding_right(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        length_percentage_to_py(py, self.inner.padding.right)
     }
     #[getter]
-    fn get_padding_top(&self) -> LengthPercentage {
-        self.inner.padding.top.into()
+    fn get_padding_top(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        length_percentage_to_py(py, self.inner.padding.top)
     }
     #[getter]
-    fn get_padding_bottom(&self) -> LengthPercentage {
-        self.inner.padding.bottom.into()
+    fn get_padding_bottom(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        length_percentage_to_py(py, self.inner.padding.bottom)
     }
 
     // Border
     #[getter]
-    fn get_border_left(&self) -> LengthPercentage {
-        self.inner.border.left.into()
+    fn get_border_left(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        length_percentage_to_py(py, self.inner.border.left)
     }
     #[getter]
-    fn get_border_right(&self) -> LengthPercentage {
-        self.inner.border.right.into()
+    fn get_border_right(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        length_percentage_to_py(py, self.inner.border.right)
     }
     #[getter]
-    fn get_border_top(&self) -> LengthPercentage {
-        self.inner.border.top.into()
+    fn get_border_top(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        length_percentage_to_py(py, self.inner.border.top)
     }
     #[getter]
-    fn get_border_bottom(&self) -> LengthPercentage {
-        self.inner.border.bottom.into()
+    fn get_border_bottom(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        length_percentage_to_py(py, self.inner.border.bottom)
     }
 
     // Alignment
@@ -514,12 +553,12 @@ impl Style {
 
     // Gap
     #[getter]
-    fn get_gap_width(&self) -> LengthPercentage {
-        self.inner.gap.width.into()
+    fn get_gap_width(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        length_percentage_to_py(py, self.inner.gap.width)
     }
     #[getter]
-    fn get_gap_height(&self) -> LengthPercentage {
-        self.inner.gap.height.into()
+    fn get_gap_height(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        length_percentage_to_py(py, self.inner.gap.height)
     }
 
     // Block
@@ -540,8 +579,8 @@ impl Style {
     }
 
     #[getter]
-    fn get_flex_basis(&self) -> Dimension {
-        self.inner.flex_basis.into()
+    fn get_flex_basis(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        dimension_to_py(py, self.inner.flex_basis)
     }
 
     #[getter]
@@ -556,23 +595,23 @@ impl Style {
 
     // Grid
     #[getter]
-    fn get_grid_template_rows(&self) -> Vec<GridTrack> {
-        tracks_from_taffy(&self.inner.grid_template_rows)
+    fn get_grid_template_rows(&self, py: Python<'_>) -> PyResult<Vec<Py<PyAny>>> {
+        tracks_from_taffy(py, &self.inner.grid_template_rows)
     }
 
     #[getter]
-    fn get_grid_template_columns(&self) -> Vec<GridTrack> {
-        tracks_from_taffy(&self.inner.grid_template_columns)
+    fn get_grid_template_columns(&self, py: Python<'_>) -> PyResult<Vec<Py<PyAny>>> {
+        tracks_from_taffy(py, &self.inner.grid_template_columns)
     }
 
     #[getter]
-    fn get_grid_auto_rows(&self) -> Vec<GridTrack> {
-        auto_tracks_from_taffy(&self.inner.grid_auto_rows)
+    fn get_grid_auto_rows(&self, py: Python<'_>) -> PyResult<Vec<Py<PyAny>>> {
+        auto_tracks_from_taffy(py, &self.inner.grid_auto_rows)
     }
 
     #[getter]
-    fn get_grid_auto_columns(&self) -> Vec<GridTrack> {
-        auto_tracks_from_taffy(&self.inner.grid_auto_columns)
+    fn get_grid_auto_columns(&self, py: Python<'_>) -> PyResult<Vec<Py<PyAny>>> {
+        auto_tracks_from_taffy(py, &self.inner.grid_auto_columns)
     }
 
     #[getter]
@@ -581,12 +620,12 @@ impl Style {
     }
 
     #[getter]
-    fn get_grid_row(&self) -> GridLine {
+    fn get_grid_row(&self) -> GridPlacement {
         self.inner.grid_row.clone().into()
     }
 
     #[getter]
-    fn get_grid_column(&self) -> GridLine {
+    fn get_grid_column(&self) -> GridPlacement {
         self.inner.grid_column.clone().into()
     }
 

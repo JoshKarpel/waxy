@@ -16,8 +16,8 @@ During layout, when taffy encounters a **leaf node** (no children), it needs to 
 
 A measure function lets you say: "this leaf contains text/an image/a widget — here's how to compute its intrinsic size given the available space." Taffy calls the measure function with:
 
-- **known_dimensions**: `Size<Option<f32>>` — if the layout algorithm already determined width or height (e.g., from an explicit style), those values are `Some`. The measure function should respect these.
-- **available_space**: `Size<AvailableSpace>` — how much space the parent is offering (definite px, min-content, or max-content)
+- **known**: `Size<Option<f32>>` — if the layout algorithm already determined width or height (e.g., from an explicit style), those values are `Some`. The measure function should respect these.
+- **available**: `Size<AvailableSpace>` — how much space the parent is offering (definite px, min-content, or max-content)
 - **node_id**: which node is being measured (taffy passes this internally, but waxy does not forward it — the context already identifies the node, and the tree is mutably borrowed during layout so you can't call back into it with the id anyway)
 - **node_context**: the `Option<&mut NodeContext>` attached to this node (the user's custom data)
 - **style**: the node's style (taffy passes this internally, but waxy does not forward it — never needed in practice)
@@ -45,7 +45,7 @@ This makes sense: the measure function reports **intrinsic content size**, and w
 Additional details from the taffy source (`src/compute/leaf.rs`):
 
 - During `RunMode::ComputeSize` (sizing flex/grid children), if **both** dimensions are already known from style, taffy short-circuits and doesn't call the measure function at all (lines 92–108).
-- During `RunMode::PerformLayout` (full layout pass), the measure function is **always called** with `known_dimensions = Size::NONE` (both `None`), regardless of context.
+- During `RunMode::PerformLayout` (full layout pass), the measure function is **always called** with `known = Size::NONE` (both `None`), regardless of context.
 - Only leaf nodes (no children) ever reach the measure function path — the dispatch in `taffy_tree.rs` matches `(_, false)` for `has_children == false`.
 
 In waxy, the Rust closure returns `Size::ZERO` for nodes without context **before calling Python**. This means:
@@ -68,7 +68,7 @@ pub struct KnownDimensions {
 }
 ```
 
-Implements `__iter__` so it can be unpacked: `known_width, known_height = known_dimensions`.
+Implements `__iter__` so it can be unpacked: `known_width, known_height = known`.
 
 ### `AvailableDimensions`
 
@@ -82,7 +82,7 @@ pub struct AvailableDimensions {
 }
 ```
 
-`unsendable` because `AvailableSpace` wraps taffy types that contain `CompactLength`. Implements `__iter__` so it can be unpacked: `avail_width, avail_height = available_space`.
+`unsendable` because `AvailableSpace` wraps taffy types that contain `CompactLength`. Implements `__iter__` so it can be unpacked: `avail_width, avail_height = available`.
 
 ## Prerequisite: Add `value()` to `AvailableSpace`
 
@@ -150,15 +150,15 @@ fn get_node_context(&self, node: &NodeId) -> Option<PyObject>
 
 ### Step 5: Add `measure` parameter to `compute_layout`
 
-Instead of adding a separate `compute_layout_with_measure` method, we add an optional `measure` keyword argument to the existing `compute_layout`. We also replace the two separate `available_width`/`available_height` parameters with a single `available_space: AvailableDimensions` parameter, since that's exactly what it represents.
+Instead of adding a separate `compute_layout_with_measure` method, we add an optional `measure` keyword argument to the existing `compute_layout`. We also replace the two separate `available_width`/`available_height` parameters with a single `available: AvailableDimensions` parameter, since that's exactly what it represents.
 
 ```rust
-#[pyo3(signature = (node, available_space=None, measure=None))]
+#[pyo3(signature = (node, available=None, measure=None))]
 fn compute_layout(
     &mut self,
     py: Python<'_>,
     node: &NodeId,  // root of the subtree to lay out (usually the tree root)
-    available_space: Option<&AvailableDimensions>,  // defaults to MaxContent × MaxContent
+    available: Option<&AvailableDimensions>,  // defaults to MaxContent × MaxContent
     measure: Option<PyObject>,         // a Python callable, or None
 ) -> PyResult<()>
 ```
@@ -168,7 +168,7 @@ fn compute_layout(
 This is a breaking change to the existing `compute_layout` signature (the old `available_width`/`available_height` kwargs are removed), but since we're already changing the method to add `measure`, this is the right time to clean it up. The old two-parameter form was just an unpacked `Size<AvailableSpace>` — now that we have `AvailableDimensions` as a proper type, we should use it. `None` defaults to `AvailableDimensions(AvailableSpace.max_content(), AvailableSpace.max_content())` (unconstrained layout, the existing default).
 
 When `measure` is `None`, this calls `taffy::TaffyTree::compute_layout` (the existing behavior — leaf nodes have zero intrinsic size). When `measure` is provided, it calls `taffy::TaffyTree::compute_layout_with_measure` with a Rust closure that:
-1. Checks if both `known_dimensions` are `Some` — if so, returns them immediately (no Python call needed; see "Both-Known Short-Circuit" below)
+1. Checks if both `known` are `Some` — if so, returns them immediately (no Python call needed; see "Both-Known Short-Circuit" below)
 2. Checks if `node_context` is `None` — if so, returns `Size::ZERO` immediately (no Python call)
 3. Converts the taffy arguments to waxy Python types (`KnownDimensions`, `AvailableDimensions`, etc.)
 4. Calls the Python `measure` callable
@@ -176,11 +176,11 @@ When `measure` is `None`, this calls `taffy::TaffyTree::compute_layout` (the exi
 
 The closure signature adapting taffy → Python:
 ```rust
-|known_dimensions, available_space, node_id, node_context, _style| {
+|known, available, node_id, node_context, _style| {
     // If both dimensions are already known, return them directly — the caller
     // (compute_leaf_layout) would ignore our return value anyway, so skip the
     // Python call entirely as an optimization.
-    if let Size { width: Some(w), height: Some(h) } = known_dimensions {
+    if let Size { width: Some(w), height: Some(h) } = known {
         return Ok(taffy::Size { width: w, height: h });
     }
     // If no context, return zero — don't bother calling Python
@@ -194,7 +194,7 @@ The closure signature adapting taffy → Python:
 
 #### Both-Known Short-Circuit
 
-Taffy's `compute_leaf_layout` (in `src/compute/leaf.rs`) already short-circuits before calling the measure function when both dimensions are known during `ComputeSize` mode (lines 92–108). During `PerformLayout` mode, it passes `Size::NONE` (both `None`), so both-known never happens there either. Even in the rare edge case where both are `Some` (block nodes that can collapse through margins), `compute_leaf_layout` ignores the measure result via `known_dimensions.or(node_size).unwrap_or(measured_size)`. So this check is purely defensive — it avoids a Python call that would be wasted.
+Taffy's `compute_leaf_layout` (in `src/compute/leaf.rs`) already short-circuits before calling the measure function when both dimensions are known during `ComputeSize` mode (lines 92–108). During `PerformLayout` mode, it passes `Size::NONE` (both `None`), so both-known never happens there either. Even in the rare edge case where both are `Some` (block nodes that can collapse through margins), `compute_leaf_layout` ignores the measure result via `known.or(node_size).unwrap_or(measured_size)`. So this check is purely defensive — it avoids a Python call that would be wasted.
 
 #### When Is the Measure Function Called?
 
@@ -210,14 +210,14 @@ The Rust wrapper applies two short-circuits before calling the user's Python mea
 - The node has **no context** — the wrapper returns `Size(0, 0)` automatically. This is always correct because without context there is no content to measure; style-based sizing (explicit width/height, min/max constraints, padding, border) is applied by taffy *around* the measure result.
 - **Both dimensions are already known** from the node's style — the wrapper returns them directly. Taffy itself almost never calls the measure function in this case (it short-circuits during `ComputeSize` mode), and even in the rare edge case where it does, it ignores the return value. The wrapper check is purely defensive.
 
-**Consequence for users**: The measure function's `context` parameter is always `T`, never `None`. And `known_dimensions` will have at most one `Some` value. Users only need to handle: "given this context and (possibly partial) size constraints, what size should this content be?"
+**Consequence for users**: The measure function's `context` parameter is always `T`, never `None`. And `known` will have at most one `Some` value. Users only need to handle: "given this context and (possibly partial) size constraints, what size should this content be?"
 
 **Measure function signature** (from the user's perspective):
 
 ```python
 def my_measure(
-    known_dimensions: KnownDimensions,
-    available_space: AvailableDimensions,
+    known: KnownDimensions,
+    available: AvailableDimensions,
     context: T,  # always present — never None
 ) -> Size:
     ...
@@ -240,7 +240,7 @@ class TaffyTree[T]:
     def compute_layout(
         self,
         node: NodeId,
-        available_space: AvailableDimensions | None = None,
+        available: AvailableDimensions | None = None,
         measure: Callable[[KnownDimensions, AvailableDimensions, T], Size] | None = None,
     ) -> None: ...
     # ... all existing methods unchanged ...
@@ -258,7 +258,7 @@ Test cases:
 - `AvailableDimensions` — construction, properties, unpacking via iteration
 - `compute_layout` with a simple fixed-size measure function
 - `compute_layout` with a text-like measure function that responds to available width
-- Measure function receives correct `known_dimensions` when style has explicit size
+- Measure function receives correct `known` when style has explicit size
 - Measure function is NOT called when both dimensions are already known — use a call counter to assert it was not called for those nodes
 - Measure function is NOT called for nodes without context — same call-counter approach: assert the function was not called for context-less leaf nodes, and verify they get zero size
 - Error handling: measure function raises an exception → propagated to caller
@@ -287,8 +287,8 @@ root = tree.new_with_children(
 # Define how to measure leaf nodes
 # `context` is always present — nodes without context get Size(0, 0) automatically
 # Both-known case is handled by the Rust wrapper, so we don't need to check for it
-def measure(known_dimensions, available_space, context):
-    kw, kh = known_dimensions
+def measure(known, available, context):
+    kw, kh = known
 
     if context["type"] == "image":
         iw = context["intrinsic_width"]
@@ -301,7 +301,7 @@ def measure(known_dimensions, available_space, context):
             return Size(kh * ratio, kh)  # scale width to match known height
 
         # Neither dimension known from style — use available space to constrain
-        avail_w, avail_h = available_space
+        avail_w, avail_h = available
         if avail_w.is_definite() and avail_w.value() < iw:
             constrained_w = avail_w.value()
             return Size(constrained_w, constrained_w / ratio)
@@ -341,14 +341,14 @@ root = tree.new_with_children(
 CHAR_WIDTH = 8.0
 CHAR_HEIGHT = 16.0
 
-def measure(known_dimensions, available_space, context):
-    kw, kh = known_dimensions
+def measure(known, available, context):
+    kw, kh = known
 
     if context["type"] != "text":
         return Size(0, 0)
 
     text = context["content"]
-    avail_w, _ = available_space
+    avail_w, _ = available
 
     # Determine available inline size
     if kw is not None:
@@ -388,8 +388,8 @@ root = tree.new_with_children(
     [heading, body, avatar],
 )
 
-def measure(known_dimensions, available_space, ctx):
-    kw, kh = known_dimensions
+def measure(known, available, ctx):
+    kw, kh = known
     if ctx["type"] == "image":
         return Size(ctx["width"], ctx["height"])
     if ctx["type"] == "text":
@@ -406,7 +406,7 @@ for node in [heading, body, avatar]:
     print(tree.layout(node).size)
 ```
 
-### Example 4: Explicit `available_space` (Viewport Constraint)
+### Example 4: Explicit `available` (Viewport Constraint)
 
 ```python
 from waxy import TaffyTree, Style, Size, Display, AvailableSpace, AvailableDimensions, length
@@ -420,8 +420,8 @@ root = tree.new_with_children(
     [text_node],
 )
 
-def measure(known_dimensions, available_space, context):
-    kw, _ = known_dimensions
+def measure(known, available, context):
+    kw, _ = known
     w = kw if kw is not None else len(context["content"]) * 8.0
     return Size(w, 16.0)
 
@@ -430,7 +430,7 @@ viewport = AvailableDimensions(
     width=AvailableSpace.definite(800.0),
     height=AvailableSpace.definite(600.0),
 )
-tree.compute_layout(root, measure=measure, available_space=viewport)
+tree.compute_layout(root, measure=measure, available=viewport)
 
 layout = tree.layout(root)
 print(layout.size)  # Constrained to 800x600 viewport
@@ -453,9 +453,9 @@ print(tree.get_node_context(node))  # None
 
 ## Resolved Questions
 
-1. **`known_dimensions` representation**: `KnownDimensions(width: float | None, height: float | None)` — a frozen pyclass with `__iter__` for unpacking (`kw, kh = known_dimensions`).
+1. **`known` representation**: `KnownDimensions(width: float | None, height: float | None)` — a frozen pyclass with `__iter__` for unpacking (`kw, kh = known`).
 
-2. **`available_space` representation**: `AvailableDimensions(width: AvailableSpace, height: AvailableSpace)` — same pattern as `KnownDimensions`, with `__iter__` for unpacking.
+2. **`available` representation**: `AvailableDimensions(width: AvailableSpace, height: AvailableSpace)` — same pattern as `KnownDimensions`, with `__iter__` for unpacking.
 
 3. **Return type**: Always `Size`. No tuple fallback.
 

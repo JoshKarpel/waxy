@@ -2,8 +2,23 @@ from collections.abc import Callable, Iterator
 
 # Exceptions
 
-class TaffyException(Exception):
+class WaxyException(Exception):
+    """Base exception for all waxy errors."""
+
+class TaffyException(WaxyException):
     """Base exception for all taffy errors."""
+
+class InvalidPercent(WaxyException, ValueError):
+    """Raised when Percent(value) is called with a value outside [0.0, 1.0]."""
+
+class InvalidLength(WaxyException, ValueError):
+    """Raised when Length(value) is called with a NaN value."""
+
+class InvalidGridLine(WaxyException, ValueError):
+    """Raised when GridLine(index) is called with index 0 (grid lines are 1-based)."""
+
+class InvalidGridSpan(WaxyException, ValueError):
+    """Raised when GridSpan(count) is called with count 0 (must span at least 1 track)."""
 
 class ChildIndexOutOfBounds(TaffyException):
     """Child index is out of bounds."""
@@ -124,8 +139,15 @@ class Line:
     def contains(self, value: float) -> bool:
         """Check if a value is contained within this line segment."""
 
-class KnownDimensions:
-    """Known dimensions passed to measure functions (independently-optional width/height)."""
+class KnownSize:
+    """
+    Known dimensions passed to measure functions (independently-optional width/height).
+
+    Passed to the measure callback to indicate which dimensions are already known
+    from the node's style. If a dimension is None, the measure function must compute it.
+
+    See: [taffy `Size<Option<f32>>`](https://docs.rs/taffy/0.9.2/taffy/geometry/struct.Size.html)
+    """
 
     def __init__(self, width: float | None = None, height: float | None = None) -> None: ...
     def __repr__(self) -> str: ...
@@ -137,64 +159,277 @@ class KnownDimensions:
     @property
     def height(self) -> float | None: ...
 
-class AvailableDimensions:
-    """Available dimensions passed to measure functions (width/height as AvailableSpace)."""
+type AvailableSpaceValue = Definite | MinContent | MaxContent
+"""Available space value for measure functions: Definite, MinContent, or MaxContent."""
 
-    def __init__(self, width: AvailableSpace, height: AvailableSpace) -> None: ...
+class AvailableSize:
+    """
+    Available space for measure functions (width/height: Definite | MinContent | MaxContent).
+
+    Passed to the measure callback to indicate how much space is available for layout.
+    Each dimension is one of the available-space variants.
+
+    See: [taffy `Size<AvailableSpace>`](https://docs.rs/taffy/0.9.2/taffy/geometry/struct.Size.html)
+    """
+
+    def __init__(
+        self,
+        width: AvailableSpaceValue,
+        height: AvailableSpaceValue,
+    ) -> None: ...
     def __repr__(self) -> str: ...
     def __eq__(self, other: object) -> bool: ...
     def __hash__(self) -> int: ...
-    def __iter__(self) -> Iterator[AvailableSpace]: ...
+    def __iter__(self) -> Iterator[AvailableSpaceValue]: ...
     @property
-    def width(self) -> AvailableSpace: ...
+    def width(self) -> AvailableSpaceValue: ...
     @property
-    def height(self) -> AvailableSpace: ...
+    def height(self) -> AvailableSpaceValue: ...
 
-# Dimensions
+# Value types
 
-class Dimension:
-    """A dimension value that can be a length, percentage, or auto."""
+class Length:
+    """
+    A length value in pixels.
 
+    Used for size, padding, border, gap, margin, inset, and grid track sizing fields.
+
+    Raises `InvalidLength` if `value` is NaN.
+
+    See: [taffy `Dimension::Length`](https://docs.rs/taffy/0.9.2/taffy/style/enum.Dimension.html),
+    [MDN `<length>`](https://developer.mozilla.org/en-US/docs/Web/CSS/length)
+    """
+
+    __match_args__ = ("value",)
+
+    def __init__(self, value: float) -> None: ...
     def __repr__(self) -> str: ...
     def __eq__(self, other: object) -> bool: ...
-    @staticmethod
-    def length(value: float) -> Dimension:
-        """Create a length dimension in pixels."""
-    @staticmethod
-    def percent(value: float) -> Dimension:
-        """Create a percentage dimension (0.0 to 1.0)."""
-    @staticmethod
-    def auto() -> Dimension:
-        """Create an auto dimension."""
-    def is_auto(self) -> bool: ...
+    def __hash__(self) -> int: ...
+    @property
+    def value(self) -> float: ...
 
-class LengthPercentage:
-    """A length or percentage value (no auto)."""
+class Percent:
+    """
+    A percentage value (0.0 to 1.0).
 
+    Used for size, padding, border, gap, margin, inset, and grid track sizing fields.
+    Raises InvalidPercent (a subclass of both WaxyException and ValueError) if value
+    is outside the range [0.0, 1.0].
+
+    See: [taffy `Dimension::Percent`](https://docs.rs/taffy/0.9.2/taffy/style/enum.Dimension.html),
+    [MDN `<percentage>`](https://developer.mozilla.org/en-US/docs/Web/CSS/percentage)
+    """
+
+    __match_args__ = ("value",)
+
+    def __init__(self, value: float) -> None: ...
     def __repr__(self) -> str: ...
     def __eq__(self, other: object) -> bool: ...
-    @staticmethod
-    def length(value: float) -> LengthPercentage:
-        """Create a length value in pixels."""
-    @staticmethod
-    def percent(value: float) -> LengthPercentage:
-        """Create a percentage value (0.0 to 1.0)."""
+    def __hash__(self) -> int: ...
+    @property
+    def value(self) -> float: ...
 
-class LengthPercentageAuto:
-    """A length, percentage, or auto value."""
+class Auto:
+    """
+    Automatic sizing or placement.
 
+    Used for size, margin, inset, flex-basis, and grid placement fields.
+
+    See: [taffy `Dimension::Auto`](https://docs.rs/taffy/0.9.2/taffy/style/enum.Dimension.html)
+    """
+
+    def __init__(self) -> None: ...
     def __repr__(self) -> str: ...
     def __eq__(self, other: object) -> bool: ...
-    @staticmethod
-    def length(value: float) -> LengthPercentageAuto:
-        """Create a length value in pixels."""
-    @staticmethod
-    def percent(value: float) -> LengthPercentageAuto:
-        """Create a percentage value (0.0 to 1.0)."""
-    @staticmethod
-    def auto() -> LengthPercentageAuto:
-        """Create an auto value."""
-    def is_auto(self) -> bool: ...
+    def __hash__(self) -> int: ...
+
+class MinContent:
+    """
+    CSS min-content intrinsic sizing.
+
+    The smallest size that can fit the item's contents with all soft line-wrapping
+    opportunities taken. Used in available space (measure functions) and grid track sizing.
+
+    See: [taffy `MinTrackSizingFunction::MinContent`](https://docs.rs/taffy/0.9.2/taffy/style/enum.MinTrackSizingFunction.html),
+    [MDN `min-content`](https://developer.mozilla.org/en-US/docs/Web/CSS/min-content)
+    """
+
+    def __init__(self) -> None: ...
+    def __repr__(self) -> str: ...
+    def __eq__(self, other: object) -> bool: ...
+    def __hash__(self) -> int: ...
+
+class MaxContent:
+    """
+    CSS max-content intrinsic sizing.
+
+    The smallest size that can fit the item's contents with no soft line-wrapping
+    opportunities taken. Used in available space (measure functions) and grid track sizing.
+
+    See: [taffy `MinTrackSizingFunction::MaxContent`](https://docs.rs/taffy/0.9.2/taffy/style/enum.MinTrackSizingFunction.html),
+    [MDN `max-content`](https://developer.mozilla.org/en-US/docs/Web/CSS/max-content)
+    """
+
+    def __init__(self) -> None: ...
+    def __repr__(self) -> str: ...
+    def __eq__(self, other: object) -> bool: ...
+    def __hash__(self) -> int: ...
+
+AUTO: Auto
+"""Module-level Auto singleton. Equivalent to Auto() but avoids repeated construction."""
+
+MIN_CONTENT: MinContent
+"""Module-level MinContent singleton. Equivalent to MinContent() but avoids repeated construction.
+"""
+
+MAX_CONTENT: MaxContent
+"""Module-level MaxContent singleton. Equivalent to MaxContent() but avoids repeated construction.
+"""
+
+class Definite:
+    """
+    A definite available space in pixels.
+
+    Used only in AvailableSize (measure function input) to represent a concrete
+    pixel measurement of available space.
+
+    See: [taffy `AvailableSpace::Definite`](https://docs.rs/taffy/0.9.2/taffy/style/enum.AvailableSpace.html)
+    """
+
+    __match_args__ = ("value",)
+
+    def __init__(self, value: float) -> None: ...
+    def __repr__(self) -> str: ...
+    def __eq__(self, other: object) -> bool: ...
+    def __hash__(self) -> int: ...
+    @property
+    def value(self) -> float: ...
+
+class Fraction:
+    """
+    A fractional unit of remaining grid space (CSS fr unit).
+
+    After fixed lengths and percentages are allocated, remaining space is divided
+    among fractional tracks proportionally. For example, Fraction(1) and Fraction(2)
+    in the same grid get 1/3 and 2/3 of remaining space.
+
+    Used only in grid track sizing (grid_template_*, grid_auto_*).
+
+    See: [taffy `MaxTrackSizingFunction::Fraction`](https://docs.rs/taffy/0.9.2/taffy/style/enum.MaxTrackSizingFunction.html),
+    [MDN `<flex>` (fr unit)](https://developer.mozilla.org/en-US/docs/Web/CSS/flex_value)
+    """
+
+    __match_args__ = ("value",)
+
+    def __init__(self, value: float) -> None: ...
+    def __repr__(self) -> str: ...
+    def __eq__(self, other: object) -> bool: ...
+    def __hash__(self) -> int: ...
+    @property
+    def value(self) -> float: ...
+
+type GridTrackMinValue = Length | Percent | Auto | MinContent | MaxContent
+"""Minimum sizing bound for a Minmax grid track."""
+
+type GridTrackMaxValue = Length | Percent | Auto | MinContent | MaxContent | Fraction | FitContent
+"""Maximum sizing bound for a Minmax grid track."""
+
+type GridTrackValue = (
+    Length | Percent | Auto | MinContent | MaxContent | Fraction | Minmax | FitContent
+)
+"""A grid track sizing value used in grid_template_* and grid_auto_* fields."""
+
+class FitContent:
+    """
+    CSS fit-content() grid track sizing function.
+
+    Grows up to a specified limit, then clamps: max(min_content, min(max_content, limit)).
+    The limit must be a Length or Percent.
+
+    Used only in grid track sizing.
+
+    See: [taffy `MaxTrackSizingFunction::FitContent`](https://docs.rs/taffy/0.9.2/taffy/style/enum.MaxTrackSizingFunction.html),
+    [MDN `fit-content()`](https://developer.mozilla.org/en-US/docs/Web/CSS/fit-content_function)
+    """
+
+    __match_args__ = ("limit",)
+
+    def __init__(self, limit: Length | Percent) -> None: ...
+    def __repr__(self) -> str: ...
+    def __eq__(self, other: object) -> bool: ...
+    def __hash__(self) -> int: ...
+    @property
+    def limit(self) -> Length | Percent: ...
+
+class Minmax:
+    """
+    CSS minmax() grid track sizing function.
+
+    Defines a size range: min sets the minimum track size, max sets the maximum.
+
+    - min: Length | Percent | Auto | MinContent | MaxContent
+    - max: Length | Percent | Auto | MinContent | MaxContent | Fraction | FitContent
+
+    Used only in grid track sizing.
+
+    See: [taffy `TrackSizingFunction`](https://docs.rs/taffy/0.9.2/taffy/style/enum.TrackSizingFunction.html),
+    [MDN `minmax()`](https://developer.mozilla.org/en-US/docs/Web/CSS/minmax)
+    """
+
+    __match_args__ = ("min", "max")
+
+    def __init__(self, min: GridTrackMinValue, max: GridTrackMaxValue) -> None: ...
+    def __repr__(self) -> str: ...
+    def __eq__(self, other: object) -> bool: ...
+    def __hash__(self) -> int: ...
+    @property
+    def min(self) -> GridTrackMinValue: ...
+    @property
+    def max(self) -> GridTrackMaxValue: ...
+
+class GridLine:
+    """
+    A 1-based grid line index (negative indices count from the end).
+
+    Used in GridPlacement.start and GridPlacement.end.
+
+    Raises `InvalidGridLine` if `index` is 0
+    (grid lines are 1-based; negative indices count from the end).
+
+    See: [taffy `GridPlacement::Line`](https://docs.rs/taffy/0.9.2/taffy/style/enum.GridPlacement.html),
+    [MDN Line-based placement](https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_grid_layout/Grid_layout_using_line-based_placement)
+    """
+
+    __match_args__ = ("index",)
+
+    def __init__(self, index: int) -> None: ...
+    def __repr__(self) -> str: ...
+    def __eq__(self, other: object) -> bool: ...
+    def __hash__(self) -> int: ...
+    @property
+    def index(self) -> int: ...
+
+class GridSpan:
+    """
+    Span a number of grid tracks.
+
+    Used in GridPlacement.start and GridPlacement.end.
+
+    Raises `InvalidGridSpan` if `count` is 0 (must span at least 1 track).
+
+    See: [taffy `GridPlacement::Span`](https://docs.rs/taffy/0.9.2/taffy/style/enum.GridPlacement.html),
+    [MDN `grid-column-start` (span)](https://developer.mozilla.org/en-US/docs/Web/CSS/grid-column-start)
+    """
+
+    __match_args__ = ("count",)
+
+    def __init__(self, count: int) -> None: ...
+    def __repr__(self) -> str: ...
+    def __eq__(self, other: object) -> bool: ...
+    def __hash__(self) -> int: ...
+    @property
+    def count(self) -> int: ...
 
 # Enums
 
@@ -281,133 +516,31 @@ class TextAlign:
     LegacyRight: TextAlign
     LegacyCenter: TextAlign
 
-class AvailableSpace:
-    """Available space for layout."""
-
-    def __repr__(self) -> str: ...
-    @staticmethod
-    def definite(value: float) -> AvailableSpace:
-        """Create a definite available space."""
-    @staticmethod
-    def min_content() -> AvailableSpace:
-        """Create a min-content available space."""
-    @staticmethod
-    def max_content() -> AvailableSpace:
-        """Create a max-content available space."""
-    def is_definite(self) -> bool: ...
-    def is_min_content(self) -> bool: ...
-    def is_max_content(self) -> bool: ...
-    def value(self) -> float | None:
-        """Return the definite value, or None for min-content/max-content."""
-
-# Grid types
-
-class GridTrack:
-    """A track sizing function for grid layouts (minmax(min, max))."""
-
-    def __repr__(self) -> str: ...
-    @staticmethod
-    def length(value: float) -> GridTrack:
-        """Create a fixed-size track from a length in pixels."""
-    @staticmethod
-    def percent(value: float) -> GridTrack:
-        """Create a fixed-size track from a percentage."""
-    @staticmethod
-    def flex(value: float) -> GridTrack:
-        """Create a flexible track (fr unit)."""
-    @staticmethod
-    def auto() -> GridTrack:
-        """Create an auto-sized track."""
-    @staticmethod
-    def min_content() -> GridTrack:
-        """Create a min-content track."""
-    @staticmethod
-    def max_content() -> GridTrack:
-        """Create a max-content track."""
-    @staticmethod
-    def minmax(min_value: GridTrackMin, max_value: GridTrackMax) -> GridTrack:
-        """Create a minmax track with separate min and max sizing functions."""
-    @staticmethod
-    def fit_content_px(limit: float) -> GridTrack:
-        """Create a fit-content track with a pixel limit."""
-    @staticmethod
-    def fit_content_percent(limit: float) -> GridTrack:
-        """Create a fit-content track with a percentage limit."""
-
-class GridTrackMin:
-    """Min track sizing function (for use with GridTrack.minmax)."""
-
-    @staticmethod
-    def length(value: float) -> GridTrackMin:
-        """Create a fixed min size from a length in pixels."""
-    @staticmethod
-    def percent(value: float) -> GridTrackMin:
-        """Create a fixed min size from a percentage."""
-    @staticmethod
-    def auto() -> GridTrackMin:
-        """Create an auto min size."""
-    @staticmethod
-    def min_content() -> GridTrackMin:
-        """Create a min-content min size."""
-    @staticmethod
-    def max_content() -> GridTrackMin:
-        """Create a max-content min size."""
-
-class GridTrackMax:
-    """Max track sizing function (for use with GridTrack.minmax)."""
-
-    @staticmethod
-    def length(value: float) -> GridTrackMax:
-        """Create a fixed max size from a length in pixels."""
-    @staticmethod
-    def percent(value: float) -> GridTrackMax:
-        """Create a fixed max size from a percentage."""
-    @staticmethod
-    def auto() -> GridTrackMax:
-        """Create an auto max size."""
-    @staticmethod
-    def min_content() -> GridTrackMax:
-        """Create a min-content max size."""
-    @staticmethod
-    def max_content() -> GridTrackMax:
-        """Create a max-content max size."""
-    @staticmethod
-    def fr(value: float) -> GridTrackMax:
-        """Create a fractional max size (fr unit)."""
-    @staticmethod
-    def fit_content_px(limit: float) -> GridTrackMax:
-        """Create a fit-content max size with a pixel limit."""
-    @staticmethod
-    def fit_content_percent(limit: float) -> GridTrackMax:
-        """Create a fit-content max size with a percentage limit."""
+type GridPlacementValue = GridLine | GridSpan | Auto
+"""A grid placement value used in GridPlacement start and end: GridLine, GridSpan, or Auto."""
 
 class GridPlacement:
-    """Grid placement for a child item."""
+    """
+    A start/end pair of grid placements for a child item.
 
-    def __repr__(self) -> str: ...
-    @staticmethod
-    def auto() -> GridPlacement:
-        """Auto placement."""
-    @staticmethod
-    def line(index: int) -> GridPlacement:
-        """Place at a specific line index (1-based, negative counts from end)."""
-    @staticmethod
-    def span(count: int) -> GridPlacement:
-        """Span a number of tracks."""
+    Each of start and end is a GridPlacementValue (GridLine | GridSpan | Auto).
+    Defaults both to Auto (the CSS default for unplaced items).
 
-class GridLine:
-    """A line with start and end grid placements."""
+    See: [taffy `Line<GridPlacement>`](https://docs.rs/taffy/0.9.2/taffy/geometry/struct.Line.html),
+    [MDN `grid-row`](https://developer.mozilla.org/en-US/docs/Web/CSS/grid-row),
+    [MDN `grid-column`](https://developer.mozilla.org/en-US/docs/Web/CSS/grid-column)
+    """
 
     def __init__(
         self,
-        start: GridPlacement | None = None,
-        end: GridPlacement | None = None,
+        start: GridPlacementValue | None = None,
+        end: GridPlacementValue | None = None,
     ) -> None: ...
     def __repr__(self) -> str: ...
     @property
-    def start(self) -> GridPlacement: ...
+    def start(self) -> GridPlacementValue: ...
     @property
-    def end(self) -> GridPlacement: ...
+    def end(self) -> GridPlacementValue: ...
 
 # Node
 
@@ -447,8 +580,21 @@ class Layout:
 
 # Style
 
+type DimensionValue = Length | Percent | Auto
+"""A dimension value used for sizes, margins, insets, and flex-basis: Length, Percent, or Auto."""
+
+type LengthPercentageValue = Length | Percent
+"""A length-or-percentage value used for padding, border, and gap: Length or Percent."""
+
 class Style:
-    """Style properties for a layout node."""
+    """
+    Style properties for a layout node.
+
+    All fields are keyword-only. Passing None (or omitting) uses the taffy default.
+    Style is immutable — construct a new instance to change fields, or use | to merge.
+
+    See: [taffy `Style`](https://docs.rs/taffy/0.9.2/taffy/struct.Style.html)
+    """
 
     def __init__(
         self,
@@ -459,154 +605,262 @@ class Style:
         overflow_y: Overflow | None = None,
         scrollbar_width: float | None = None,
         position: Position | None = None,
-        inset_left: LengthPercentageAuto | None = None,
-        inset_right: LengthPercentageAuto | None = None,
-        inset_top: LengthPercentageAuto | None = None,
-        inset_bottom: LengthPercentageAuto | None = None,
-        size_width: Dimension | None = None,
-        size_height: Dimension | None = None,
-        min_size_width: Dimension | None = None,
-        min_size_height: Dimension | None = None,
-        max_size_width: Dimension | None = None,
-        max_size_height: Dimension | None = None,
+        inset_left: DimensionValue | None = None,
+        inset_right: DimensionValue | None = None,
+        inset_top: DimensionValue | None = None,
+        inset_bottom: DimensionValue | None = None,
+        size_width: DimensionValue | None = None,
+        size_height: DimensionValue | None = None,
+        min_size_width: DimensionValue | None = None,
+        min_size_height: DimensionValue | None = None,
+        max_size_width: DimensionValue | None = None,
+        max_size_height: DimensionValue | None = None,
         aspect_ratio: float | None = None,
-        margin_left: LengthPercentageAuto | None = None,
-        margin_right: LengthPercentageAuto | None = None,
-        margin_top: LengthPercentageAuto | None = None,
-        margin_bottom: LengthPercentageAuto | None = None,
-        padding_left: LengthPercentage | None = None,
-        padding_right: LengthPercentage | None = None,
-        padding_top: LengthPercentage | None = None,
-        padding_bottom: LengthPercentage | None = None,
-        border_left: LengthPercentage | None = None,
-        border_right: LengthPercentage | None = None,
-        border_top: LengthPercentage | None = None,
-        border_bottom: LengthPercentage | None = None,
+        margin_left: DimensionValue | None = None,
+        margin_right: DimensionValue | None = None,
+        margin_top: DimensionValue | None = None,
+        margin_bottom: DimensionValue | None = None,
+        padding_left: LengthPercentageValue | None = None,
+        padding_right: LengthPercentageValue | None = None,
+        padding_top: LengthPercentageValue | None = None,
+        padding_bottom: LengthPercentageValue | None = None,
+        border_left: LengthPercentageValue | None = None,
+        border_right: LengthPercentageValue | None = None,
+        border_top: LengthPercentageValue | None = None,
+        border_bottom: LengthPercentageValue | None = None,
         align_items: AlignItems | None = None,
         align_self: AlignItems | None = None,
         justify_items: AlignItems | None = None,
         justify_self: AlignItems | None = None,
         align_content: AlignContent | None = None,
         justify_content: AlignContent | None = None,
-        gap_width: LengthPercentage | None = None,
-        gap_height: LengthPercentage | None = None,
+        gap_width: LengthPercentageValue | None = None,
+        gap_height: LengthPercentageValue | None = None,
         text_align: TextAlign | None = None,
         flex_direction: FlexDirection | None = None,
         flex_wrap: FlexWrap | None = None,
-        flex_basis: Dimension | None = None,
+        flex_basis: DimensionValue | None = None,
         flex_grow: float | None = None,
         flex_shrink: float | None = None,
-        grid_template_rows: list[GridTrack] | None = None,
-        grid_template_columns: list[GridTrack] | None = None,
-        grid_auto_rows: list[GridTrack] | None = None,
-        grid_auto_columns: list[GridTrack] | None = None,
+        grid_template_rows: list[GridTrackValue] | None = None,
+        grid_template_columns: list[GridTrackValue] | None = None,
+        grid_auto_rows: list[GridTrackValue] | None = None,
+        grid_auto_columns: list[GridTrackValue] | None = None,
         grid_auto_flow: GridAutoFlow | None = None,
-        grid_row: GridLine | None = None,
-        grid_column: GridLine | None = None,
-    ) -> None: ...
+        grid_row: GridPlacement | None = None,
+        grid_column: GridPlacement | None = None,
+    ) -> None:
+        """
+        Construct a Style with the given fields set.
+
+        All arguments are keyword-only. Omitting or passing None for a field uses
+        the taffy default value for that field. See each property for documentation
+        of individual fields.
+
+        Args:
+            display: How the node is laid out (Block, Flex, Grid, or Nil).
+            box_sizing: Whether size includes border and padding (BorderBox) or not (ContentBox).
+            overflow_x: How overflowing content is handled horizontally.
+            overflow_y: How overflowing content is handled vertically.
+            scrollbar_width: Width of the scrollbar gutter in pixels.
+            position: Whether the node is positioned relative to its parent or absolutely.
+            inset_left: Left offset for absolutely-positioned nodes.
+            inset_right: Right offset for absolutely-positioned nodes.
+            inset_top: Top offset for absolutely-positioned nodes.
+            inset_bottom: Bottom offset for absolutely-positioned nodes.
+            size_width: Preferred width of the node.
+            size_height: Preferred height of the node.
+            min_size_width: Minimum width of the node.
+            min_size_height: Minimum height of the node.
+            max_size_width: Maximum width of the node.
+            max_size_height: Maximum height of the node.
+            aspect_ratio: Preferred aspect ratio (width / height), or None.
+            margin_left: Left outer spacing.
+            margin_right: Right outer spacing.
+            margin_top: Top outer spacing.
+            margin_bottom: Bottom outer spacing.
+            padding_left: Left inner spacing.
+            padding_right: Right inner spacing.
+            padding_top: Top inner spacing.
+            padding_bottom: Bottom inner spacing.
+            border_left: Left border width.
+            border_right: Right border width.
+            border_top: Top border width.
+            border_bottom: Bottom border width.
+            align_items: Default alignment of children along the cross axis.
+            align_self: Override alignment of this node along the parent's cross axis.
+            justify_items: Default alignment of children along the main axis.
+            justify_self: Override alignment of this node along the parent's main axis.
+            align_content: Alignment of rows/columns when there is extra space in the cross axis.
+            justify_content: Distribution of children along the main axis.
+            gap_width: Horizontal gap between grid/flex items.
+            gap_height: Vertical gap between grid/flex items.
+            text_align: Text alignment within the node.
+            flex_direction: Direction of the flex container's main axis.
+            flex_wrap: Whether flex items wrap onto multiple lines.
+            flex_basis: Default size of a flex item before growing or shrinking.
+            flex_grow: Rate at which a flex item grows to fill available space.
+            flex_shrink: Rate at which a flex item shrinks when space is tight.
+            grid_template_rows: Explicit row track sizing in a grid container.
+            grid_template_columns: Explicit column track sizing in a grid container.
+            grid_auto_rows: Sizing of implicitly-created row tracks.
+            grid_auto_columns: Sizing of implicitly-created column tracks.
+            grid_auto_flow: How auto-placed items are inserted in the grid.
+            grid_row: Row placement of this item in a grid container.
+            grid_column: Column placement of this item in a grid container.
+        """
     def __repr__(self) -> str: ...
     def __or__(self, other: Style) -> Style: ...
-    # Properties (read-only)
     @property
-    def display(self) -> Display: ...
+    def display(self) -> Display:
+        """How the node is laid out (Block, Flex, Grid, or Nil)."""
     @property
-    def box_sizing(self) -> BoxSizing: ...
+    def box_sizing(self) -> BoxSizing:
+        """Whether size includes border and padding (BorderBox) or not (ContentBox)."""
     @property
-    def overflow_x(self) -> Overflow: ...
+    def overflow_x(self) -> Overflow:
+        """How overflowing content is handled horizontally."""
     @property
-    def overflow_y(self) -> Overflow: ...
+    def overflow_y(self) -> Overflow:
+        """How overflowing content is handled vertically."""
     @property
-    def scrollbar_width(self) -> float: ...
+    def scrollbar_width(self) -> float:
+        """Width of the scrollbar gutter in pixels."""
     @property
-    def position(self) -> Position: ...
+    def position(self) -> Position:
+        """Whether the node is positioned relative to its parent or absolutely."""
     @property
-    def inset_left(self) -> LengthPercentageAuto: ...
+    def inset_left(self) -> DimensionValue:
+        """Left offset for absolutely-positioned nodes."""
     @property
-    def inset_right(self) -> LengthPercentageAuto: ...
+    def inset_right(self) -> DimensionValue:
+        """Right offset for absolutely-positioned nodes."""
     @property
-    def inset_top(self) -> LengthPercentageAuto: ...
+    def inset_top(self) -> DimensionValue:
+        """Top offset for absolutely-positioned nodes."""
     @property
-    def inset_bottom(self) -> LengthPercentageAuto: ...
+    def inset_bottom(self) -> DimensionValue:
+        """Bottom offset for absolutely-positioned nodes."""
     @property
-    def size_width(self) -> Dimension: ...
+    def size_width(self) -> DimensionValue:
+        """Preferred width of the node."""
     @property
-    def size_height(self) -> Dimension: ...
+    def size_height(self) -> DimensionValue:
+        """Preferred height of the node."""
     @property
-    def min_size_width(self) -> Dimension: ...
+    def min_size_width(self) -> DimensionValue:
+        """Minimum width of the node."""
     @property
-    def min_size_height(self) -> Dimension: ...
+    def min_size_height(self) -> DimensionValue:
+        """Minimum height of the node."""
     @property
-    def max_size_width(self) -> Dimension: ...
+    def max_size_width(self) -> DimensionValue:
+        """Maximum width of the node."""
     @property
-    def max_size_height(self) -> Dimension: ...
+    def max_size_height(self) -> DimensionValue:
+        """Maximum height of the node."""
     @property
-    def aspect_ratio(self) -> float | None: ...
+    def aspect_ratio(self) -> float | None:
+        """Preferred aspect ratio (width / height), or None."""
     @property
-    def margin_left(self) -> LengthPercentageAuto: ...
+    def margin_left(self) -> DimensionValue:
+        """Left outer spacing."""
     @property
-    def margin_right(self) -> LengthPercentageAuto: ...
+    def margin_right(self) -> DimensionValue:
+        """Right outer spacing."""
     @property
-    def margin_top(self) -> LengthPercentageAuto: ...
+    def margin_top(self) -> DimensionValue:
+        """Top outer spacing."""
     @property
-    def margin_bottom(self) -> LengthPercentageAuto: ...
+    def margin_bottom(self) -> DimensionValue:
+        """Bottom outer spacing."""
     @property
-    def padding_left(self) -> LengthPercentage: ...
+    def padding_left(self) -> LengthPercentageValue:
+        """Left inner spacing."""
     @property
-    def padding_right(self) -> LengthPercentage: ...
+    def padding_right(self) -> LengthPercentageValue:
+        """Right inner spacing."""
     @property
-    def padding_top(self) -> LengthPercentage: ...
+    def padding_top(self) -> LengthPercentageValue:
+        """Top inner spacing."""
     @property
-    def padding_bottom(self) -> LengthPercentage: ...
+    def padding_bottom(self) -> LengthPercentageValue:
+        """Bottom inner spacing."""
     @property
-    def border_left(self) -> LengthPercentage: ...
+    def border_left(self) -> LengthPercentageValue:
+        """Left border width."""
     @property
-    def border_right(self) -> LengthPercentage: ...
+    def border_right(self) -> LengthPercentageValue:
+        """Right border width."""
     @property
-    def border_top(self) -> LengthPercentage: ...
+    def border_top(self) -> LengthPercentageValue:
+        """Top border width."""
     @property
-    def border_bottom(self) -> LengthPercentage: ...
+    def border_bottom(self) -> LengthPercentageValue:
+        """Bottom border width."""
     @property
-    def align_items(self) -> AlignItems | None: ...
+    def align_items(self) -> AlignItems | None:
+        """Default alignment of children along the cross axis."""
     @property
-    def align_self(self) -> AlignItems | None: ...
+    def align_self(self) -> AlignItems | None:
+        """Override alignment of this node along the parent's cross axis."""
     @property
-    def justify_items(self) -> AlignItems | None: ...
+    def justify_items(self) -> AlignItems | None:
+        """Default alignment of children along the main axis."""
     @property
-    def justify_self(self) -> AlignItems | None: ...
+    def justify_self(self) -> AlignItems | None:
+        """Override alignment of this node along the parent's main axis."""
     @property
-    def align_content(self) -> AlignContent | None: ...
+    def align_content(self) -> AlignContent | None:
+        """Alignment of rows/columns when there is extra space in the cross axis."""
     @property
-    def justify_content(self) -> AlignContent | None: ...
+    def justify_content(self) -> AlignContent | None:
+        """Distribution of children along the main axis."""
     @property
-    def gap_width(self) -> LengthPercentage: ...
+    def gap_width(self) -> LengthPercentageValue:
+        """Horizontal gap between grid/flex items."""
     @property
-    def gap_height(self) -> LengthPercentage: ...
+    def gap_height(self) -> LengthPercentageValue:
+        """Vertical gap between grid/flex items."""
     @property
-    def text_align(self) -> TextAlign: ...
+    def text_align(self) -> TextAlign:
+        """Text alignment within the node."""
     @property
-    def flex_direction(self) -> FlexDirection: ...
+    def flex_direction(self) -> FlexDirection:
+        """Direction of the flex container's main axis."""
     @property
-    def flex_wrap(self) -> FlexWrap: ...
+    def flex_wrap(self) -> FlexWrap:
+        """Whether flex items wrap onto multiple lines."""
     @property
-    def flex_basis(self) -> Dimension: ...
+    def flex_basis(self) -> DimensionValue:
+        """Default size of a flex item before growing or shrinking."""
     @property
-    def flex_grow(self) -> float: ...
+    def flex_grow(self) -> float:
+        """Rate at which a flex item grows to fill available space."""
     @property
-    def flex_shrink(self) -> float: ...
+    def flex_shrink(self) -> float:
+        """Rate at which a flex item shrinks when space is tight."""
     @property
-    def grid_template_rows(self) -> list[GridTrack]: ...
+    def grid_template_rows(self) -> list[GridTrackValue]:
+        """Explicit row track sizing in a grid container."""
     @property
-    def grid_template_columns(self) -> list[GridTrack]: ...
+    def grid_template_columns(self) -> list[GridTrackValue]:
+        """Explicit column track sizing in a grid container."""
     @property
-    def grid_auto_rows(self) -> list[GridTrack]: ...
+    def grid_auto_rows(self) -> list[GridTrackValue]:
+        """Sizing of implicitly-created row tracks."""
     @property
-    def grid_auto_columns(self) -> list[GridTrack]: ...
+    def grid_auto_columns(self) -> list[GridTrackValue]:
+        """Sizing of implicitly-created column tracks."""
     @property
-    def grid_auto_flow(self) -> GridAutoFlow: ...
+    def grid_auto_flow(self) -> GridAutoFlow:
+        """How auto-placed items are inserted in the grid."""
     @property
-    def grid_row(self) -> GridLine: ...
+    def grid_row(self) -> GridPlacement:
+        """Row placement of this item in a grid container."""
     @property
-    def grid_column(self) -> GridLine: ...
+    def grid_column(self) -> GridPlacement:
+        """Column placement of this item in a grid container."""
 
 # Tree
 
@@ -666,8 +920,8 @@ class TaffyTree[NodeContext = object]:
     def compute_layout(
         self,
         node: NodeId,
-        available_space: AvailableDimensions | None = None,
-        measure: Callable[[KnownDimensions, AvailableDimensions, NodeContext], Size] | None = None,
+        available: AvailableSize | None = None,
+        measure: Callable[[KnownSize, AvailableSize, NodeContext], Size] | None = None,
     ) -> None:
         """Compute the layout of a tree rooted at the given node."""
     def layout(self, node: NodeId) -> Layout:
@@ -680,29 +934,3 @@ class TaffyTree[NodeContext = object]:
         """Disable rounding of layout values."""
     def print_tree(self, root: NodeId) -> None:
         """Print the layout tree for debugging."""
-
-# Helper functions
-
-def zero() -> LengthPercentage:
-    """Create a zero-length value."""
-
-def auto() -> Dimension:
-    """Create an auto dimension."""
-
-def length(value: float) -> Dimension:
-    """Create a length dimension in pixels."""
-
-def percent(value: float) -> Dimension:
-    """Create a percentage dimension."""
-
-def min_content() -> AvailableSpace:
-    """Create a min-content available space."""
-
-def max_content() -> AvailableSpace:
-    """Create a max-content available space."""
-
-def fr(value: float) -> GridTrack:
-    """Create a flexible grid track (fr unit)."""
-
-def minmax(min: GridTrackMin, max: GridTrackMax) -> GridTrack:
-    """Create a minmax grid track."""
