@@ -7,7 +7,7 @@ use taffy::style::{
     MinTrackSizingFunction, TrackSizingFunction,
 };
 
-use crate::errors::InvalidPercent;
+use crate::errors::{InvalidGridLine, InvalidGridSpan, InvalidLength, InvalidPercent};
 
 // ─── Shared value types ────────────────────────────────────────────────────
 
@@ -28,8 +28,11 @@ pub struct Length {
 #[pymethods]
 impl Length {
     #[new]
-    pub fn new(value: f32) -> Self {
-        Self { value }
+    pub fn new(value: f32) -> PyResult<Self> {
+        if value.is_nan() {
+            return Err(InvalidLength::new_err("Length value must not be NaN"));
+        }
+        Ok(Self { value })
     }
 
     #[classattr]
@@ -45,8 +48,8 @@ impl Length {
         self.value.to_bits() == other.value.to_bits()
     }
 
-    fn __hash__(&self) -> u64 {
-        self.value.to_bits() as u64
+    fn __hash__(&self) -> isize {
+        self.value.to_bits() as isize
     }
 }
 
@@ -92,8 +95,8 @@ impl Percent {
         self.value.to_bits() == other.value.to_bits()
     }
 
-    fn __hash__(&self) -> u64 {
-        self.value.to_bits() as u64
+    fn __hash__(&self) -> isize {
+        self.value.to_bits() as isize
     }
 }
 
@@ -122,7 +125,7 @@ impl Auto {
         true
     }
 
-    fn __hash__(&self) -> u64 {
+    fn __hash__(&self) -> isize {
         0
     }
 }
@@ -155,7 +158,7 @@ impl MinContent {
         true
     }
 
-    fn __hash__(&self) -> u64 {
+    fn __hash__(&self) -> isize {
         1
     }
 }
@@ -188,7 +191,7 @@ impl MaxContent {
         true
     }
 
-    fn __hash__(&self) -> u64 {
+    fn __hash__(&self) -> isize {
         2
     }
 }
@@ -228,8 +231,8 @@ impl Definite {
         self.value.to_bits() == other.value.to_bits()
     }
 
-    fn __hash__(&self) -> u64 {
-        self.value.to_bits() as u64
+    fn __hash__(&self) -> isize {
+        self.value.to_bits() as isize
     }
 }
 
@@ -272,8 +275,8 @@ impl Fraction {
         self.value.to_bits() == other.value.to_bits()
     }
 
-    fn __hash__(&self) -> u64 {
-        self.value.to_bits() as u64
+    fn __hash__(&self) -> isize {
+        self.value.to_bits() as isize
     }
 }
 
@@ -438,8 +441,13 @@ pub struct GridLine {
 #[pymethods]
 impl GridLine {
     #[new]
-    pub fn new(index: i16) -> Self {
-        Self { index }
+    pub fn new(index: i16) -> PyResult<Self> {
+        if index == 0 {
+            return Err(InvalidGridLine::new_err(
+                "GridLine index must not be 0 (grid lines are 1-based; negative indices count from the end)",
+            ));
+        }
+        Ok(Self { index })
     }
 
     #[classattr]
@@ -455,8 +463,8 @@ impl GridLine {
         self.index == other.index
     }
 
-    fn __hash__(&self) -> i16 {
-        self.index
+    fn __hash__(&self) -> isize {
+        self.index as isize
     }
 }
 
@@ -476,8 +484,13 @@ pub struct GridSpan {
 #[pymethods]
 impl GridSpan {
     #[new]
-    pub fn new(count: u16) -> Self {
-        Self { count }
+    pub fn new(count: u16) -> PyResult<Self> {
+        if count == 0 {
+            return Err(InvalidGridSpan::new_err(
+                "GridSpan count must be at least 1",
+            ));
+        }
+        Ok(Self { count })
     }
 
     #[classattr]
@@ -493,8 +506,8 @@ impl GridSpan {
         self.count == other.count
     }
 
-    fn __hash__(&self) -> u16 {
-        self.count
+    fn __hash__(&self) -> isize {
+        self.count as isize
     }
 }
 
@@ -752,9 +765,11 @@ impl GridPlacementInput {
 
 // ─── Taffy → Python conversion helpers ────────────────────────────────────
 // These helpers bypass `Percent::new()` validation and construct `Percent` directly.
-// This is intentional: Taffy only stores values that were originally inserted by us,
-// and all user-facing Percent construction goes through `Percent::new()` which validates
-// the [0.0, 1.0] range. Values round-tripped through Taffy are guaranteed to be valid.
+// This is intentional: Taffy stores lengths/percentages internally as `CompactLength`
+// and does not perform validation at that layer. The only `Percent` values that ever
+// reach Taffy are ones we constructed via `Percent::new()`, which validates the [0.0, 1.0]
+// range. When we read back from Taffy we are only round-tripping previously-validated
+// values, not accepting arbitrary unvalidated Taffy data.
 
 pub fn dimension_to_py(py: Python<'_>, d: taffy::Dimension) -> PyResult<Py<PyAny>> {
     let raw = d.into_raw();

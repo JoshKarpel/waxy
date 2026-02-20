@@ -13,7 +13,7 @@ The Rust source (`src/`) exposes a flat PyO3 module `_waxy`, which Python (`pyth
 | File | Contents |
 |------|----------|
 | `src/lib.rs` | PyO3 module definition, wires all submodules |
-| `src/errors.rs` | `WaxyException`, `TaffyException` + 4 subclasses, `InvalidPercent` |
+| `src/errors.rs` | `WaxyException`, `TaffyException` + 4 subclasses, `InvalidPercent`, `InvalidLength`, `InvalidGridLine`, `InvalidGridSpan` |
 | `src/geometry.rs` | `Size`, `Rect`, `Point`, `Line`, `KnownSize`, `AvailableSize` |
 | `src/values.rs` | `Length`, `Percent`, `Auto`, `MinContent`, `MaxContent`, `Definite`, `Fraction`, `FitContent`, `Minmax`, `GridLine`, `GridSpan`, `GridPlacement`; module constants `AUTO`, `MIN_CONTENT`, `MAX_CONTENT` |
 | `src/enums.rs` | All layout enums (`Display`, `Position`, `FlexDirection`, etc.) |
@@ -27,7 +27,7 @@ The Rust source (`src/`) exposes a flat PyO3 module `_waxy`, which Python (`pyth
 - **`#[pyclass(unsendable)]`** is required on all types that wrap taffy's `CompactLength` (which contains `*const ()`, not `Send`). This includes: `GridPlacement`, `Style`, `TaffyTree`. Value types in `src/values.rs` convert *to* taffy types but don't store them, so they don't need `unsendable`.
 - **`#[pyclass(frozen)]`** is used on all types except `TaffyTree` (which is inherently mutable). All structs are immutable from Python — construct new instances instead of mutating.
 - **Value types** (`Length`, `Percent`, `Auto`, `MinContent`, `MaxContent`, `Definite`, `Fraction`, `FitContent`, `Minmax`, `GridLine`, `GridSpan`) are standalone frozen pyclasses, not enum variants. They support `match`/`case` pattern matching via `__match_args__`. Module-level constants `AUTO`, `MIN_CONTENT`, `MAX_CONTENT` are provided for the zero-argument types.
-- **Exception hierarchy**: `WaxyException(Exception)` is the root. `TaffyException(WaxyException)` covers taffy errors with 4 subclasses. `InvalidPercent(WaxyException, ValueError)` is raised when `Percent` is constructed outside `[0.0, 1.0]`.
+- **Exception hierarchy**: `WaxyException(Exception)` is the root. `TaffyException(WaxyException)` covers taffy errors with 4 subclasses. Validation exceptions are `WaxyException + ValueError` via multi-inheritance (achieved by setting `__bases__` in `register()` in `src/errors.rs`): `InvalidPercent` (Percent outside [0.0, 1.0]), `InvalidLength` (NaN), `InvalidGridLine` (index 0), `InvalidGridSpan` (count 0).
 - **`Display.Nil`** maps to taffy's `Display::None`. We use `#[pyo3(name = "Nil")]` because `None` is a Python keyword.
 - **`AlignSelf`/`JustifySelf`/`JustifyItems`** are type aliases for `AlignItems` in taffy. **`JustifyContent`** is an alias for `AlignContent`. We reuse the same Python enum types.
 - **Grid template tracks** — `GridTemplateComponent<String>` repeat variants are silently skipped when converting from taffy. Only `Single(TrackSizingFunction)` is round-tripped.
@@ -75,6 +75,8 @@ Add Python packages with `uv add <package>` (not by editing `pyproject.toml`) an
 Docstrings for the API reference come from **`python/waxy/__init__.pyi`**, not from Rust `///` doc comments. griffe (the backend for mkdocstrings-python) reads stub files for compiled PyO3 extensions; Rust `///` comments on `#[getter]` functions produce empty `__doc__` strings at runtime and are not useful for docs.
 
 `show_if_no_docstring` defaults to `False` in mkdocstrings-python, so **any property or method without a docstring in the `.pyi` file will be silently omitted from the rendered docs**. Always add docstrings to `.pyi` entries when you want them to appear.
+
+**Type aliases** (`DimensionValue`, `LengthPercentageValue`, `AvailableSpaceValue`, `GridTrackValue`, `GridTrackMinValue`, `GridTrackMaxValue`, `GridPlacementValue`) are defined directly in `python/waxy/__init__.py` using PEP 695 `type` syntax. They are also mirrored in the `.pyi` stub for type checkers. griffe reads pure-Python names from the source file, so the docstrings on these aliases live in `__init__.py` itself, not the stub.
 
 ## Taffy Version
 

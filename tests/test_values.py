@@ -553,3 +553,16 @@ def test_measure_with_available_size_pattern_match() -> None:
     layout = tree.layout(node)
     assert layout.size.width == 80.0
     assert layout.size.height == 40.0
+
+
+# --- Type aliases ---
+
+
+def test_type_aliases_importable() -> None:
+    assert hasattr(waxy, "DimensionValue")
+    assert hasattr(waxy, "LengthPercentageValue")
+    assert hasattr(waxy, "AvailableSpaceValue")
+    assert hasattr(waxy, "GridTrackValue")
+    assert hasattr(waxy, "GridTrackMinValue")
+    assert hasattr(waxy, "GridTrackMaxValue")
+    assert hasattr(waxy, "GridPlacementValue")

@@ -11,6 +11,15 @@ class TaffyException(WaxyException):
 class InvalidPercent(WaxyException, ValueError):
     """Raised when Percent(value) is called with a value outside [0.0, 1.0]."""
 
+class InvalidLength(WaxyException, ValueError):
+    """Raised when Length(value) is called with a NaN value."""
+
+class InvalidGridLine(WaxyException, ValueError):
+    """Raised when GridLine(index) is called with index 0 (grid lines are 1-based)."""
+
+class InvalidGridSpan(WaxyException, ValueError):
+    """Raised when GridSpan(count) is called with count 0 (must span at least 1 track)."""
+
 class ChildIndexOutOfBounds(TaffyException):
     """Child index is out of bounds."""
 
@@ -184,6 +193,8 @@ class Length:
     A length value in pixels.
 
     Used for size, padding, border, gap, margin, inset, and grid track sizing fields.
+
+    Raises `InvalidLength` if `value` is NaN.
 
     See: [taffy `Dimension::Length`](https://docs.rs/taffy/0.9.2/taffy/style/enum.Dimension.html),
     [MDN `<length>`](https://developer.mozilla.org/en-US/docs/Web/CSS/length)
@@ -383,6 +394,9 @@ class GridLine:
 
     Used in GridPlacement.start and GridPlacement.end.
 
+    Raises `InvalidGridLine` if `index` is 0
+    (grid lines are 1-based; negative indices count from the end).
+
     See: [taffy `GridPlacement::Line`](https://docs.rs/taffy/0.9.2/taffy/style/enum.GridPlacement.html),
     [MDN Line-based placement](https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_grid_layout/Grid_layout_using_line-based_placement)
     """
@@ -401,6 +415,8 @@ class GridSpan:
     Span a number of grid tracks.
 
     Used in GridPlacement.start and GridPlacement.end.
+
+    Raises `InvalidGridSpan` if `count` is 0 (must span at least 1 track).
 
     See: [taffy `GridPlacement::Span`](https://docs.rs/taffy/0.9.2/taffy/style/enum.GridPlacement.html),
     [MDN `grid-column-start` (span)](https://developer.mozilla.org/en-US/docs/Web/CSS/grid-column-start)

@@ -68,6 +68,75 @@ def test_invalid_percent_catchable_as_waxy_exception() -> None:
         waxy.Percent(-1.0)
 
 
+def test_invalid_length_is_waxy_exception() -> None:
+    assert issubclass(waxy.InvalidLength, waxy.WaxyException)
+
+
+def test_invalid_length_is_value_error() -> None:
+    assert issubclass(waxy.InvalidLength, ValueError)
+
+
+def test_invalid_length_raised_for_nan() -> None:
+    with pytest.raises(waxy.InvalidLength, match="NaN"):
+        waxy.Length(float("nan"))
+
+
+def test_invalid_length_catchable_as_value_error() -> None:
+    with pytest.raises(ValueError, match="NaN"):
+        waxy.Length(float("nan"))
+
+
+def test_invalid_length_catchable_as_waxy_exception() -> None:
+    with pytest.raises(waxy.WaxyException):
+        waxy.Length(float("nan"))
+
+
+def test_invalid_grid_line_is_waxy_exception() -> None:
+    assert issubclass(waxy.InvalidGridLine, waxy.WaxyException)
+
+
+def test_invalid_grid_line_is_value_error() -> None:
+    assert issubclass(waxy.InvalidGridLine, ValueError)
+
+
+def test_invalid_grid_line_raised_for_zero() -> None:
+    with pytest.raises(waxy.InvalidGridLine, match="0"):
+        waxy.GridLine(0)
+
+
+def test_invalid_grid_line_catchable_as_value_error() -> None:
+    with pytest.raises(ValueError, match="0"):
+        waxy.GridLine(0)
+
+
+def test_invalid_grid_line_catchable_as_waxy_exception() -> None:
+    with pytest.raises(waxy.WaxyException):
+        waxy.GridLine(0)
+
+
+def test_invalid_grid_span_is_waxy_exception() -> None:
+    assert issubclass(waxy.InvalidGridSpan, waxy.WaxyException)
+
+
+def test_invalid_grid_span_is_value_error() -> None:
+    assert issubclass(waxy.InvalidGridSpan, ValueError)
+
+
+def test_invalid_grid_span_raised_for_zero() -> None:
+    with pytest.raises(waxy.InvalidGridSpan, match="at least 1"):
+        waxy.GridSpan(0)
+
+
+def test_invalid_grid_span_catchable_as_value_error() -> None:
+    with pytest.raises(ValueError, match="at least 1"):
+        waxy.GridSpan(0)
+
+
+def test_invalid_grid_span_catchable_as_waxy_exception() -> None:
+    with pytest.raises(waxy.WaxyException):
+        waxy.GridSpan(0)
+
+
 def test_child_index_out_of_bounds() -> None:
     tree = waxy.TaffyTree()
     parent = tree.new_leaf(waxy.Style())

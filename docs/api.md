@@ -102,6 +102,12 @@
 
 ::: waxy.InvalidPercent
 
+::: waxy.InvalidLength
+
+::: waxy.InvalidGridLine
+
+::: waxy.InvalidGridSpan
+
 ::: waxy.ChildIndexOutOfBounds
 
 ::: waxy.InvalidParentNode
