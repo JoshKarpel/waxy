@@ -122,7 +122,8 @@ fn panic_to_py_err(panic: Box<dyn std::any::Any + Send>, node_msg: &str) -> PyEr
     }
 }
 
-/// Catch a panic from a taffy call on a single node and convert it to `InvalidNodeId`.
+/// Catch a panic from a taffy call on a single node.
+/// Slotmap panics become `InvalidNodeId`; other panics become `TaffyException`.
 pub fn catch_node_panic<F, T>(node: &crate::node::NodeId, f: F) -> PyResult<T>
 where
     F: FnOnce() -> T,
@@ -136,7 +137,8 @@ where
     })
 }
 
-/// Catch a panic from a taffy call involving multiple nodes and convert it to `InvalidNodeId`.
+/// Catch a panic from a taffy call involving multiple nodes.
+/// Slotmap panics become `InvalidNodeId`; other panics become `TaffyException`.
 pub fn catch_panic<F, T>(f: F) -> PyResult<T>
 where
     F: FnOnce() -> T,
