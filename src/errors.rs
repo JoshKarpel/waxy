@@ -1,5 +1,5 @@
 use pyo3::create_exception;
-use pyo3::exceptions::{PyException, PyValueError};
+use pyo3::exceptions::{PyException, PyKeyError, PyValueError};
 use pyo3::prelude::*;
 use taffy::TaffyError;
 
@@ -38,6 +38,12 @@ create_exception!(
     InvalidInputNode,
     TaffyException,
     "Input node is invalid."
+);
+create_exception!(
+    waxy,
+    InvalidNodeId,
+    TaffyException,
+    "Node ID is not valid (node may have been removed)."
 );
 // InvalidPercent, InvalidLength, InvalidGridLine, InvalidGridSpan are defined as subclasses
 // of WaxyException initially; we set __bases__ to (WaxyException, ValueError) in register()
@@ -88,6 +94,29 @@ pub fn taffy_error_to_py(err: TaffyError) -> PyErr {
     }
 }
 
+/// Catch a panic from a taffy call on a single node and convert it to `InvalidNodeId`.
+pub fn catch_node_panic<F, T>(node: &crate::node::NodeId, f: F) -> PyResult<T>
+where
+    F: FnOnce() -> T,
+{
+    let node_val: u64 = node.inner.into();
+    std::panic::catch_unwind(std::panic::AssertUnwindSafe(f)).map_err(|_| {
+        InvalidNodeId::new_err(format!(
+            "node NodeId({node_val}) is not present in the tree (was it removed?)"
+        ))
+    })
+}
+
+/// Catch a panic from a taffy call involving multiple nodes and convert it to `InvalidNodeId`.
+pub fn catch_panic<F, T>(f: F) -> PyResult<T>
+where
+    F: FnOnce() -> T,
+{
+    std::panic::catch_unwind(std::panic::AssertUnwindSafe(f)).map_err(|_| {
+        InvalidNodeId::new_err("a node ID is not present in the tree (was it removed?)")
+    })
+}
+
 pub fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
     let py = m.py();
 
@@ -100,6 +129,15 @@ pub fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("InvalidParentNode", py.get_type::<InvalidParentNode>())?;
     m.add("InvalidChildNode", py.get_type::<InvalidChildNode>())?;
     m.add("InvalidInputNode", py.get_type::<InvalidInputNode>())?;
+
+    // Set __bases__ = (TaffyException, KeyError) for InvalidNodeId.
+    let taffy_exc_type = py.get_type::<TaffyException>();
+    let key_error_type = py.get_type::<PyKeyError>();
+    let node_id_bases =
+        pyo3::types::PyTuple::new(py, [taffy_exc_type.clone(), key_error_type.clone()])?;
+    let invalid_node_id_type = py.get_type::<InvalidNodeId>();
+    invalid_node_id_type.setattr("__bases__", &node_id_bases)?;
+    m.add("InvalidNodeId", invalid_node_id_type)?;
 
     // Set __bases__ = (WaxyException, ValueError) for multi-inheritance on validation errors.
     let waxy_exc_type = py.get_type::<WaxyException>();

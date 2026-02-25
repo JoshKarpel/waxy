@@ -2,7 +2,7 @@ use pyo3::prelude::*;
 use taffy::prelude as tp;
 use taffy::TraversePartialTree;
 
-use crate::errors::taffy_error_to_py;
+use crate::errors::{catch_node_panic, catch_panic, taffy_error_to_py};
 use crate::geometry::{AvailableSize, KnownSize};
 use crate::layout::Layout;
 use crate::node::NodeId;
@@ -57,25 +57,21 @@ impl TaffyTree {
 
     /// Set or clear the context attached to a node.
     fn set_node_context(&mut self, node: &NodeId, context: Option<Py<PyAny>>) -> PyResult<()> {
-        self.inner
-            .set_node_context(node.inner, context)
+        catch_node_panic(node, || self.inner.set_node_context(node.inner, context))?
             .map_err(taffy_error_to_py)
     }
 
     /// Create a new node with children.
     fn new_with_children(&mut self, style: &Style, children: Vec<NodeId>) -> PyResult<NodeId> {
         let child_ids: Vec<taffy::NodeId> = children.iter().map(|c| c.inner).collect();
-        self.inner
-            .new_with_children(style.to_taffy(), &child_ids)
+        catch_panic(|| self.inner.new_with_children(style.to_taffy(), &child_ids))?
             .map(NodeId::from)
             .map_err(taffy_error_to_py)
     }
 
     /// Add a child to a parent node.
     fn add_child(&mut self, parent: &NodeId, child: &NodeId) -> PyResult<()> {
-        self.inner
-            .add_child(parent.inner, child.inner)
-            .map_err(taffy_error_to_py)
+        catch_panic(|| self.inner.add_child(parent.inner, child.inner))?.map_err(taffy_error_to_py)
     }
 
     /// Insert a child at a specific index.
@@ -85,33 +81,34 @@ impl TaffyTree {
         child_index: usize,
         child: &NodeId,
     ) -> PyResult<()> {
-        self.inner
-            .insert_child_at_index(parent.inner, child_index, child.inner)
-            .map_err(taffy_error_to_py)
+        catch_panic(|| {
+            self.inner
+                .insert_child_at_index(parent.inner, child_index, child.inner)
+        })?
+        .map_err(taffy_error_to_py)
     }
 
     /// Set the children of a node, replacing any existing children.
     fn set_children(&mut self, parent: &NodeId, children: Vec<NodeId>) -> PyResult<()> {
         let child_ids: Vec<taffy::NodeId> = children.iter().map(|c| c.inner).collect();
-        self.inner
-            .set_children(parent.inner, &child_ids)
+        catch_panic(|| self.inner.set_children(parent.inner, &child_ids))?
             .map_err(taffy_error_to_py)
     }
 
     /// Remove a specific child from a parent.
     fn remove_child(&mut self, parent: &NodeId, child: &NodeId) -> PyResult<NodeId> {
-        self.inner
-            .remove_child(parent.inner, child.inner)
+        catch_panic(|| self.inner.remove_child(parent.inner, child.inner))?
             .map(NodeId::from)
             .map_err(taffy_error_to_py)
     }
 
     /// Remove a child at a specific index.
     fn remove_child_at_index(&mut self, parent: &NodeId, child_index: usize) -> PyResult<NodeId> {
-        self.inner
-            .remove_child_at_index(parent.inner, child_index)
-            .map(NodeId::from)
-            .map_err(taffy_error_to_py)
+        catch_node_panic(parent, || {
+            self.inner.remove_child_at_index(parent.inner, child_index)
+        })?
+        .map(NodeId::from)
+        .map_err(taffy_error_to_py)
     }
 
     /// Replace the child at a specific index with a new child.
@@ -121,36 +118,38 @@ impl TaffyTree {
         child_index: usize,
         new_child: &NodeId,
     ) -> PyResult<NodeId> {
-        self.inner
-            .replace_child_at_index(parent.inner, child_index, new_child.inner)
-            .map(NodeId::from)
-            .map_err(taffy_error_to_py)
+        catch_panic(|| {
+            self.inner
+                .replace_child_at_index(parent.inner, child_index, new_child.inner)
+        })?
+        .map(NodeId::from)
+        .map_err(taffy_error_to_py)
     }
 
     /// Get the child at a specific index.
     fn child_at_index(&self, parent: &NodeId, child_index: usize) -> PyResult<NodeId> {
-        self.inner
-            .child_at_index(parent.inner, child_index)
-            .map(NodeId::from)
-            .map_err(taffy_error_to_py)
+        catch_node_panic(parent, || {
+            self.inner.child_at_index(parent.inner, child_index)
+        })?
+        .map(NodeId::from)
+        .map_err(taffy_error_to_py)
     }
 
     /// Get all children of a node.
     fn children(&self, parent: &NodeId) -> PyResult<Vec<NodeId>> {
-        self.inner
-            .children(parent.inner)
+        catch_node_panic(parent, || self.inner.children(parent.inner))?
             .map(|ids: Vec<taffy::NodeId>| ids.into_iter().map(NodeId::from).collect())
             .map_err(taffy_error_to_py)
     }
 
     /// Get the number of children of a node.
-    fn child_count(&self, parent: &NodeId) -> usize {
-        self.inner.child_count(parent.inner)
+    fn child_count(&self, parent: &NodeId) -> PyResult<usize> {
+        catch_node_panic(parent, || self.inner.child_count(parent.inner))
     }
 
     /// Get the parent of a node, if any.
-    fn parent(&self, child: &NodeId) -> Option<NodeId> {
-        self.inner.parent(child.inner).map(NodeId::from)
+    fn parent(&self, child: &NodeId) -> PyResult<Option<NodeId>> {
+        catch_node_panic(child, || self.inner.parent(child.inner).map(NodeId::from))
     }
 
     /// Get the total number of nodes in the tree.
@@ -160,8 +159,7 @@ impl TaffyTree {
 
     /// Remove a node from the tree.
     fn remove(&mut self, node: &NodeId) -> PyResult<NodeId> {
-        self.inner
-            .remove(node.inner)
+        catch_node_panic(node, || self.inner.remove(node.inner))?
             .map(NodeId::from)
             .map_err(taffy_error_to_py)
     }
@@ -173,27 +171,25 @@ impl TaffyTree {
 
     /// Set the style of a node.
     fn set_style(&mut self, node: &NodeId, style: &Style) -> PyResult<()> {
-        self.inner
-            .set_style(node.inner, style.to_taffy())
+        catch_node_panic(node, || self.inner.set_style(node.inner, style.to_taffy()))?
             .map_err(taffy_error_to_py)
     }
 
     /// Get the style of a node.
     fn style(&self, node: &NodeId) -> PyResult<Style> {
-        self.inner
-            .style(node.inner)
+        catch_node_panic(node, || self.inner.style(node.inner))?
             .map(Style::from)
             .map_err(taffy_error_to_py)
     }
 
     /// Mark a node as dirty (needing re-layout).
     fn mark_dirty(&mut self, node: &NodeId) -> PyResult<()> {
-        self.inner.mark_dirty(node.inner).map_err(taffy_error_to_py)
+        catch_node_panic(node, || self.inner.mark_dirty(node.inner))?.map_err(taffy_error_to_py)
     }
 
     /// Check if a node is dirty (needs re-layout).
     fn dirty(&self, node: &NodeId) -> PyResult<bool> {
-        self.inner.dirty(node.inner).map_err(taffy_error_to_py)
+        catch_node_panic(node, || self.inner.dirty(node.inner))?.map_err(taffy_error_to_py)
     }
 
     /// Compute the layout of a tree rooted at the given node.
@@ -212,64 +208,68 @@ impl TaffyTree {
             });
 
         match measure {
-            None => self
-                .inner
-                .compute_layout(node.inner, avail)
+            None => catch_panic(|| self.inner.compute_layout(node.inner, avail))?
                 .map_err(taffy_error_to_py),
             Some(measure_fn) => {
                 let mut py_err: Option<PyErr> = None;
 
-                let result = self.inner.compute_layout_with_measure(
-                    node.inner,
-                    avail,
-                    |known, available, _node_id, node_context: Option<&mut Py<PyAny>>, _style| {
-                        // If we already have a Python error, short-circuit.
-                        if py_err.is_some() {
-                            return taffy::Size::ZERO;
-                        }
-
-                        // If both dimensions are already known, return them directly.
-                        if let taffy::Size {
-                            width: Some(w),
-                            height: Some(h),
-                        } = known
-                        {
-                            return taffy::Size {
-                                width: w,
-                                height: h,
-                            };
-                        }
-
-                        // If no context, return zero — don't bother calling Python.
-                        let Some(context) = node_context else {
-                            return taffy::Size::ZERO;
-                        };
-
-                        // Convert to Python types and call the measure function.
-                        let py_known = KnownSize::from(known);
-                        let py_avail = AvailableSize::from(available);
-
-                        let call_result =
-                            measure_fn.call1(py, (py_known, py_avail, context.clone_ref(py)));
-
-                        match call_result {
-                            Err(e) => {
-                                py_err = Some(e);
-                                taffy::Size::ZERO
+                let result = catch_panic(|| {
+                    self.inner.compute_layout_with_measure(
+                        node.inner,
+                        avail,
+                        |known,
+                         available,
+                         _node_id,
+                         node_context: Option<&mut Py<PyAny>>,
+                         _style| {
+                            // If we already have a Python error, short-circuit.
+                            if py_err.is_some() {
+                                return taffy::Size::ZERO;
                             }
-                            Ok(result) => match result.extract::<crate::geometry::Size>(py) {
-                                Ok(size) => taffy::Size {
-                                    width: size.width,
-                                    height: size.height,
-                                },
+
+                            // If both dimensions are already known, return them directly.
+                            if let taffy::Size {
+                                width: Some(w),
+                                height: Some(h),
+                            } = known
+                            {
+                                return taffy::Size {
+                                    width: w,
+                                    height: h,
+                                };
+                            }
+
+                            // If no context, return zero — don't bother calling Python.
+                            let Some(context) = node_context else {
+                                return taffy::Size::ZERO;
+                            };
+
+                            // Convert to Python types and call the measure function.
+                            let py_known = KnownSize::from(known);
+                            let py_avail = AvailableSize::from(available);
+
+                            let call_result =
+                                measure_fn.call1(py, (py_known, py_avail, context.clone_ref(py)));
+
+                            match call_result {
                                 Err(e) => {
-                                    py_err = Some(e.into());
+                                    py_err = Some(e);
                                     taffy::Size::ZERO
                                 }
-                            },
-                        }
-                    },
-                );
+                                Ok(result) => match result.extract::<crate::geometry::Size>(py) {
+                                    Ok(size) => taffy::Size {
+                                        width: size.width,
+                                        height: size.height,
+                                    },
+                                    Err(e) => {
+                                        py_err = Some(e.into());
+                                        taffy::Size::ZERO
+                                    }
+                                },
+                            }
+                        },
+                    )
+                })?;
 
                 // Check for Python errors first, then taffy errors.
                 if let Some(e) = py_err {
@@ -282,15 +282,16 @@ impl TaffyTree {
 
     /// Get the computed layout of a node.
     fn layout(&self, node: &NodeId) -> PyResult<Layout> {
-        self.inner
-            .layout(node.inner)
+        catch_node_panic(node, || self.inner.layout(node.inner))?
             .map(Layout::from)
             .map_err(taffy_error_to_py)
     }
 
     /// Get the unrounded layout of a node.
-    fn unrounded_layout(&self, node: &NodeId) -> Layout {
-        Layout::from(self.inner.unrounded_layout(node.inner))
+    fn unrounded_layout(&self, node: &NodeId) -> PyResult<Layout> {
+        catch_node_panic(node, || {
+            Layout::from(self.inner.unrounded_layout(node.inner))
+        })
     }
 
     /// Enable rounding of layout values.
@@ -304,8 +305,8 @@ impl TaffyTree {
     }
 
     /// Print the layout tree for debugging.
-    fn print_tree(&mut self, root: &NodeId) {
-        self.inner.print_tree(root.inner);
+    fn print_tree(&mut self, root: &NodeId) -> PyResult<()> {
+        catch_node_panic(root, || self.inner.print_tree(root.inner))
     }
 
     fn __repr__(&self) -> String {

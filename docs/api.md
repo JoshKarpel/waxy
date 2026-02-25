@@ -108,6 +108,8 @@
 
 ::: waxy.InvalidGridSpan
 
+::: waxy.InvalidNodeId
+
 ::: waxy.ChildIndexOutOfBounds
 
 ::: waxy.InvalidParentNode

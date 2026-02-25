@@ -7,6 +7,7 @@ TAFFY_EXCEPTION_SUBCLASSES = [
     waxy.InvalidParentNode,
     waxy.InvalidChildNode,
     waxy.InvalidInputNode,
+    waxy.InvalidNodeId,
 ]
 
 
@@ -144,15 +145,6 @@ def test_child_index_out_of_bounds() -> None:
         tree.child_at_index(parent, 0)
 
 
-def test_invalid_parent_node() -> None:
-    tree = waxy.TaffyTree()
-    node = tree.new_leaf(waxy.Style())
-    tree.remove(node)
-    # taffy panics on invalid node access (slotmap behavior)
-    with pytest.raises(BaseException, match="invalid SlotMap key"):
-        tree.children(node)
-
-
 def test_catch_taffy_base_exception() -> None:
     tree = waxy.TaffyTree()
     parent = tree.new_leaf(waxy.Style())
@@ -165,3 +157,184 @@ def test_catch_waxy_base_exception() -> None:
     parent = tree.new_leaf(waxy.Style())
     with pytest.raises(waxy.WaxyException):
         tree.child_at_index(parent, 99)
+
+
+# --- InvalidNodeId hierarchy tests ---
+
+
+def test_invalid_node_id_is_taffy_exception() -> None:
+    assert issubclass(waxy.InvalidNodeId, waxy.TaffyException)
+
+
+def test_invalid_node_id_is_key_error() -> None:
+    assert issubclass(waxy.InvalidNodeId, KeyError)
+
+
+def test_invalid_node_id_is_exception() -> None:
+    assert issubclass(waxy.InvalidNodeId, Exception)
+
+
+# --- InvalidNodeId behavioral tests (one per panicking method) ---
+
+
+def _removed_node() -> tuple[waxy.TaffyTree, waxy.NodeId]:
+    """Helper: create a tree, add a node, remove it, return both."""
+    tree = waxy.TaffyTree()
+    node = tree.new_leaf(waxy.Style())
+    tree.remove(node)
+    return tree, node
+
+
+def test_invalid_node_id_children() -> None:
+    tree, node = _removed_node()
+    with pytest.raises(waxy.InvalidNodeId):
+        tree.children(node)
+
+
+def test_invalid_node_id_child_count() -> None:
+    tree, node = _removed_node()
+    with pytest.raises(waxy.InvalidNodeId):
+        tree.child_count(node)
+
+
+def test_invalid_node_id_parent() -> None:
+    tree, node = _removed_node()
+    with pytest.raises(waxy.InvalidNodeId):
+        tree.parent(node)
+
+
+def test_invalid_node_id_style() -> None:
+    tree, node = _removed_node()
+    with pytest.raises(waxy.InvalidNodeId):
+        tree.style(node)
+
+
+def test_invalid_node_id_set_style() -> None:
+    tree, node = _removed_node()
+    with pytest.raises(waxy.InvalidNodeId):
+        tree.set_style(node, waxy.Style())
+
+
+def test_invalid_node_id_layout() -> None:
+    tree, node = _removed_node()
+    with pytest.raises(waxy.InvalidNodeId):
+        tree.layout(node)
+
+
+def test_invalid_node_id_unrounded_layout() -> None:
+    tree, node = _removed_node()
+    with pytest.raises(waxy.InvalidNodeId):
+        tree.unrounded_layout(node)
+
+
+def test_invalid_node_id_mark_dirty() -> None:
+    tree, node = _removed_node()
+    with pytest.raises(waxy.InvalidNodeId):
+        tree.mark_dirty(node)
+
+
+def test_invalid_node_id_dirty() -> None:
+    tree, node = _removed_node()
+    with pytest.raises(waxy.InvalidNodeId):
+        tree.dirty(node)
+
+
+def test_invalid_node_id_set_node_context() -> None:
+    tree, node = _removed_node()
+    with pytest.raises(waxy.InvalidNodeId):
+        tree.set_node_context(node, "ctx")
+
+
+def test_invalid_node_id_remove_double() -> None:
+    tree, node = _removed_node()
+    with pytest.raises(waxy.InvalidNodeId):
+        tree.remove(node)
+
+
+def test_invalid_node_id_add_child() -> None:
+    tree, node = _removed_node()
+    live = tree.new_leaf(waxy.Style())
+    with pytest.raises(waxy.InvalidNodeId):
+        tree.add_child(node, live)
+
+
+def test_invalid_node_id_add_child_invalid_child() -> None:
+    tree, node = _removed_node()
+    live = tree.new_leaf(waxy.Style())
+    with pytest.raises(waxy.InvalidNodeId):
+        tree.add_child(live, node)
+
+
+def test_invalid_node_id_insert_child_at_index() -> None:
+    tree, node = _removed_node()
+    live = tree.new_leaf(waxy.Style())
+    with pytest.raises(waxy.InvalidNodeId):
+        tree.insert_child_at_index(node, 0, live)
+
+
+def test_invalid_node_id_set_children() -> None:
+    tree, node = _removed_node()
+    with pytest.raises(waxy.InvalidNodeId):
+        tree.set_children(node, [])
+
+
+def test_invalid_node_id_remove_child() -> None:
+    tree, node = _removed_node()
+    live = tree.new_leaf(waxy.Style())
+    with pytest.raises(waxy.InvalidNodeId):
+        tree.remove_child(node, live)
+
+
+def test_invalid_node_id_remove_child_at_index() -> None:
+    tree, node = _removed_node()
+    with pytest.raises(waxy.InvalidNodeId):
+        tree.remove_child_at_index(node, 0)
+
+
+def test_invalid_node_id_replace_child_at_index() -> None:
+    tree, node = _removed_node()
+    live = tree.new_leaf(waxy.Style())
+    with pytest.raises(waxy.InvalidNodeId):
+        tree.replace_child_at_index(node, 0, live)
+
+
+def test_invalid_node_id_child_at_index() -> None:
+    tree, node = _removed_node()
+    with pytest.raises(waxy.InvalidNodeId):
+        tree.child_at_index(node, 0)
+
+
+def test_invalid_node_id_new_with_children() -> None:
+    tree, node = _removed_node()
+    with pytest.raises(waxy.InvalidNodeId):
+        tree.new_with_children(waxy.Style(), [node])
+
+
+def test_invalid_node_id_print_tree() -> None:
+    tree, node = _removed_node()
+    with pytest.raises(waxy.InvalidNodeId):
+        tree.print_tree(node)
+
+
+def test_invalid_node_id_compute_layout() -> None:
+    tree, node = _removed_node()
+    with pytest.raises(waxy.InvalidNodeId):
+        tree.compute_layout(node)
+
+
+def test_invalid_node_id_catchable_as_key_error() -> None:
+    tree, node = _removed_node()
+    with pytest.raises(KeyError):
+        tree.children(node)
+
+
+def test_invalid_node_id_catchable_as_taffy_exception() -> None:
+    tree, node = _removed_node()
+    with pytest.raises(waxy.TaffyException):
+        tree.children(node)
+
+
+def test_invalid_node_id_catchable_as_exception() -> None:
+    tree, node = _removed_node()
+    with pytest.raises(Exception, match="not present in the tree"):
+        tree.children(node)

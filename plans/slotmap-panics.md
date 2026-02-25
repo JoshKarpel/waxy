@@ -1,6 +1,6 @@
 # Plan: Raise Real Exceptions from SlotMap Panics (Issue #28)
 
-**Status: Planned**
+**Status: Implemented**
 
 ## Background
 

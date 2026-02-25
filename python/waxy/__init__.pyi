@@ -20,6 +20,9 @@ class InvalidGridLine(WaxyException, ValueError):
 class InvalidGridSpan(WaxyException, ValueError):
     """Raised when GridSpan(count) is called with count 0 (must span at least 1 track)."""
 
+class InvalidNodeId(TaffyException, KeyError):
+    """Raised when a node ID is not valid (node may have been removed)."""
+
 class ChildIndexOutOfBounds(TaffyException):
     """Child index is out of bounds."""
 
