@@ -440,84 +440,127 @@ class Display:
     """How the node should be displayed."""
 
     Block: Display
+    """Block layout."""
     Flex: Display
+    """Flexbox layout."""
     Grid: Display
+    """CSS Grid layout."""
     Nil: Display
+    """No display (maps to CSS `display: none`)."""
 
 class Position:
     """How the node should be positioned."""
 
     Relative: Position
+    """Positioned according to normal flow, then offset."""
     Absolute: Position
+    """Removed from normal flow and positioned relative to its containing block."""
 
 class FlexDirection:
     """The direction of a flex container's main axis."""
 
     Row: FlexDirection
+    """Items are laid out in a row (left to right)."""
     Column: FlexDirection
+    """Items are laid out in a column (top to bottom)."""
     RowReverse: FlexDirection
+    """Items are laid out in a row in reverse order (right to left)."""
     ColumnReverse: FlexDirection
+    """Items are laid out in a column in reverse order (bottom to top)."""
 
 class FlexWrap:
     """Whether flex items wrap."""
 
     NoWrap: FlexWrap
+    """Items are forced onto a single line."""
     Wrap: FlexWrap
+    """Items wrap onto multiple lines."""
     WrapReverse: FlexWrap
+    """Items wrap onto multiple lines in reverse order."""
 
 class AlignItems:
     """Alignment of items along the cross axis."""
 
     Start: AlignItems
+    """Align to the start of the cross axis."""
     End: AlignItems
+    """Align to the end of the cross axis."""
     FlexStart: AlignItems
+    """Align to the start of the cross axis (respects `flex-direction`)."""
     FlexEnd: AlignItems
+    """Align to the end of the cross axis (respects `flex-direction`)."""
     Center: AlignItems
+    """Center along the cross axis."""
     Baseline: AlignItems
+    """Align to the first baseline."""
     Stretch: AlignItems
+    """Stretch to fill the cross axis."""
 
 class AlignContent:
     """Alignment of content within the container."""
 
     Start: AlignContent
+    """Pack lines to the start of the container."""
     End: AlignContent
+    """Pack lines to the end of the container."""
     FlexStart: AlignContent
+    """Pack lines to the start of the container (respects `flex-direction`)."""
     FlexEnd: AlignContent
+    """Pack lines to the end of the container (respects `flex-direction`)."""
     Center: AlignContent
+    """Center lines within the container."""
     Stretch: AlignContent
+    """Stretch lines to fill the container."""
     SpaceBetween: AlignContent
+    """Distribute lines evenly; first line at start, last at end."""
     SpaceEvenly: AlignContent
+    """Distribute lines with equal space around each line."""
     SpaceAround: AlignContent
+    """Distribute lines with half-size spaces on the edges."""
 
 class Overflow:
     """How content overflows its container."""
 
     Visible: Overflow
+    """Content is not clipped and may overflow."""
     Clip: Overflow
+    """Content is clipped without a scrollbar."""
     Hidden: Overflow
+    """Content is clipped and hidden; scroll position cannot be changed programmatically."""
     Scroll: Overflow
+    """Content is clipped but scrollable."""
 
 class GridAutoFlow:
     """How grid items are auto-placed."""
 
     Row: GridAutoFlow
+    """Place items by filling each row."""
     Column: GridAutoFlow
+    """Place items by filling each column."""
     RowDense: GridAutoFlow
+    """Place items by filling each row, backfilling gaps."""
     ColumnDense: GridAutoFlow
+    """Place items by filling each column, backfilling gaps."""
 
 class BoxSizing:
     """Box sizing model."""
 
     BorderBox: BoxSizing
+    """Width and height include padding and border."""
     ContentBox: BoxSizing
+    """Width and height apply to the content area only."""
 
 class TextAlign:
     """Text alignment."""
 
     Auto: TextAlign
+    """Automatic text alignment."""
     LegacyLeft: TextAlign
+    """Left-aligned text."""
     LegacyRight: TextAlign
+    """Right-aligned text."""
     LegacyCenter: TextAlign
+    """Centered text."""
 
 type GridPlacementValue = GridLine | GridSpan | Auto
 """A grid placement value used in GridPlacement start and end: GridLine, GridSpan, or Auto."""
@@ -661,209 +704,209 @@ class Style:
         of individual fields.
 
         Args:
-            display: How the node is laid out (Block, Flex, Grid, or Nil).
-            box_sizing: Whether size includes border and padding (BorderBox) or not (ContentBox).
-            overflow_x: How overflowing content is handled horizontally.
-            overflow_y: How overflowing content is handled vertically.
-            scrollbar_width: Width of the scrollbar gutter in pixels.
-            position: Whether the node is positioned relative to its parent or absolutely.
-            inset_left: Left offset for absolutely-positioned nodes.
-            inset_right: Right offset for absolutely-positioned nodes.
-            inset_top: Top offset for absolutely-positioned nodes.
-            inset_bottom: Bottom offset for absolutely-positioned nodes.
-            size_width: Preferred width of the node.
-            size_height: Preferred height of the node.
-            min_size_width: Minimum width of the node.
-            min_size_height: Minimum height of the node.
-            max_size_width: Maximum width of the node.
-            max_size_height: Maximum height of the node.
-            aspect_ratio: Preferred aspect ratio (width / height), or None.
-            margin_left: Left outer spacing.
-            margin_right: Right outer spacing.
-            margin_top: Top outer spacing.
-            margin_bottom: Bottom outer spacing.
-            padding_left: Left inner spacing.
-            padding_right: Right inner spacing.
-            padding_top: Top inner spacing.
-            padding_bottom: Bottom inner spacing.
-            border_left: Left border width.
-            border_right: Right border width.
-            border_top: Top border width.
-            border_bottom: Bottom border width.
-            align_items: Default alignment of children along the cross axis.
-            align_self: Override alignment of this node along the parent's cross axis.
-            justify_items: Default alignment of children along the main axis.
-            justify_self: Override alignment of this node along the parent's main axis.
-            align_content: Alignment of rows/columns when there is extra space in the cross axis.
-            justify_content: Distribution of children along the main axis.
-            gap_width: Horizontal gap between grid/flex items.
-            gap_height: Vertical gap between grid/flex items.
-            text_align: Text alignment within the node.
-            flex_direction: Direction of the flex container's main axis.
-            flex_wrap: Whether flex items wrap onto multiple lines.
-            flex_basis: Default size of a flex item before growing or shrinking.
-            flex_grow: Rate at which a flex item grows to fill available space.
-            flex_shrink: Rate at which a flex item shrinks when space is tight.
-            grid_template_rows: Explicit row track sizing in a grid container.
-            grid_template_columns: Explicit column track sizing in a grid container.
-            grid_auto_rows: Sizing of implicitly-created row tracks.
-            grid_auto_columns: Sizing of implicitly-created column tracks.
-            grid_auto_flow: How auto-placed items are inserted in the grid.
-            grid_row: Row placement of this item in a grid container.
-            grid_column: Column placement of this item in a grid container.
+            display: How the node is laid out (Block, Flex, Grid, or Nil). [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/display)
+            box_sizing: Whether size includes border and padding (BorderBox) or not (ContentBox). [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/box-sizing)
+            overflow_x: How overflowing content is handled horizontally. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/overflow-x)
+            overflow_y: How overflowing content is handled vertically. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/overflow-y)
+            scrollbar_width: Width of the scrollbar gutter in pixels. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/scrollbar-gutter)
+            position: Whether the node is positioned relative to its parent or absolutely. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/position)
+            inset_left: Left offset for absolutely-positioned nodes. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/left)
+            inset_right: Right offset for absolutely-positioned nodes. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/right)
+            inset_top: Top offset for absolutely-positioned nodes. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/top)
+            inset_bottom: Bottom offset for absolutely-positioned nodes. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/bottom)
+            size_width: Preferred width of the node. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/width)
+            size_height: Preferred height of the node. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/height)
+            min_size_width: Minimum width of the node. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/min-width)
+            min_size_height: Minimum height of the node. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/min-height)
+            max_size_width: Maximum width of the node. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/max-width)
+            max_size_height: Maximum height of the node. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/max-height)
+            aspect_ratio: Preferred aspect ratio (width / height), or None. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/aspect-ratio)
+            margin_left: Left outer spacing. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/margin-left)
+            margin_right: Right outer spacing. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/margin-right)
+            margin_top: Top outer spacing. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/margin-top)
+            margin_bottom: Bottom outer spacing. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/margin-bottom)
+            padding_left: Left inner spacing. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/padding-left)
+            padding_right: Right inner spacing. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/padding-right)
+            padding_top: Top inner spacing. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/padding-top)
+            padding_bottom: Bottom inner spacing. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/padding-bottom)
+            border_left: Left border width. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/border-left-width)
+            border_right: Right border width. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/border-right-width)
+            border_top: Top border width. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/border-top-width)
+            border_bottom: Bottom border width. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/border-bottom-width)
+            align_items: Default alignment of children along the cross axis. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/align-items)
+            align_self: Override alignment of this node along the parent's cross axis. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/align-self)
+            justify_items: Default alignment of children along the main axis. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/justify-items)
+            justify_self: Override alignment of this node along the parent's main axis. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/justify-self)
+            align_content: Alignment of rows/columns when there is extra space in the cross axis. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/align-content)
+            justify_content: Distribution of children along the main axis. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/justify-content)
+            gap_width: Horizontal gap between grid/flex items. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/column-gap)
+            gap_height: Vertical gap between grid/flex items. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/row-gap)
+            text_align: Text alignment within the node. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/text-align)
+            flex_direction: Direction of the flex container's main axis. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/flex-direction)
+            flex_wrap: Whether flex items wrap onto multiple lines. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/flex-wrap)
+            flex_basis: Default size of a flex item before growing or shrinking. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/flex-basis)
+            flex_grow: Rate at which a flex item grows to fill available space. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/flex-grow)
+            flex_shrink: Rate at which a flex item shrinks when space is tight. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/flex-shrink)
+            grid_template_rows: Explicit row track sizing in a grid container. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/grid-template-rows)
+            grid_template_columns: Explicit column track sizing in a grid container. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/grid-template-columns)
+            grid_auto_rows: Sizing of implicitly-created row tracks. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/grid-auto-rows)
+            grid_auto_columns: Sizing of implicitly-created column tracks. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/grid-auto-columns)
+            grid_auto_flow: How auto-placed items are inserted in the grid. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/grid-auto-flow)
+            grid_row: Row placement of this item in a grid container. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/grid-row)
+            grid_column: Column placement of this item in a grid container. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/grid-column)
         """
     def __repr__(self) -> str: ...
     def __or__(self, other: Style) -> Style: ...
     @property
     def display(self) -> Display:
-        """How the node is laid out (Block, Flex, Grid, or Nil)."""
+        """How the node is laid out (Block, Flex, Grid, or Nil). [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/display)."""
     @property
     def box_sizing(self) -> BoxSizing:
-        """Whether size includes border and padding (BorderBox) or not (ContentBox)."""
+        """Whether size includes border and padding (BorderBox) or not (ContentBox). [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/box-sizing)."""
     @property
     def overflow_x(self) -> Overflow:
-        """How overflowing content is handled horizontally."""
+        """How overflowing content is handled horizontally. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/overflow-x)."""
     @property
     def overflow_y(self) -> Overflow:
-        """How overflowing content is handled vertically."""
+        """How overflowing content is handled vertically. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/overflow-y)."""
     @property
     def scrollbar_width(self) -> float:
-        """Width of the scrollbar gutter in pixels."""
+        """Width of the scrollbar gutter in pixels. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/scrollbar-gutter)."""
     @property
     def position(self) -> Position:
-        """Whether the node is positioned relative to its parent or absolutely."""
+        """Whether the node is positioned relative to its parent or absolutely. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/position)."""
     @property
     def inset_left(self) -> DimensionValue:
-        """Left offset for absolutely-positioned nodes."""
+        """Left offset for absolutely-positioned nodes. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/left)."""
     @property
     def inset_right(self) -> DimensionValue:
-        """Right offset for absolutely-positioned nodes."""
+        """Right offset for absolutely-positioned nodes. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/right)."""
     @property
     def inset_top(self) -> DimensionValue:
-        """Top offset for absolutely-positioned nodes."""
+        """Top offset for absolutely-positioned nodes. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/top)."""
     @property
     def inset_bottom(self) -> DimensionValue:
-        """Bottom offset for absolutely-positioned nodes."""
+        """Bottom offset for absolutely-positioned nodes. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/bottom)."""
     @property
     def size_width(self) -> DimensionValue:
-        """Preferred width of the node."""
+        """Preferred width of the node. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/width)."""
     @property
     def size_height(self) -> DimensionValue:
-        """Preferred height of the node."""
+        """Preferred height of the node. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/height)."""
     @property
     def min_size_width(self) -> DimensionValue:
-        """Minimum width of the node."""
+        """Minimum width of the node. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/min-width)."""
     @property
     def min_size_height(self) -> DimensionValue:
-        """Minimum height of the node."""
+        """Minimum height of the node. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/min-height)."""
     @property
     def max_size_width(self) -> DimensionValue:
-        """Maximum width of the node."""
+        """Maximum width of the node. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/max-width)."""
     @property
     def max_size_height(self) -> DimensionValue:
-        """Maximum height of the node."""
+        """Maximum height of the node. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/max-height)."""
     @property
     def aspect_ratio(self) -> float | None:
-        """Preferred aspect ratio (width / height), or None."""
+        """Preferred aspect ratio (width / height), or None. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/aspect-ratio)."""
     @property
     def margin_left(self) -> DimensionValue:
-        """Left outer spacing."""
+        """Left outer spacing. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/margin-left)."""
     @property
     def margin_right(self) -> DimensionValue:
-        """Right outer spacing."""
+        """Right outer spacing. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/margin-right)."""
     @property
     def margin_top(self) -> DimensionValue:
-        """Top outer spacing."""
+        """Top outer spacing. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/margin-top)."""
     @property
     def margin_bottom(self) -> DimensionValue:
-        """Bottom outer spacing."""
+        """Bottom outer spacing. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/margin-bottom)."""
     @property
     def padding_left(self) -> LengthPercentageValue:
-        """Left inner spacing."""
+        """Left inner spacing. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/padding-left)."""
     @property
     def padding_right(self) -> LengthPercentageValue:
-        """Right inner spacing."""
+        """Right inner spacing. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/padding-right)."""
     @property
     def padding_top(self) -> LengthPercentageValue:
-        """Top inner spacing."""
+        """Top inner spacing. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/padding-top)."""
     @property
     def padding_bottom(self) -> LengthPercentageValue:
-        """Bottom inner spacing."""
+        """Bottom inner spacing. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/padding-bottom)."""
     @property
     def border_left(self) -> LengthPercentageValue:
-        """Left border width."""
+        """Left border width. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/border-left-width)."""
     @property
     def border_right(self) -> LengthPercentageValue:
-        """Right border width."""
+        """Right border width. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/border-right-width)."""
     @property
     def border_top(self) -> LengthPercentageValue:
-        """Top border width."""
+        """Top border width. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/border-top-width)."""
     @property
     def border_bottom(self) -> LengthPercentageValue:
-        """Bottom border width."""
+        """Bottom border width. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/border-bottom-width)."""
     @property
     def align_items(self) -> AlignItems | None:
-        """Default alignment of children along the cross axis."""
+        """Default alignment of children along the cross axis. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/align-items)."""
     @property
     def align_self(self) -> AlignItems | None:
-        """Override alignment of this node along the parent's cross axis."""
+        """Override alignment of this node along the parent's cross axis. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/align-self)."""
     @property
     def justify_items(self) -> AlignItems | None:
-        """Default alignment of children along the main axis."""
+        """Default alignment of children along the main axis. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/justify-items)."""
     @property
     def justify_self(self) -> AlignItems | None:
-        """Override alignment of this node along the parent's main axis."""
+        """Override alignment of this node along the parent's main axis. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/justify-self)."""
     @property
     def align_content(self) -> AlignContent | None:
-        """Alignment of rows/columns when there is extra space in the cross axis."""
+        """Alignment of rows/columns when there is extra space in the cross axis. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/align-content)."""
     @property
     def justify_content(self) -> AlignContent | None:
-        """Distribution of children along the main axis."""
+        """Distribution of children along the main axis. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/justify-content)."""
     @property
     def gap_width(self) -> LengthPercentageValue:
-        """Horizontal gap between grid/flex items."""
+        """Horizontal gap between grid/flex items. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/column-gap)."""
     @property
     def gap_height(self) -> LengthPercentageValue:
-        """Vertical gap between grid/flex items."""
+        """Vertical gap between grid/flex items. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/row-gap)."""
     @property
     def text_align(self) -> TextAlign:
-        """Text alignment within the node."""
+        """Text alignment within the node. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/text-align)."""
     @property
     def flex_direction(self) -> FlexDirection:
-        """Direction of the flex container's main axis."""
+        """Direction of the flex container's main axis. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/flex-direction)."""
     @property
     def flex_wrap(self) -> FlexWrap:
-        """Whether flex items wrap onto multiple lines."""
+        """Whether flex items wrap onto multiple lines. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/flex-wrap)."""
     @property
     def flex_basis(self) -> DimensionValue:
-        """Default size of a flex item before growing or shrinking."""
+        """Default size of a flex item before growing or shrinking. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/flex-basis)."""
     @property
     def flex_grow(self) -> float:
-        """Rate at which a flex item grows to fill available space."""
+        """Rate at which a flex item grows to fill available space. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/flex-grow)."""
     @property
     def flex_shrink(self) -> float:
-        """Rate at which a flex item shrinks when space is tight."""
+        """Rate at which a flex item shrinks when space is tight. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/flex-shrink)."""
     @property
     def grid_template_rows(self) -> list[GridTrackValue]:
-        """Explicit row track sizing in a grid container."""
+        """Explicit row track sizing in a grid container. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/grid-template-rows)."""
     @property
     def grid_template_columns(self) -> list[GridTrackValue]:
-        """Explicit column track sizing in a grid container."""
+        """Explicit column track sizing in a grid container. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/grid-template-columns)."""
     @property
     def grid_auto_rows(self) -> list[GridTrackValue]:
-        """Sizing of implicitly-created row tracks."""
+        """Sizing of implicitly-created row tracks. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/grid-auto-rows)."""
     @property
     def grid_auto_columns(self) -> list[GridTrackValue]:
-        """Sizing of implicitly-created column tracks."""
+        """Sizing of implicitly-created column tracks. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/grid-auto-columns)."""
     @property
     def grid_auto_flow(self) -> GridAutoFlow:
-        """How auto-placed items are inserted in the grid."""
+        """How auto-placed items are inserted in the grid. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/grid-auto-flow)."""
     @property
     def grid_row(self) -> GridPlacement:
-        """Row placement of this item in a grid container."""
+        """Row placement of this item in a grid container. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/grid-row)."""
     @property
     def grid_column(self) -> GridPlacement:
-        """Column placement of this item in a grid container."""
+        """Column placement of this item in a grid container. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/grid-column)."""
 
 # Tree
 
