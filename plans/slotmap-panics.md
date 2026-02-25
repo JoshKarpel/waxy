@@ -282,23 +282,44 @@ where
 }
 ```
 
-## Implementation Plan
+## Implementation Plan (TDD)
 
-### Step 1: Add `InvalidNodeId` exception
+We use red/green TDD: write failing tests first, then implement until they pass.
+
+### Step 1: Add `InvalidNodeId` exception (minimal skeleton)
+
+Create just enough so the tests can import and reference `InvalidNodeId`:
 
 In `src/errors.rs`:
 - Add `create_exception!(waxy, InvalidNodeId, TaffyException, "Node ID is not valid.");`
 - In `register()`, use the `__bases__` override pattern to set bases to `(TaffyException, KeyError)`, then add to the module
 
-### Step 2: Add `catch_panic` helpers
+In `python/waxy/__init__.py` — add `InvalidNodeId` to imports and `__all__`.
 
-In `src/errors.rs` (or a new `src/panic.rs` if preferred, but `errors.rs` is the natural home):
+In `python/waxy/__init__.pyi` — add `InvalidNodeId` exception class.
+
+At this point the exception exists but no method raises it yet — all behavioral tests will be red.
+
+### Step 2: Write tests (RED)
+
+In `tests/test_errors.py`:
+- Add `InvalidNodeId` to `EXCEPTION_SUBCLASSES`
+- Change the existing `test_invalid_parent_node` test to assert `InvalidNodeId` instead of `BaseException`
+- Remove `test_catch_base_exception` (the panic will now be a proper exception)
+- Add tests for `InvalidNodeId` on every panicking method: `children`, `child_count`, `parent`, `style`, `set_style`, `layout`, `unrounded_layout`, `mark_dirty`, `dirty`, `set_node_context`, `remove` (double-remove), `add_child`, `insert_child_at_index`, `set_children`, `remove_child`, `remove_child_at_index`, `replace_child_at_index`, `child_at_index`, `new_with_children`, `print_tree`, `compute_layout`
+- Add tests verifying `InvalidNodeId` is catchable as `TaffyException`, `KeyError`, and `Exception`
+
+Run tests — confirm they fail (red). The methods still raise `PanicException` / `BaseException`, not `InvalidNodeId`.
+
+### Step 3: Add `catch_panic` helpers
+
+In `src/errors.rs`:
 - Add `catch_node_panic(node, f)` for single-node methods
 - Add `catch_panic(f)` for multi-node and generic methods
 
-### Step 3: Wrap all panicking `TaffyTree` methods
+### Step 4: Wrap all panicking `TaffyTree` methods (GREEN)
 
-In `src/tree.rs`, wrap each method listed in the scope section. Methods that currently don't return `PyResult` will be changed to do so.
+In `src/tree.rs`, wrap each method listed in the scope section. Methods that currently don't return `PyResult` will be changed to do so. After each batch of methods, run tests to confirm they go green incrementally.
 
 Affected methods (21 total):
 
@@ -330,21 +351,7 @@ Affected methods (21 total):
 **Safe — no wrapping needed:**
 - `get_node_context(node)` — uses `SparseSecondaryMap.get()` which returns `Option`, not `[]` indexing
 
-### Step 4: Update Python exports
-
-- `python/waxy/__init__.py` — add `InvalidNodeId` to imports and `__all__`
-- `python/waxy/__init__.pyi` — add `InvalidNodeId` exception class
-
-### Step 5: Update tests
-
-In `tests/test_errors.py`:
-- Add `InvalidNodeId` to `EXCEPTION_SUBCLASSES`
-- Change the existing `test_invalid_parent_node` test to assert `InvalidNodeId` instead of `BaseException`
-- Remove `test_catch_base_exception` or update it (since the panic is now a proper exception)
-- Add tests for `InvalidNodeId` on various methods: `children`, `child_count`, `parent`, `style`, `layout`, `set_style`, etc.
-- Verify `InvalidNodeId` is catchable as `TaffyException` and `Exception`
-
-### Step 6: Update `CLAUDE.md`
+### Step 5: Update `CLAUDE.md`
 
 Update the "Removed node access" bullet point to reflect the new behavior:
 - Old: "**Removed node access** causes a Rust panic (slotmap behavior), not a `TaffyError`."
