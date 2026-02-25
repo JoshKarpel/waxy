@@ -106,6 +106,20 @@ class Rect:
         """Iterate over integer pixel locations along the left edge."""
     def right_edge(self) -> Iterator[Point]:
         """Iterate over integer pixel locations along the right edge."""
+    def points(self) -> Iterator[Point]:
+        """Iterate over all integer pixel locations contained within this rectangle."""
+    def rows(self) -> Iterator[Iterator[Point]]:
+        """
+        Iterate over rows of integer pixel locations.
+
+        Each row is an iterator of Points with the same y coordinate.
+        """
+    def columns(self) -> Iterator[Iterator[Point]]:
+        """
+        Iterate over columns of integer pixel locations.
+
+        Each column is an iterator of Points with the same x coordinate.
+        """
 
 class Point:
     """A 2D point with x and y coordinates."""

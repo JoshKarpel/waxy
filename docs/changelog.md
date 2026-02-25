@@ -19,6 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   `Definite`, `Fraction`, `FitContent`, `Minmax`, `GridLine`, `GridSpan`) as
   standalone frozen pyclasses with union-based style fields, replacing the
   previous 1:1 taffy enum representations.
+- [#33](https://github.com/JoshKarpel/waxy/pull/33) `Rect.points()`, `Rect.rows()`, and `Rect.columns()` methods for iterating
+  over integer pixel locations within a rectangle.
 
 ### Changed
 
