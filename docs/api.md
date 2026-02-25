@@ -96,6 +96,28 @@
 
 ## Exceptions
 
+```
+Exception
+ ├── KeyError
+ │    └── InvalidNodeId [TaffyException]
+ ├── ValueError
+ │    ├── InvalidPercent [WaxyException]
+ │    ├── InvalidLength [WaxyException]
+ │    ├── InvalidGridLine [WaxyException]
+ │    └── InvalidGridSpan [WaxyException]
+ └── WaxyException
+      ├── InvalidPercent [ValueError]
+      ├── InvalidLength [ValueError]
+      ├── InvalidGridLine [ValueError]
+      ├── InvalidGridSpan [ValueError]
+      └── TaffyException
+           ├── ChildIndexOutOfBounds
+           ├── InvalidParentNode
+           ├── InvalidChildNode
+           ├── InvalidInputNode
+           └── InvalidNodeId [KeyError]
+```
+
 ::: waxy.WaxyException
 
 ::: waxy.TaffyException

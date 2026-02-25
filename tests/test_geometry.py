@@ -145,6 +145,40 @@ def test_rect_iter_integer_pixels() -> None:
     ]
 
 
+def test_rect_points() -> None:
+    r = waxy.Rect(0.0, 2.0, 0.0, 1.0)
+    assert list(r.points()) == list(r)
+
+
+def test_rect_rows() -> None:
+    r = waxy.Rect(0.0, 2.0, 0.0, 1.0)
+    rows = [list(row) for row in r.rows()]
+    assert rows == [
+        [waxy.Point(0.0, 0.0), waxy.Point(1.0, 0.0), waxy.Point(2.0, 0.0)],
+        [waxy.Point(0.0, 1.0), waxy.Point(1.0, 1.0), waxy.Point(2.0, 1.0)],
+    ]
+
+
+def test_rect_columns() -> None:
+    r = waxy.Rect(0.0, 2.0, 0.0, 1.0)
+    cols = [list(col) for col in r.columns()]
+    assert cols == [
+        [waxy.Point(0.0, 0.0), waxy.Point(0.0, 1.0)],
+        [waxy.Point(1.0, 0.0), waxy.Point(1.0, 1.0)],
+        [waxy.Point(2.0, 0.0), waxy.Point(2.0, 1.0)],
+    ]
+
+
+def test_rect_rows_empty() -> None:
+    r = waxy.Rect(0.5, 0.6, 0.0, 1.0)
+    assert [list(row) for row in r.rows()] == []
+
+
+def test_rect_columns_empty() -> None:
+    r = waxy.Rect(0.0, 1.0, 0.5, 0.6)
+    assert [list(col) for col in r.columns()] == []
+
+
 def test_rect_iter_fractional_edges() -> None:
     r = waxy.Rect(0.5, 2.5, 0.5, 1.5)
     points = list(r)

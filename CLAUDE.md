@@ -79,6 +79,10 @@ Docstrings for the API reference come from **`python/waxy/__init__.pyi`**, not f
 
 **Type aliases** (`DimensionValue`, `LengthPercentageValue`, `AvailableSpaceValue`, `GridTrackValue`, `GridTrackMinValue`, `GridTrackMaxValue`, `GridPlacementValue`) are defined directly in `python/waxy/__init__.py` using PEP 695 `type` syntax. They are also mirrored in the `.pyi` stub for type checkers. griffe reads pure-Python names from the source file, so the docstrings on these aliases live in `__init__.py` itself, not the stub.
 
+## Changelog
+
+`docs/changelog.md` follows [Keep a Changelog](https://keepachangelog.com/) format. Add user-facing changes to the `[Unreleased]` section under the appropriate category (`Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`). Skip non-user-facing changes like CI tweaks and dependency bumps. List the PR link first on each item (e.g., `- [#123](https://github.com/JoshKarpel/waxy/pull/123) Description of change.`).
+
 ## Taffy Version
 
 Pinned to taffy **0.9.x**. The taffy source can be inspected at:

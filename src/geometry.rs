@@ -218,6 +218,33 @@ impl Rect {
     }
 
     /// Iterate over all integer pixel locations contained within this rectangle.
+    fn points(&self) -> PixelIter {
+        self.__iter__()
+    }
+
+    /// Iterate over rows of integer pixel locations within this rectangle.
+    /// Each row is an iterator of Points with the same y coordinate.
+    fn rows(&self) -> RowIter {
+        RowIter {
+            x_start: self.left.ceil() as i32,
+            x_end: self.right.floor() as i32,
+            y_end: self.bottom.floor() as i32,
+            y: self.top.ceil() as i32,
+        }
+    }
+
+    /// Iterate over columns of integer pixel locations within this rectangle.
+    /// Each column is an iterator of Points with the same x coordinate.
+    fn columns(&self) -> ColumnIter {
+        ColumnIter {
+            x_end: self.right.floor() as i32,
+            y_start: self.top.ceil() as i32,
+            y_end: self.bottom.floor() as i32,
+            x: self.left.ceil() as i32,
+        }
+    }
+
+    /// Iterate over all integer pixel locations contained within this rectangle.
     fn __iter__(&self) -> PixelIter {
         let x_start = self.left.ceil() as i32;
         let x_end = self.right.floor() as i32;
@@ -451,6 +478,68 @@ impl PixelIter {
             self.y += 1;
         }
         Some(point)
+    }
+}
+
+/// Iterator that yields PixelIter for each row of a Rect.
+#[pyclass(module = "waxy")]
+struct RowIter {
+    x_start: i32,
+    x_end: i32,
+    y_end: i32,
+    y: i32,
+}
+
+#[pymethods]
+impl RowIter {
+    fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+        slf
+    }
+
+    fn __next__(&mut self) -> Option<PixelIter> {
+        if self.y > self.y_end || self.x_start > self.x_end {
+            return None;
+        }
+        let iter = PixelIter {
+            x_start: self.x_start,
+            x_end: self.x_end,
+            y_end: self.y,
+            x: self.x_start,
+            y: self.y,
+        };
+        self.y += 1;
+        Some(iter)
+    }
+}
+
+/// Iterator that yields PixelIter for each column of a Rect.
+#[pyclass(module = "waxy")]
+struct ColumnIter {
+    x_end: i32,
+    y_start: i32,
+    y_end: i32,
+    x: i32,
+}
+
+#[pymethods]
+impl ColumnIter {
+    fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+        slf
+    }
+
+    fn __next__(&mut self) -> Option<PixelIter> {
+        if self.x > self.x_end || self.y_start > self.y_end {
+            return None;
+        }
+        let iter = PixelIter {
+            x_start: self.x,
+            x_end: self.x,
+            y_end: self.y_end,
+            x: self.x,
+            y: self.y_start,
+        };
+        self.x += 1;
+        Some(iter)
     }
 }
 
