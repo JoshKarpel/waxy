@@ -338,3 +338,23 @@ def test_invalid_node_id_catchable_as_exception() -> None:
     tree, node = _removed_node()
     with pytest.raises(Exception, match="not present in the tree"):
         tree.children(node)
+
+
+def test_measure_error_preserved_over_invalid_node_id() -> None:
+    """A Python exception from the measure function takes priority over InvalidNodeId."""
+    tree = waxy.TaffyTree[str]()
+    node = tree.new_leaf_with_context(waxy.Style(), "ctx")
+    root = tree.new_with_children(waxy.Style(display=waxy.Display.Flex), [node])
+
+    def bad_measure(
+        known: waxy.KnownSize,
+        available: waxy.AvailableSize,
+        context: str,
+    ) -> waxy.Size:
+        msg = "measure callback failed"
+        raise TypeError(msg)
+
+    # The Python exception from the measure callback must propagate as-is,
+    # not be swallowed and converted to InvalidNodeId.
+    with pytest.raises(TypeError, match="measure callback failed"):
+        tree.compute_layout(root, measure=bad_measure)

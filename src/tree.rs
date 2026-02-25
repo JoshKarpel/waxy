@@ -211,7 +211,8 @@ impl TaffyTree {
             None => catch_panic(|| self.inner.compute_layout(node.inner, avail))?
                 .map_err(taffy_error_to_py),
             Some(measure_fn) => {
-                let mut py_err: Option<PyErr> = None;
+                // py_err lives outside catch_unwind so it survives a panic unwind.
+                let py_err: std::cell::RefCell<Option<PyErr>> = std::cell::RefCell::new(None);
 
                 let result = catch_panic(|| {
                     self.inner.compute_layout_with_measure(
@@ -223,7 +224,7 @@ impl TaffyTree {
                          node_context: Option<&mut Py<PyAny>>,
                          _style| {
                             // If we already have a Python error, short-circuit.
-                            if py_err.is_some() {
+                            if py_err.borrow().is_some() {
                                 return taffy::Size::ZERO;
                             }
 
@@ -253,7 +254,7 @@ impl TaffyTree {
 
                             match call_result {
                                 Err(e) => {
-                                    py_err = Some(e);
+                                    *py_err.borrow_mut() = Some(e);
                                     taffy::Size::ZERO
                                 }
                                 Ok(result) => match result.extract::<crate::geometry::Size>(py) {
@@ -262,20 +263,20 @@ impl TaffyTree {
                                         height: size.height,
                                     },
                                     Err(e) => {
-                                        py_err = Some(e.into());
+                                        *py_err.borrow_mut() = Some(e.into());
                                         taffy::Size::ZERO
                                     }
                                 },
                             }
                         },
                     )
-                })?;
+                });
 
-                // Check for Python errors first, then taffy errors.
-                if let Some(e) = py_err {
+                // Priority: Python errors first, then panics, then taffy errors.
+                if let Some(e) = py_err.into_inner() {
                     return Err(e);
                 }
-                result.map_err(taffy_error_to_py)
+                result?.map_err(taffy_error_to_py)
             }
         }
     }

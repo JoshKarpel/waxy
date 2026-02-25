@@ -94,16 +94,45 @@ pub fn taffy_error_to_py(err: TaffyError) -> PyErr {
     }
 }
 
+/// Extract a message from a panic payload.
+fn panic_message(panic: &Box<dyn std::any::Any + Send>) -> String {
+    if let Some(s) = panic.downcast_ref::<&str>() {
+        s.to_string()
+    } else if let Some(s) = panic.downcast_ref::<String>() {
+        s.clone()
+    } else {
+        "unknown panic".to_string()
+    }
+}
+
+/// Check if a panic payload is from a slotmap invalid key access.
+fn is_slotmap_panic(panic: &Box<dyn std::any::Any + Send>) -> bool {
+    let msg = panic_message(panic);
+    msg.contains("invalid SlotMap key used") || msg.contains("invalid SparseSecondaryMap key used")
+}
+
+/// Convert a panic payload to an appropriate Python exception.
+/// Slotmap key panics become `InvalidNodeId`; other panics become `TaffyException`.
+fn panic_to_py_err(panic: Box<dyn std::any::Any + Send>, node_msg: &str) -> PyErr {
+    if is_slotmap_panic(&panic) {
+        InvalidNodeId::new_err(node_msg.to_string())
+    } else {
+        let msg = panic_message(&panic);
+        TaffyException::new_err(format!("unexpected taffy panic: {msg}"))
+    }
+}
+
 /// Catch a panic from a taffy call on a single node and convert it to `InvalidNodeId`.
 pub fn catch_node_panic<F, T>(node: &crate::node::NodeId, f: F) -> PyResult<T>
 where
     F: FnOnce() -> T,
 {
     let node_val: u64 = node.inner.into();
-    std::panic::catch_unwind(std::panic::AssertUnwindSafe(f)).map_err(|_| {
-        InvalidNodeId::new_err(format!(
-            "node NodeId({node_val}) is not present in the tree (was it removed?)"
-        ))
+    std::panic::catch_unwind(std::panic::AssertUnwindSafe(f)).map_err(|panic| {
+        panic_to_py_err(
+            panic,
+            &format!("node NodeId({node_val}) is not present in the tree (was it removed?)"),
+        )
     })
 }
 
@@ -112,8 +141,11 @@ pub fn catch_panic<F, T>(f: F) -> PyResult<T>
 where
     F: FnOnce() -> T,
 {
-    std::panic::catch_unwind(std::panic::AssertUnwindSafe(f)).map_err(|_| {
-        InvalidNodeId::new_err("a node ID is not present in the tree (was it removed?)")
+    std::panic::catch_unwind(std::panic::AssertUnwindSafe(f)).map_err(|panic| {
+        panic_to_py_err(
+            panic,
+            "a node ID is not present in the tree (was it removed?)",
+        )
     })
 }
 

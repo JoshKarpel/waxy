@@ -146,27 +146,37 @@ This gives `isinstance(e, KeyError)` support, matching the issue's suggestion, w
 
 Since we cannot modify taffy's source code and the panics originate deep inside taffy's slotmap indexing, the only reliable approach is to catch the panic at the waxy boundary and convert it to a Python exception.
 
-Wrap each `TaffyTree` method that can panic in `std::panic::catch_unwind`, converting panics to `InvalidNodeId`:
+Wrap each `TaffyTree` method that can panic in `std::panic::catch_unwind`, converting slotmap panics to `InvalidNodeId` and other panics to `TaffyException`:
 
 ```rust
 use std::panic::{catch_unwind, AssertUnwindSafe};
 
-fn catch_panic<F, T>(f: F) -> PyResult<T>
-where
-    F: FnOnce() -> T,
-{
-    catch_unwind(AssertUnwindSafe(f)).map_err(|panic| {
-        let msg = if let Some(s) = panic.downcast_ref::<&str>() {
-            s.to_string()
-        } else if let Some(s) = panic.downcast_ref::<String>() {
-            s.clone()
-        } else {
-            "unknown panic".to_string()
-        };
-        InvalidNodeId::new_err(msg)
-    })
+fn panic_message(panic: &Box<dyn Any + Send>) -> String {
+    if let Some(s) = panic.downcast_ref::<&str>() {
+        s.to_string()
+    } else if let Some(s) = panic.downcast_ref::<String>() {
+        s.clone()
+    } else {
+        "unknown panic".to_string()
+    }
+}
+
+fn is_slotmap_panic(panic: &Box<dyn Any + Send>) -> bool {
+    let msg = panic_message(panic);
+    msg.contains("invalid SlotMap key used") || msg.contains("invalid SparseSecondaryMap key used")
+}
+
+fn panic_to_py_err(panic: Box<dyn Any + Send>, node_msg: &str) -> PyErr {
+    if is_slotmap_panic(&panic) {
+        InvalidNodeId::new_err(node_msg.to_string())
+    } else {
+        let msg = panic_message(&panic);
+        TaffyException::new_err(format!("unexpected taffy panic: {msg}"))
+    }
 }
 ```
+
+This discriminates slotmap key panics (which become `InvalidNodeId`) from unexpected panics (which become `TaffyException` with the original panic message preserved). This prevents misattributing e.g. a taffy bug as an invalid node ID.
 
 The `AssertUnwindSafe` wrapper is needed because `TaffyTree` contains `Py<PyAny>` which is not `UnwindSafe`. This is safe in our case because we're at the FFI boundary and the `TaffyTree` won't be in an inconsistent state after a slotmap index panic (the panic occurs before any mutation).
 
@@ -241,7 +251,29 @@ catch_panic(|| {
 })?.map_err(taffy_error_to_py)
 ```
 
-For the `measure` variant, the closure captures `&mut py_err` which adds complexity. The simplest approach is to wrap the entire `compute_layout_with_measure` call in `catch_unwind`. If a panic occurs during traversal (because an internally-referenced node is somehow invalid), it will be caught.
+For the `measure` variant, the `py_err` variable must live **outside** the `catch_unwind` boundary so it survives a panic unwind. We use `RefCell<Option<PyErr>>` (not `&mut`) so the closure can write to it without requiring `&mut self`. After unwinding, the error priority is:
+
+1. **Python exceptions** from the measure callback (highest priority — re-raised as-is)
+2. **Panics** caught by `catch_unwind` (converted to `InvalidNodeId` or `TaffyException`)
+3. **Taffy errors** from the `Result` return (converted via `taffy_error_to_py`)
+
+```rust
+let py_err: RefCell<Option<PyErr>> = RefCell::new(None);
+
+let result = catch_panic(|| {
+    self.inner.compute_layout_with_measure(node.inner, avail, |...| {
+        // closure writes to py_err.borrow_mut() on Python error
+    })
+});
+
+// Python errors take priority over panics
+if let Some(e) = py_err.into_inner() {
+    return Err(e);
+}
+result?.map_err(taffy_error_to_py)
+```
+
+This ensures that if a measure function raises (e.g.) `ValueError`, and taffy subsequently panics during the same traversal, the user sees their `ValueError` — not a misleading `InvalidNodeId`.
 
 ### Error message
 
@@ -251,36 +283,40 @@ The exception message should be user-friendly and explain what happened:
 InvalidNodeId: node NodeId(42) is not present in the tree (was it removed?)
 ```
 
-To produce this message, we can format the `NodeId` in the catch_panic call site where we have access to the node parameter. A helper that takes the node being accessed:
+To produce this message, we format the `NodeId` in the `catch_node_panic` call site. The `panic_to_py_err` helper checks whether the panic is a slotmap panic before using the node-specific message:
 
 ```rust
 fn catch_node_panic<F, T>(node: &NodeId, f: F) -> PyResult<T>
 where
     F: FnOnce() -> T,
 {
-    catch_unwind(AssertUnwindSafe(f)).map_err(|_| {
-        InvalidNodeId::new_err(format!(
-            "node {} is not present in the tree (was it removed?)",
-            node.__repr__()
-        ))
-    })
-}
-```
-
-For methods that take multiple node arguments (e.g., `add_child(parent, child)`), we can't know which one caused the panic. In that case, we use a generic message:
-
-```rust
-fn catch_panic_generic<F, T>(f: F) -> PyResult<T>
-where
-    F: FnOnce() -> T,
-{
-    catch_unwind(AssertUnwindSafe(f)).map_err(|_| {
-        InvalidNodeId::new_err(
-            "a node ID is not present in the tree (was it removed?)"
+    let node_val: u64 = node.inner.into();
+    catch_unwind(AssertUnwindSafe(f)).map_err(|panic| {
+        panic_to_py_err(
+            panic,
+            &format!("node NodeId({node_val}) is not present in the tree (was it removed?)"),
         )
     })
 }
 ```
+
+For methods that take multiple node arguments (e.g., `add_child(parent, child)`), we use a generic message:
+
+```rust
+fn catch_panic<F, T>(f: F) -> PyResult<T>
+where
+    F: FnOnce() -> T,
+{
+    catch_unwind(AssertUnwindSafe(f)).map_err(|panic| {
+        panic_to_py_err(
+            panic,
+            "a node ID is not present in the tree (was it removed?)",
+        )
+    })
+}
+```
+
+Non-slotmap panics produce `TaffyException("unexpected taffy panic: <original message>")` instead.
 
 ## Implementation Plan (TDD)
 
@@ -421,4 +457,4 @@ def test_invalid_node_id_set_style():
 
 3. **Is `AssertUnwindSafe` safe here?** Yes. The panics occur at slotmap indexing, which is a read operation. No state mutation occurs before the panic, so the tree is not left in an inconsistent state. See the safety argument in the Design section.
 
-4. **What about panics during `compute_layout`?** Wrapped the same way. If a panic occurs during tree traversal (unlikely in normal usage, but possible if the tree is corrupted), it will be caught and converted to `InvalidNodeId`.
+4. **What about panics during `compute_layout`?** Wrapped the same way. If a panic occurs during tree traversal (unlikely in normal usage, but possible if the tree is corrupted), it will be caught and converted to `InvalidNodeId`. Crucially, `py_err` lives outside the `catch_unwind` boundary (as a `RefCell`) so Python exceptions from the measure callback are preserved even if a panic also occurs. Python errors take priority over panics in the error resolution order.
