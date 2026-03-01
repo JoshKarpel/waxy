@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased](https://github.com/JoshKarpel/waxy/compare/v0.3.0...HEAD)
 
+### Changed
+
+- Clarified `Layout` coordinate system in API docs: `location` is relative to the parent's
+  border box origin, `size` is the border box dimensions, and documented all `Layout` fields.
+
 ## [0.3.0](https://github.com/JoshKarpel/waxy/compare/v0.2.0...v0.3.0) - 2026-02-24
 
 ### Added
