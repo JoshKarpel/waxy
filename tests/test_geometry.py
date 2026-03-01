@@ -49,6 +49,12 @@ def test_size_immutable() -> None:
         s.width = 5.0  # type: ignore[misc]
 
 
+def test_point_hash() -> None:
+    assert hash(waxy.Point(1.0, 2.0)) == hash(waxy.Point(1.0, 2.0))
+    s = {waxy.Point(1.0, 2.0), waxy.Point(3.0, 4.0), waxy.Point(1.0, 2.0)}
+    assert len(s) == 2
+
+
 def test_point_add() -> None:
     p = waxy.Point(1.0, 2.0) + waxy.Point(3.0, 4.0)
     assert p == waxy.Point(4.0, 6.0)

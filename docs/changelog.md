@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased](https://github.com/JoshKarpel/waxy/compare/v0.3.0...HEAD)
 
+### Added
+
+- `Point` is now hashable, enabling use in sets and as dictionary keys.
+
 ### Changed
 
 - Clarified `Layout` coordinate system in API docs: `location` is relative to the parent's
