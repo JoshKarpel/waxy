@@ -7,9 +7,10 @@ use crate::enums::{
 };
 use crate::geometry::hash_f32;
 use crate::values::{
-    dimension_to_py, grid_track_to_py, hash_taffy_grid_placement, length_percentage_auto_to_py,
-    length_percentage_to_py, DimensionInput, GridPlacement, GridTrackInput,
-    LengthPercentageAutoInput, LengthPercentageInput,
+    dimension_to_py, grid_track_to_py, hash_taffy_compact_length, hash_taffy_grid_placement,
+    hash_taffy_template_area, hash_taffy_template_component, hash_taffy_track_sizing_function,
+    length_percentage_auto_to_py, length_percentage_to_py, DimensionInput, GridPlacement,
+    GridTrackInput, LengthPercentageAutoInput, LengthPercentageInput,
 };
 
 // Bit positions for tracking which fields are explicitly set.
@@ -640,17 +641,6 @@ impl Style {
         let mut h = std::collections::hash_map::DefaultHasher::new();
         let s = &self.inner;
 
-        // Macro to hash a Dimension/LengthPercentage/LengthPercentageAuto by
-        // tag + raw value bits via into_raw(), consistent with their
-        // bit-exact PartialEq (not IEEE float equality).
-        macro_rules! hash_cl {
-            ($cl:expr) => {{
-                let raw = $cl.into_raw();
-                raw.tag().hash(&mut h);
-                raw.value().to_bits().hash(&mut h);
-            }};
-        }
-
         // Enum fields — use discriminant since taffy enums don't derive Hash.
         discriminant(&s.display).hash(&mut h);
         discriminant(&s.box_sizing).hash(&mut h);
@@ -684,39 +674,55 @@ impl Style {
         }
 
         // CompactLength fields — bit-exact, matching CompactLength's PartialEq.
-        hash_cl!(s.inset.left);
-        hash_cl!(s.inset.right);
-        hash_cl!(s.inset.top);
-        hash_cl!(s.inset.bottom);
-        hash_cl!(s.size.width);
-        hash_cl!(s.size.height);
-        hash_cl!(s.min_size.width);
-        hash_cl!(s.min_size.height);
-        hash_cl!(s.max_size.width);
-        hash_cl!(s.max_size.height);
-        hash_cl!(s.margin.left);
-        hash_cl!(s.margin.right);
-        hash_cl!(s.margin.top);
-        hash_cl!(s.margin.bottom);
-        hash_cl!(s.padding.left);
-        hash_cl!(s.padding.right);
-        hash_cl!(s.padding.top);
-        hash_cl!(s.padding.bottom);
-        hash_cl!(s.border.left);
-        hash_cl!(s.border.right);
-        hash_cl!(s.border.top);
-        hash_cl!(s.border.bottom);
-        hash_cl!(s.gap.width);
-        hash_cl!(s.gap.height);
-        hash_cl!(s.flex_basis);
+        // Each field type (Dimension, LengthPercentage, etc.) wraps CompactLength;
+        // into_raw() extracts it.
+        hash_taffy_compact_length(s.inset.left.into_raw(), &mut h);
+        hash_taffy_compact_length(s.inset.right.into_raw(), &mut h);
+        hash_taffy_compact_length(s.inset.top.into_raw(), &mut h);
+        hash_taffy_compact_length(s.inset.bottom.into_raw(), &mut h);
+        hash_taffy_compact_length(s.size.width.into_raw(), &mut h);
+        hash_taffy_compact_length(s.size.height.into_raw(), &mut h);
+        hash_taffy_compact_length(s.min_size.width.into_raw(), &mut h);
+        hash_taffy_compact_length(s.min_size.height.into_raw(), &mut h);
+        hash_taffy_compact_length(s.max_size.width.into_raw(), &mut h);
+        hash_taffy_compact_length(s.max_size.height.into_raw(), &mut h);
+        hash_taffy_compact_length(s.margin.left.into_raw(), &mut h);
+        hash_taffy_compact_length(s.margin.right.into_raw(), &mut h);
+        hash_taffy_compact_length(s.margin.top.into_raw(), &mut h);
+        hash_taffy_compact_length(s.margin.bottom.into_raw(), &mut h);
+        hash_taffy_compact_length(s.padding.left.into_raw(), &mut h);
+        hash_taffy_compact_length(s.padding.right.into_raw(), &mut h);
+        hash_taffy_compact_length(s.padding.top.into_raw(), &mut h);
+        hash_taffy_compact_length(s.padding.bottom.into_raw(), &mut h);
+        hash_taffy_compact_length(s.border.left.into_raw(), &mut h);
+        hash_taffy_compact_length(s.border.right.into_raw(), &mut h);
+        hash_taffy_compact_length(s.border.top.into_raw(), &mut h);
+        hash_taffy_compact_length(s.border.bottom.into_raw(), &mut h);
+        hash_taffy_compact_length(s.gap.width.into_raw(), &mut h);
+        hash_taffy_compact_length(s.gap.height.into_raw(), &mut h);
+        hash_taffy_compact_length(s.flex_basis.into_raw(), &mut h);
 
-        // Grid track Vecs — contain only CompactLength (no plain f32), so
-        // Debug output is consistent with PartialEq.
-        format!("{:?}", s.grid_template_rows).hash(&mut h);
-        format!("{:?}", s.grid_template_columns).hash(&mut h);
-        format!("{:?}", s.grid_auto_rows).hash(&mut h);
-        format!("{:?}", s.grid_auto_columns).hash(&mut h);
-        format!("{:?}", s.grid_template_areas).hash(&mut h);
+        // Grid track Vecs.
+        s.grid_auto_rows.len().hash(&mut h);
+        for tsf in &s.grid_auto_rows {
+            hash_taffy_track_sizing_function(*tsf, &mut h);
+        }
+        s.grid_auto_columns.len().hash(&mut h);
+        for tsf in &s.grid_auto_columns {
+            hash_taffy_track_sizing_function(*tsf, &mut h);
+        }
+        s.grid_template_rows.len().hash(&mut h);
+        for comp in &s.grid_template_rows {
+            hash_taffy_template_component(comp, &mut h);
+        }
+        s.grid_template_columns.len().hash(&mut h);
+        for comp in &s.grid_template_columns {
+            hash_taffy_template_component(comp, &mut h);
+        }
+        s.grid_template_areas.len().hash(&mut h);
+        for area in &s.grid_template_areas {
+            hash_taffy_template_area(area, &mut h);
+        }
 
         // Grid placement fields.
         hash_taffy_grid_placement(&s.grid_row.start, &mut h);

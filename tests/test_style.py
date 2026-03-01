@@ -235,3 +235,26 @@ def test_style_hash_float_normalization() -> None:
     b = waxy.Style(flex_grow=-0.0)
     assert a == b
     assert hash(a) == hash(b)
+
+
+def test_style_hash_grid_tracks() -> None:
+    # grid_auto_rows / grid_auto_columns
+    a = waxy.Style(grid_auto_rows=[waxy.Length(100.0)], grid_auto_columns=[waxy.Fraction(1.0)])
+    b = waxy.Style(grid_auto_rows=[waxy.Length(100.0)], grid_auto_columns=[waxy.Fraction(1.0)])
+    assert a == b
+    assert hash(a) == hash(b)
+
+    # grid_template_rows / grid_template_columns
+    c = waxy.Style(
+        grid_template_rows=[waxy.Length(50.0), waxy.Fraction(1.0)],
+        grid_template_columns=[waxy.AUTO],
+    )
+    d = waxy.Style(
+        grid_template_rows=[waxy.Length(50.0), waxy.Fraction(1.0)],
+        grid_template_columns=[waxy.AUTO],
+    )
+    assert c == d
+    assert hash(c) == hash(d)
+
+    # Different grid tracks hash differently and work as set/dict keys.
+    assert len({a, c}) == 2
