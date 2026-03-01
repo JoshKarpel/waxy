@@ -58,10 +58,11 @@ def test_point_hash() -> None:
     # Signed zero edge case: 0.0 and -0.0 should be equal and hash-identical
     p1 = waxy.Point(0.0, 0.0)
     p2 = waxy.Point(-0.0, 0.0)
-    assert p1 == p2
-    assert hash(p1) == hash(p2)
-    s_zero = {p1, p2}
-    assert len(s_zero) == 1
+    p3 = waxy.Point(0.0, -0.0)
+    p4 = waxy.Point(-0.0, -0.0)
+    assert p1 == p2 == p3 == p4
+    assert hash(p1) == hash(p2) == hash(p3) == hash(p4)
+    assert len({p1, p2, p3, p4}) == 1
 
 
 def test_point_add() -> None:

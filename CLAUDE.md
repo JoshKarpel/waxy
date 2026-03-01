@@ -35,6 +35,7 @@ The Rust source (`src/`) exposes a flat PyO3 module `_waxy`, which Python (`pyth
 - **`compute_layout`** takes an `available` kwarg (type `AvailableSize | None`), not `available_space`.
 - **Node context** — `TaffyTree` uses `TaffyTree<PyObject>` internally. Nodes can have arbitrary Python objects attached via `new_leaf_with_context` / `set_node_context` / `get_node_context`. The `.pyi` stub uses `TaffyTree[T]` (PEP 695) for generic type safety.
 - **Removed node access** raises `InvalidNodeId` (a `TaffyException` and `KeyError` subclass). This is implemented via `catch_unwind` around taffy calls, since taffy panics on invalid slotmap keys. The panic message is checked for slotmap signatures; non-slotmap panics become `TaffyException` instead to avoid misattribution. In `compute_layout` with a measure function, `py_err` lives outside the `catch_unwind` boundary (as a `RefCell`) so Python exceptions from the callback are preserved and take priority over panics.
+- **Hashing f32 values** — Use the `hash_f32()` helper in `src/geometry.rs` when implementing `__hash__` for types containing `f32` fields. It normalizes `-0.0` to `+0.0` before calling `to_bits()`, which is required because `==` treats them as equal and Python mandates that equal objects have equal hashes.
 - **`.pyi` method order** — Within each class: `__init__` first, then other dunder methods (`__repr__`, `__eq__`, `__iter__`, etc.), then properties, then regular methods.
 
 ## Commands
