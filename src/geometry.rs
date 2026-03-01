@@ -2,6 +2,14 @@ use pyo3::prelude::*;
 
 use crate::values::{available_space_to_py, AvailableSpaceInput};
 
+/// Normalize an f32 for hashing: maps -0.0 to +0.0 so that
+/// hash is consistent with `==` equality (which treats them as equal).
+fn hash_f32<H: std::hash::Hasher>(v: f32, hasher: &mut H) {
+    use std::hash::Hash;
+    // IEEE 754: -0.0 + 0.0 = +0.0 (branchless normalization)
+    (v + 0.0).to_bits().hash(hasher);
+}
+
 /// A 2D size with width and height.
 #[pyclass(frozen, from_py_object, module = "waxy")]
 #[derive(Clone, Debug)]
@@ -318,6 +326,13 @@ impl Point {
         self.x == other.x && self.y == other.y
     }
 
+    fn __hash__(&self) -> u64 {
+        let mut hasher = std::collections::hash_map::DefaultHasher::new();
+        hash_f32(self.x, &mut hasher);
+        hash_f32(self.y, &mut hasher);
+        std::hash::Hasher::finish(&hasher)
+    }
+
     fn __add__(&self, other: &Point) -> Point {
         Point {
             x: self.x + other.x,
@@ -580,8 +595,20 @@ impl KnownSize {
     fn __hash__(&self) -> u64 {
         use std::hash::{Hash, Hasher};
         let mut hasher = std::collections::hash_map::DefaultHasher::new();
-        self.width.map(|v| v.to_bits()).hash(&mut hasher);
-        self.height.map(|v| v.to_bits()).hash(&mut hasher);
+        match self.width {
+            Some(v) => {
+                1u8.hash(&mut hasher);
+                hash_f32(v, &mut hasher);
+            }
+            None => 0u8.hash(&mut hasher),
+        }
+        match self.height {
+            Some(v) => {
+                1u8.hash(&mut hasher);
+                hash_f32(v, &mut hasher);
+            }
+            None => 0u8.hash(&mut hasher),
+        }
         hasher.finish()
     }
 
@@ -673,7 +700,7 @@ impl AvailableSize {
         match self.width {
             taffy::AvailableSpace::Definite(v) => {
                 0u8.hash(&mut hasher);
-                v.to_bits().hash(&mut hasher);
+                hash_f32(v, &mut hasher);
             }
             taffy::AvailableSpace::MinContent => 1u8.hash(&mut hasher),
             taffy::AvailableSpace::MaxContent => 2u8.hash(&mut hasher),
@@ -681,7 +708,7 @@ impl AvailableSize {
         match self.height {
             taffy::AvailableSpace::Definite(v) => {
                 0u8.hash(&mut hasher);
-                v.to_bits().hash(&mut hasher);
+                hash_f32(v, &mut hasher);
             }
             taffy::AvailableSpace::MinContent => 1u8.hash(&mut hasher),
             taffy::AvailableSpace::MaxContent => 2u8.hash(&mut hasher),
