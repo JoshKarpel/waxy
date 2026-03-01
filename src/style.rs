@@ -629,6 +629,10 @@ impl Style {
         self.inner.grid_column.clone().into()
     }
 
+    fn __eq__(&self, other: &Style) -> bool {
+        self.inner == other.inner
+    }
+
     fn __repr__(&self) -> String {
         format!(
             "Style(display={:?}, position={:?})",
