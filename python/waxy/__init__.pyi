@@ -615,25 +615,63 @@ class NodeId:
 # Layout
 
 class Layout:
-    """The computed layout of a node."""
+    """
+    The computed layout of a node.
+
+    The layout uses a **border box** coordinate system:
+
+    - [`location`][waxy.Layout.location] is the position of this node's border box origin,
+      relative to the **parent's border box** origin (not the parent's content box,
+      and not absolute/viewport coordinates). This means a child inside a parent with
+      padding or border will have its location offset by the parent's padding + border
+      widths. A child's own margin also offsets its location outward from siblings.
+    - [`size`][waxy.Layout.size] is the **border box** size: it includes border + padding + content,
+      but excludes margin.
+    - To compute absolute positions, accumulate [`location`][waxy.Layout.location] values
+      from the root down to the node.
+    - To compute the content box, subtract [`border`][waxy.Layout.border]
+      and [`padding`][waxy.Layout.padding] from [`size`][waxy.Layout.size]
+      (or use [`content_box_width()`][waxy.Layout.content_box_width]
+      / [`content_box_height()`][waxy.Layout.content_box_height]).
+    - To compute the margin box, expand outward from ([`location`][waxy.Layout.location],
+      [`size`][waxy.Layout.size]) by the [`margin`][waxy.Layout.margin] widths.
+
+    Note: [`box_sizing`][waxy.Style.box_sizing] does **not** affect the Layout output.
+    It only controls how the style's `size_width`/`size_height` inputs are interpreted
+    (as border box or content box dimensions). The computed `Layout.size` is always the
+    border box. For example, with `padding_left=10, padding_right=10` and `size_width=100`:
+
+    - **`BorderBox`** (default): style size *is* the border box →
+      `layout.size.width = 100`, `content_box_width() = 80`
+    - **`ContentBox`**: style size is the content box →
+      `layout.size.width = 120`, `content_box_width() = 100`
+    """
 
     def __repr__(self) -> str: ...
     @property
-    def order(self) -> int: ...
+    def order(self) -> int:
+        """Topological paint order computed by taffy. Higher values are painted on top."""
     @property
-    def location(self) -> Point: ...
+    def location(self) -> Point:
+        """Position of this node's border box origin, relative to the parent's border box origin."""
     @property
-    def size(self) -> Size: ...
+    def size(self) -> Size:
+        """Border box dimensions (includes border + padding + content, excludes margin)."""
     @property
-    def content_size(self) -> Size: ...
+    def content_size(self) -> Size:
+        """Size of the content inside the node (may exceed the border box if overflowing)."""
     @property
-    def scrollbar_size(self) -> Size: ...
+    def scrollbar_size(self) -> Size:
+        """Size reserved for scrollbars."""
     @property
-    def border(self) -> Rect: ...
+    def border(self) -> Rect:
+        """Resolved border widths on each side."""
     @property
-    def padding(self) -> Rect: ...
+    def padding(self) -> Rect:
+        """Resolved padding widths on each side."""
     @property
-    def margin(self) -> Rect: ...
+    def margin(self) -> Rect:
+        """Resolved margin widths on each side."""
     def content_box_width(self) -> float:
         """Width of the content box (size minus padding and border)."""
     def content_box_height(self) -> float:
