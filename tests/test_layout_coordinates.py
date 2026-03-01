@@ -254,3 +254,57 @@ def test_layout_border_and_padding_fields() -> None:
     assert layout.padding.right == 6.0
     assert layout.padding.top == 7.0
     assert layout.padding.bottom == 8.0
+
+
+def test_layout_size_is_border_box_regardless_of_box_sizing() -> None:
+    """
+    Layout.size is always the border box, regardless of the box_sizing style.
+
+    box_sizing only changes how the style's size input is interpreted:
+    - BorderBox: style size = border box (layout.size matches style size)
+    - ContentBox: style size = content box (layout.size = style size + padding + border)
+    """
+    tree = waxy.TaffyTree()
+
+    border_box_child = tree.new_leaf(
+        waxy.Style(
+            box_sizing=waxy.BoxSizing.BorderBox,
+            size_width=waxy.Length(100.0),
+            size_height=waxy.Length(100.0),
+            padding_left=waxy.Length(10.0),
+            padding_right=waxy.Length(10.0),
+        )
+    )
+
+    content_box_child = tree.new_leaf(
+        waxy.Style(
+            box_sizing=waxy.BoxSizing.ContentBox,
+            size_width=waxy.Length(100.0),
+            size_height=waxy.Length(100.0),
+            padding_left=waxy.Length(10.0),
+            padding_right=waxy.Length(10.0),
+        )
+    )
+
+    root = tree.new_with_children(
+        waxy.Style(
+            display=waxy.Display.Flex,
+            flex_direction=waxy.FlexDirection.Column,
+            size_width=waxy.Length(300.0),
+            size_height=waxy.Length(300.0),
+        ),
+        [border_box_child, content_box_child],
+    )
+
+    tree.compute_layout(root)
+
+    bb_layout = tree.layout(border_box_child)
+    cb_layout = tree.layout(content_box_child)
+
+    # BorderBox: style size 100 IS the border box → layout.size = 100, content = 80
+    assert bb_layout.size.width == 100.0
+    assert bb_layout.content_box_width() == 80.0
+
+    # ContentBox: style size 100 is content → layout.size = 120 (border box), content = 100
+    assert cb_layout.size.width == 120.0
+    assert cb_layout.content_box_width() == 100.0

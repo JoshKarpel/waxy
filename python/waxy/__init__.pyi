@@ -634,6 +634,16 @@ class Layout:
       / [`content_box_height()`][waxy.Layout.content_box_height]).
     - To compute the margin box, expand outward from ([`location`][waxy.Layout.location],
       [`size`][waxy.Layout.size]) by the [`margin`][waxy.Layout.margin] widths.
+
+    Note: [`box_sizing`][waxy.Style.box_sizing] does **not** affect the Layout output.
+    It only controls how the style's `size_width`/`size_height` inputs are interpreted
+    (as border box or content box dimensions). The computed `Layout.size` is always the
+    border box. For example, with `padding_left=10, padding_right=10` and `size_width=100`:
+
+    - **`BorderBox`** (default): style size *is* the border box →
+      `layout.size.width = 100`, `content_box_width() = 80`
+    - **`ContentBox`**: style size is the content box →
+      `layout.size.width = 120`, `content_box_width() = 100`
     """
 
     def __repr__(self) -> str: ...
