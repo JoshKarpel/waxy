@@ -518,7 +518,10 @@ impl GridSpan {
 /// Each of `start` and `end` is a `GridLine | GridSpan | Auto` value.
 /// Defaults both to `Auto` (the CSS default for unplaced items).
 ///
-pub(crate) fn hash_taffy_grid_placement<H: std::hash::Hasher>(gp: &TaffyGridPlacement, hasher: &mut H) {
+pub(crate) fn hash_taffy_grid_placement<H: std::hash::Hasher>(
+    gp: &TaffyGridPlacement,
+    hasher: &mut H,
+) {
     use std::hash::Hash;
     match gp {
         TaffyGridPlacement::Auto => 0u8.hash(hasher),

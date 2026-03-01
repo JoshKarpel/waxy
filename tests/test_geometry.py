@@ -106,7 +106,11 @@ def test_point_sub() -> None:
 def test_rect_hash() -> None:
     # Basic hash and deduplication behaviour
     assert hash(waxy.Rect(1.0, 2.0, 3.0, 4.0)) == hash(waxy.Rect(1.0, 2.0, 3.0, 4.0))
-    s = {waxy.Rect(1.0, 2.0, 3.0, 4.0), waxy.Rect(5.0, 6.0, 7.0, 8.0), waxy.Rect(1.0, 2.0, 3.0, 4.0)}
+    s = {
+        waxy.Rect(1.0, 2.0, 3.0, 4.0),
+        waxy.Rect(5.0, 6.0, 7.0, 8.0),
+        waxy.Rect(1.0, 2.0, 3.0, 4.0),
+    }
     assert len(s) == 2
 
     # Signed zero edge case: 0.0 and -0.0 should be equal and hash-identical
