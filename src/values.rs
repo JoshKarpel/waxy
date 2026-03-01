@@ -518,6 +518,89 @@ impl GridSpan {
 /// Each of `start` and `end` is a `GridLine | GridSpan | Auto` value.
 /// Defaults both to `Auto` (the CSS default for unplaced items).
 ///
+pub(crate) fn hash_taffy_grid_placement<H: std::hash::Hasher>(
+    gp: &TaffyGridPlacement,
+    hasher: &mut H,
+) {
+    use std::hash::Hash;
+    match gp {
+        TaffyGridPlacement::Auto => 0u8.hash(hasher),
+        TaffyGridPlacement::Line(gl) => {
+            1u8.hash(hasher);
+            gl.as_i16().hash(hasher);
+        }
+        TaffyGridPlacement::Span(n) => {
+            2u8.hash(hasher);
+            n.hash(hasher);
+        }
+        TaffyGridPlacement::NamedLine(s, i) => {
+            3u8.hash(hasher);
+            (s.as_ref() as &str).hash(hasher);
+            i.hash(hasher);
+        }
+        TaffyGridPlacement::NamedSpan(s, n) => {
+            4u8.hash(hasher);
+            (s.as_ref() as &str).hash(hasher);
+            n.hash(hasher);
+        }
+    }
+}
+
+pub(crate) fn hash_taffy_compact_length<H: std::hash::Hasher>(cl: CompactLength, hasher: &mut H) {
+    use std::hash::Hash;
+    cl.tag().hash(hasher);
+    cl.value().to_bits().hash(hasher);
+}
+
+pub(crate) fn hash_taffy_track_sizing_function<H: std::hash::Hasher>(
+    tsf: TrackSizingFunction,
+    hasher: &mut H,
+) {
+    hash_taffy_compact_length(tsf.min.into_raw(), hasher);
+    hash_taffy_compact_length(tsf.max.into_raw(), hasher);
+}
+
+pub(crate) fn hash_taffy_template_component<H: std::hash::Hasher>(
+    comp: &taffy::GridTemplateComponent<String>,
+    hasher: &mut H,
+) {
+    use std::hash::Hash;
+    match comp {
+        taffy::GridTemplateComponent::Single(tsf) => {
+            0u8.hash(hasher);
+            hash_taffy_track_sizing_function(*tsf, hasher);
+        }
+        taffy::GridTemplateComponent::Repeat(rep) => {
+            1u8.hash(hasher);
+            match rep.count {
+                taffy::RepetitionCount::AutoFill => 0u8.hash(hasher),
+                taffy::RepetitionCount::AutoFit => 1u8.hash(hasher),
+                taffy::RepetitionCount::Count(n) => {
+                    2u8.hash(hasher);
+                    n.hash(hasher);
+                }
+            }
+            rep.tracks.len().hash(hasher);
+            for tsf in &rep.tracks {
+                hash_taffy_track_sizing_function(*tsf, hasher);
+            }
+            rep.line_names.hash(hasher);
+        }
+    }
+}
+
+pub(crate) fn hash_taffy_template_area<H: std::hash::Hasher>(
+    area: &taffy::GridTemplateArea<String>,
+    hasher: &mut H,
+) {
+    use std::hash::Hash;
+    area.name.hash(hasher);
+    area.row_start.hash(hasher);
+    area.row_end.hash(hasher);
+    area.column_start.hash(hasher);
+    area.column_end.hash(hasher);
+}
+
 /// See: [taffy `Line<GridPlacement>`](https://docs.rs/taffy/0.9.2/taffy/geometry/struct.Line.html),
 /// [MDN `grid-row`](https://developer.mozilla.org/en-US/docs/Web/CSS/grid-row),
 /// [MDN `grid-column`](https://developer.mozilla.org/en-US/docs/Web/CSS/grid-column)
@@ -545,6 +628,18 @@ impl GridPlacement {
         let start_repr = start.bind(py).repr()?.to_str()?.to_owned();
         let end_repr = end.bind(py).repr()?.to_str()?.to_owned();
         Ok(format!("GridPlacement(start={start_repr}, end={end_repr})"))
+    }
+
+    fn __eq__(&self, other: &GridPlacement) -> bool {
+        self.start == other.start && self.end == other.end
+    }
+
+    fn __hash__(&self) -> u64 {
+        use std::hash::Hasher;
+        let mut hasher = std::collections::hash_map::DefaultHasher::new();
+        hash_taffy_grid_placement(&self.start, &mut hasher);
+        hash_taffy_grid_placement(&self.end, &mut hasher);
+        hasher.finish()
     }
 
     #[getter]

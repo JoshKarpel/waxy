@@ -5,10 +5,12 @@ use crate::enums::{
     AlignContent, AlignItems, BoxSizing, Display, FlexDirection, FlexWrap, GridAutoFlow, Overflow,
     Position, TextAlign,
 };
+use crate::geometry::hash_f32;
 use crate::values::{
-    dimension_to_py, grid_track_to_py, length_percentage_auto_to_py, length_percentage_to_py,
-    DimensionInput, GridPlacement, GridTrackInput, LengthPercentageAutoInput,
-    LengthPercentageInput,
+    dimension_to_py, grid_track_to_py, hash_taffy_compact_length, hash_taffy_grid_placement,
+    hash_taffy_template_area, hash_taffy_template_component, hash_taffy_track_sizing_function,
+    length_percentage_auto_to_py, length_percentage_to_py, DimensionInput, GridPlacement,
+    GridTrackInput, LengthPercentageAutoInput, LengthPercentageInput,
 };
 
 // Bit positions for tracking which fields are explicitly set.
@@ -631,6 +633,104 @@ impl Style {
 
     fn __eq__(&self, other: &Style) -> bool {
         self.inner == other.inner
+    }
+
+    fn __hash__(&self) -> u64 {
+        use std::hash::{Hash, Hasher};
+        use std::mem::discriminant;
+        let mut h = std::collections::hash_map::DefaultHasher::new();
+        let s = &self.inner;
+
+        // Enum fields — use discriminant since taffy enums don't derive Hash.
+        discriminant(&s.display).hash(&mut h);
+        discriminant(&s.box_sizing).hash(&mut h);
+        discriminant(&s.overflow.x).hash(&mut h);
+        discriminant(&s.overflow.y).hash(&mut h);
+        discriminant(&s.position).hash(&mut h);
+        discriminant(&s.text_align).hash(&mut h);
+        discriminant(&s.flex_direction).hash(&mut h);
+        discriminant(&s.flex_wrap).hash(&mut h);
+        discriminant(&s.grid_auto_flow).hash(&mut h);
+
+        // Option<enum> fields.
+        s.align_items.map(|v| discriminant(&v)).hash(&mut h);
+        s.align_self.map(|v| discriminant(&v)).hash(&mut h);
+        s.justify_items.map(|v| discriminant(&v)).hash(&mut h);
+        s.justify_self.map(|v| discriminant(&v)).hash(&mut h);
+        s.align_content.map(|v| discriminant(&v)).hash(&mut h);
+        s.justify_content.map(|v| discriminant(&v)).hash(&mut h);
+
+        // Plain f32 fields — normalize -0.0 (consistent with f32's IEEE
+        // float equality used by taffy's derived PartialEq for these fields).
+        hash_f32(s.scrollbar_width, &mut h);
+        hash_f32(s.flex_grow, &mut h);
+        hash_f32(s.flex_shrink, &mut h);
+        match s.aspect_ratio {
+            Some(v) => {
+                1u8.hash(&mut h);
+                hash_f32(v, &mut h);
+            }
+            None => 0u8.hash(&mut h),
+        }
+
+        // CompactLength fields — bit-exact, matching CompactLength's PartialEq.
+        // Each field type (Dimension, LengthPercentage, etc.) wraps CompactLength;
+        // into_raw() extracts it.
+        hash_taffy_compact_length(s.inset.left.into_raw(), &mut h);
+        hash_taffy_compact_length(s.inset.right.into_raw(), &mut h);
+        hash_taffy_compact_length(s.inset.top.into_raw(), &mut h);
+        hash_taffy_compact_length(s.inset.bottom.into_raw(), &mut h);
+        hash_taffy_compact_length(s.size.width.into_raw(), &mut h);
+        hash_taffy_compact_length(s.size.height.into_raw(), &mut h);
+        hash_taffy_compact_length(s.min_size.width.into_raw(), &mut h);
+        hash_taffy_compact_length(s.min_size.height.into_raw(), &mut h);
+        hash_taffy_compact_length(s.max_size.width.into_raw(), &mut h);
+        hash_taffy_compact_length(s.max_size.height.into_raw(), &mut h);
+        hash_taffy_compact_length(s.margin.left.into_raw(), &mut h);
+        hash_taffy_compact_length(s.margin.right.into_raw(), &mut h);
+        hash_taffy_compact_length(s.margin.top.into_raw(), &mut h);
+        hash_taffy_compact_length(s.margin.bottom.into_raw(), &mut h);
+        hash_taffy_compact_length(s.padding.left.into_raw(), &mut h);
+        hash_taffy_compact_length(s.padding.right.into_raw(), &mut h);
+        hash_taffy_compact_length(s.padding.top.into_raw(), &mut h);
+        hash_taffy_compact_length(s.padding.bottom.into_raw(), &mut h);
+        hash_taffy_compact_length(s.border.left.into_raw(), &mut h);
+        hash_taffy_compact_length(s.border.right.into_raw(), &mut h);
+        hash_taffy_compact_length(s.border.top.into_raw(), &mut h);
+        hash_taffy_compact_length(s.border.bottom.into_raw(), &mut h);
+        hash_taffy_compact_length(s.gap.width.into_raw(), &mut h);
+        hash_taffy_compact_length(s.gap.height.into_raw(), &mut h);
+        hash_taffy_compact_length(s.flex_basis.into_raw(), &mut h);
+
+        // Grid track Vecs.
+        s.grid_auto_rows.len().hash(&mut h);
+        for tsf in &s.grid_auto_rows {
+            hash_taffy_track_sizing_function(*tsf, &mut h);
+        }
+        s.grid_auto_columns.len().hash(&mut h);
+        for tsf in &s.grid_auto_columns {
+            hash_taffy_track_sizing_function(*tsf, &mut h);
+        }
+        s.grid_template_rows.len().hash(&mut h);
+        for comp in &s.grid_template_rows {
+            hash_taffy_template_component(comp, &mut h);
+        }
+        s.grid_template_columns.len().hash(&mut h);
+        for comp in &s.grid_template_columns {
+            hash_taffy_template_component(comp, &mut h);
+        }
+        s.grid_template_areas.len().hash(&mut h);
+        for area in &s.grid_template_areas {
+            hash_taffy_template_area(area, &mut h);
+        }
+
+        // Grid placement fields.
+        hash_taffy_grid_placement(&s.grid_row.start, &mut h);
+        hash_taffy_grid_placement(&s.grid_row.end, &mut h);
+        hash_taffy_grid_placement(&s.grid_column.start, &mut h);
+        hash_taffy_grid_placement(&s.grid_column.end, &mut h);
+
+        h.finish()
     }
 
     fn __repr__(&self) -> String {

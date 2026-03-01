@@ -5,22 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## [Unreleased](https://github.com/JoshKarpel/waxy/compare/v0.3.0...HEAD)
+## [Unreleased](https://github.com/JoshKarpel/waxy/compare/v0.4.0...HEAD)
+
+## [0.4.0](https://github.com/JoshKarpel/waxy/compare/v0.3.0...v0.4.0) - 2026-03-01
 
 ### Added
 
-- `Style` now supports value equality via `==`.
-- `Point` is now hashable, enabling use in sets and as dictionary keys.
-
-### Fixed
-
-- `Point`, `KnownSize`, and `AvailableSize` `__hash__` now correctly normalize
-  `-0.0` to `0.0` so that equal objects always hash identically.
+- [#36](https://github.com/JoshKarpel/waxy/pull/36) `Point` is now hashable, enabling use in sets and as dictionary keys.
+- [#38](https://github.com/JoshKarpel/waxy/pull/38) `Style` now supports value equality via `==` and is hashable.
+- [#39](https://github.com/JoshKarpel/waxy/pull/39) `Rect`, `Size`, `Line`, `GridPlacement`, and `Layout` are now hashable, enabling use in sets and as dictionary keys.
+- [#39](https://github.com/JoshKarpel/waxy/pull/39) `GridPlacement` and `Layout` now support value equality via `==`.
 
 ### Changed
 
-- Clarified `Layout` coordinate system in API docs: `location` is relative to the parent's
-  border box origin, `size` is the border box dimensions, and documented all `Layout` fields.
+- [#35](https://github.com/JoshKarpel/waxy/pull/35) Clarified `Layout` coordinate system in API docs: `location` is relative to the parent's border box origin, `size` is the border box dimensions, and documented all `Layout` fields.
+
+### Fixed
+
+- [#36](https://github.com/JoshKarpel/waxy/pull/36) `Point`, `KnownSize`, and `AvailableSize` `__hash__` now correctly normalize `-0.0` to `0.0` so that equal objects always hash identically.
 
 ## [0.3.0](https://github.com/JoshKarpel/waxy/compare/v0.2.0...v0.3.0) - 2026-02-24
 
