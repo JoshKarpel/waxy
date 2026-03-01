@@ -9,8 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
-- `Style` now supports value equality via `==`.
+- `Style` now supports value equality via `==` and is now hashable.
 - `Point` is now hashable, enabling use in sets and as dictionary keys.
+- `Rect`, `Size`, `Line`, `GridPlacement`, and `Layout` are now hashable, enabling use in sets and as dictionary keys.
+- `GridPlacement` now supports value equality via `==`.
+- `Layout` now supports value equality via `==`.
 
 ### Fixed
 

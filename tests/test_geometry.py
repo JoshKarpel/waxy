@@ -49,6 +49,34 @@ def test_size_immutable() -> None:
         s.width = 5.0  # type: ignore[misc]
 
 
+def test_size_hash() -> None:
+    assert hash(waxy.Size(10.0, 20.0)) == hash(waxy.Size(10.0, 20.0))
+    s = {waxy.Size(1.0, 2.0), waxy.Size(3.0, 4.0), waxy.Size(1.0, 2.0)}
+    assert len(s) == 2
+
+    s1 = waxy.Size(0.0, 0.0)
+    s2 = waxy.Size(-0.0, 0.0)
+    s3 = waxy.Size(0.0, -0.0)
+    s4 = waxy.Size(-0.0, -0.0)
+    assert s1 == s2 == s3 == s4
+    assert hash(s1) == hash(s2) == hash(s3) == hash(s4)
+    assert len({s1, s2, s3, s4}) == 1
+
+
+def test_line_hash() -> None:
+    assert hash(waxy.Line(1.0, 2.0)) == hash(waxy.Line(1.0, 2.0))
+    s = {waxy.Line(1.0, 2.0), waxy.Line(3.0, 4.0), waxy.Line(1.0, 2.0)}
+    assert len(s) == 2
+
+    l1 = waxy.Line(0.0, 0.0)
+    l2 = waxy.Line(-0.0, 0.0)
+    l3 = waxy.Line(0.0, -0.0)
+    l4 = waxy.Line(-0.0, -0.0)
+    assert l1 == l2 == l3 == l4
+    assert hash(l1) == hash(l2) == hash(l3) == hash(l4)
+    assert len({l1, l2, l3, l4}) == 1
+
+
 def test_point_hash() -> None:
     # Basic hash and deduplication behaviour for non-zero coordinates
     assert hash(waxy.Point(1.0, 2.0)) == hash(waxy.Point(1.0, 2.0))
@@ -73,6 +101,22 @@ def test_point_add() -> None:
 def test_point_sub() -> None:
     p = waxy.Point(5.0, 10.0) - waxy.Point(3.0, 4.0)
     assert p == waxy.Point(2.0, 6.0)
+
+
+def test_rect_hash() -> None:
+    # Basic hash and deduplication behaviour
+    assert hash(waxy.Rect(1.0, 2.0, 3.0, 4.0)) == hash(waxy.Rect(1.0, 2.0, 3.0, 4.0))
+    s = {waxy.Rect(1.0, 2.0, 3.0, 4.0), waxy.Rect(5.0, 6.0, 7.0, 8.0), waxy.Rect(1.0, 2.0, 3.0, 4.0)}
+    assert len(s) == 2
+
+    # Signed zero edge case: 0.0 and -0.0 should be equal and hash-identical
+    r1 = waxy.Rect(0.0, 0.0, 0.0, 0.0)
+    r2 = waxy.Rect(-0.0, 0.0, 0.0, 0.0)
+    r3 = waxy.Rect(0.0, -0.0, 0.0, 0.0)
+    r4 = waxy.Rect(-0.0, -0.0, -0.0, -0.0)
+    assert r1 == r2 == r3 == r4
+    assert hash(r1) == hash(r2) == hash(r3) == hash(r4)
+    assert len({r1, r2, r3, r4}) == 1
 
 
 def test_rect_contains() -> None:

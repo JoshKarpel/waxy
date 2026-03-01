@@ -187,3 +187,19 @@ def test_repr() -> None:
     assert "TaffyTree" in repr(tree)
     node = tree.new_leaf(waxy.Style())
     assert "NodeId" in repr(node)
+
+
+def test_layout_eq() -> None:
+    tree = waxy.TaffyTree()
+    node = tree.new_leaf(waxy.Style(size_width=waxy.Length(100.0), size_height=waxy.Length(50.0)))
+    tree.compute_layout(node)
+    assert tree.layout(node) == tree.layout(node)
+
+
+def test_layout_hash() -> None:
+    tree = waxy.TaffyTree()
+    node = tree.new_leaf(waxy.Style(size_width=waxy.Length(100.0), size_height=waxy.Length(50.0)))
+    tree.compute_layout(node)
+    layout = tree.layout(node)
+    assert hash(layout) == hash(tree.layout(node))
+    assert len({layout, tree.layout(node)}) == 1

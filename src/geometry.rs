@@ -4,7 +4,7 @@ use crate::values::{available_space_to_py, AvailableSpaceInput};
 
 /// Normalize an f32 for hashing: maps -0.0 to +0.0 so that
 /// hash is consistent with `==` equality (which treats them as equal).
-fn hash_f32<H: std::hash::Hasher>(v: f32, hasher: &mut H) {
+pub(crate) fn hash_f32<H: std::hash::Hasher>(v: f32, hasher: &mut H) {
     use std::hash::Hash;
     // IEEE 754: -0.0 + 0.0 = +0.0 (branchless normalization)
     (v + 0.0).to_bits().hash(hasher);
@@ -34,6 +34,13 @@ impl Size {
 
     fn __eq__(&self, other: &Size) -> bool {
         self.width == other.width && self.height == other.height
+    }
+
+    fn __hash__(&self) -> u64 {
+        let mut hasher = std::collections::hash_map::DefaultHasher::new();
+        hash_f32(self.width, &mut hasher);
+        hash_f32(self.height, &mut hasher);
+        std::hash::Hasher::finish(&hasher)
     }
 
     /// The area (width * height).
@@ -100,6 +107,15 @@ impl Rect {
             && self.right == other.right
             && self.top == other.top
             && self.bottom == other.bottom
+    }
+
+    fn __hash__(&self) -> u64 {
+        let mut hasher = std::collections::hash_map::DefaultHasher::new();
+        hash_f32(self.left, &mut hasher);
+        hash_f32(self.right, &mut hasher);
+        hash_f32(self.top, &mut hasher);
+        hash_f32(self.bottom, &mut hasher);
+        std::hash::Hasher::finish(&hasher)
     }
 
     /// The width of the rectangle (right - left).
@@ -409,6 +425,13 @@ impl Line {
 
     fn __eq__(&self, other: &Line) -> bool {
         self.start == other.start && self.end == other.end
+    }
+
+    fn __hash__(&self) -> u64 {
+        let mut hasher = std::collections::hash_map::DefaultHasher::new();
+        hash_f32(self.start, &mut hasher);
+        hash_f32(self.end, &mut hasher);
+        std::hash::Hasher::finish(&hasher)
     }
 
     /// The length of the line segment (end - start).

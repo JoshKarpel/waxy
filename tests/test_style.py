@@ -218,3 +218,20 @@ def test_style_eq_different_fields() -> None:
 def test_style_eq_non_style() -> None:
     assert waxy.Style() != "not a style"
     assert waxy.Style() != 42
+
+
+def test_style_hash() -> None:
+    assert hash(waxy.Style()) == hash(waxy.Style())
+    a = waxy.Style(display=waxy.Display.Grid, flex_grow=2.0)
+    b = waxy.Style(display=waxy.Display.Grid, flex_grow=2.0)
+    assert hash(a) == hash(b)
+    assert len({a, b, waxy.Style()}) == 2
+
+
+def test_style_hash_float_normalization() -> None:
+    # flex_grow is a plain f32; taffy's derived PartialEq uses IEEE float
+    # equality where 0.0 == -0.0, so equal styles must also hash identically.
+    a = waxy.Style(flex_grow=0.0)
+    b = waxy.Style(flex_grow=-0.0)
+    assert a == b
+    assert hash(a) == hash(b)

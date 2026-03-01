@@ -390,6 +390,21 @@ def test_grid_placement_repr() -> None:
     assert "GridPlacement" in repr(gp)
 
 
+def test_grid_placement_eq() -> None:
+    assert waxy.GridPlacement() == waxy.GridPlacement()
+    assert waxy.GridPlacement(start=waxy.GridLine(1)) == waxy.GridPlacement(start=waxy.GridLine(1))
+    assert waxy.GridPlacement(start=waxy.GridLine(1)) != waxy.GridPlacement(start=waxy.GridLine(2))
+    assert waxy.GridPlacement(start=waxy.GridLine(1)) != waxy.GridPlacement(start=waxy.GridSpan(1))
+
+
+def test_grid_placement_hash() -> None:
+    gp1 = waxy.GridPlacement(start=waxy.GridLine(1), end=waxy.GridSpan(2))
+    gp2 = waxy.GridPlacement(start=waxy.GridLine(1), end=waxy.GridSpan(2))
+    assert hash(gp1) == hash(gp2)
+    s = {gp1, gp2, waxy.GridPlacement()}
+    assert len(s) == 2
+
+
 # --- Style construction with new types ---
 
 
