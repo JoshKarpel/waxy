@@ -318,6 +318,14 @@ impl Point {
         self.x == other.x && self.y == other.y
     }
 
+    fn __hash__(&self) -> u64 {
+        use std::hash::{Hash, Hasher};
+        let mut hasher = std::collections::hash_map::DefaultHasher::new();
+        self.x.to_bits().hash(&mut hasher);
+        self.y.to_bits().hash(&mut hasher);
+        hasher.finish()
+    }
+
     fn __add__(&self, other: &Point) -> Point {
         Point {
             x: self.x + other.x,
