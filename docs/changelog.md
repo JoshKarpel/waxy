@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `Style` now supports value equality via `==`.
 - `Point` is now hashable, enabling use in sets and as dictionary keys.
 
 ### Fixed

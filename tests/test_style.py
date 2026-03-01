@@ -197,3 +197,24 @@ def test_style_or_grid_tracks() -> None:
 def test_style_repr() -> None:
     s = waxy.Style()
     assert "Style" in repr(s)
+
+
+def test_style_eq_default() -> None:
+    assert waxy.Style() == waxy.Style()
+
+
+def test_style_eq_same_fields() -> None:
+    a = waxy.Style(display=waxy.Display.Grid, flex_grow=2.0)
+    b = waxy.Style(display=waxy.Display.Grid, flex_grow=2.0)
+    assert a == b
+
+
+def test_style_eq_different_fields() -> None:
+    a = waxy.Style(flex_grow=1.0)
+    b = waxy.Style(flex_grow=2.0)
+    assert a != b
+
+
+def test_style_eq_non_style() -> None:
+    assert waxy.Style() != "not a style"
+    assert waxy.Style() != 42
