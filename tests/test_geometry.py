@@ -50,9 +50,18 @@ def test_size_immutable() -> None:
 
 
 def test_point_hash() -> None:
+    # Basic hash and deduplication behaviour for non-zero coordinates
     assert hash(waxy.Point(1.0, 2.0)) == hash(waxy.Point(1.0, 2.0))
     s = {waxy.Point(1.0, 2.0), waxy.Point(3.0, 4.0), waxy.Point(1.0, 2.0)}
     assert len(s) == 2
+
+    # Signed zero edge case: 0.0 and -0.0 should be equal and hash-identical
+    p1 = waxy.Point(0.0, 0.0)
+    p2 = waxy.Point(-0.0, 0.0)
+    assert p1 == p2
+    assert hash(p1) == hash(p2)
+    s_zero = {p1, p2}
+    assert len(s_zero) == 1
 
 
 def test_point_add() -> None:

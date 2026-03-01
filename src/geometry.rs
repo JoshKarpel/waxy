@@ -321,8 +321,12 @@ impl Point {
     fn __hash__(&self) -> u64 {
         use std::hash::{Hash, Hasher};
         let mut hasher = std::collections::hash_map::DefaultHasher::new();
-        self.x.to_bits().hash(&mut hasher);
-        self.y.to_bits().hash(&mut hasher);
+        // Normalize -0.0 to 0.0 so that hashing is consistent with __eq__,
+        // which treats 0.0 and -0.0 as equal.
+        let x = if self.x == 0.0 { 0.0 } else { self.x };
+        let y = if self.y == 0.0 { 0.0 } else { self.y };
+        x.to_bits().hash(&mut hasher);
+        y.to_bits().hash(&mut hasher);
         hasher.finish()
     }
 
