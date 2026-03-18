@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased](https://github.com/JoshKarpel/waxy/compare/v0.4.0...HEAD)
 
+### Added
+
+- [#41](https://github.com/JoshKarpel/waxy/pull/41) Enum classes are now iterable: `list(waxy.BoxSizing)` returns all variants in definition order. Each enum also has a `variants()` classmethod that returns the same list.
+
 ## [0.4.0](https://github.com/JoshKarpel/waxy/compare/v0.3.0...v0.4.0) - 2026-03-01
 
 ### Added
