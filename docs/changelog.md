@@ -5,7 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## [Unreleased](https://github.com/JoshKarpel/waxy/compare/v0.4.0...HEAD)
+## [Unreleased](https://github.com/JoshKarpel/waxy/compare/v0.5.0...HEAD)
+
+## [0.5.0](https://github.com/JoshKarpel/waxy/compare/v0.4.0...v0.5.0) - 2026-04-03
 
 ### Added
 
