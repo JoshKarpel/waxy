@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
-- [#45](https://github.com/JoshKarpel/waxy/pull/45) `Rect.intersection(other)` returns the overlapping rectangle, or `None` if the two rectangles don't overlap.
+- [#45](https://github.com/JoshKarpel/waxy/pull/45) `Rect.intersection(other)` returns the intersection rectangle (including edge-touching degenerate intersections), or `None` if the two rectangles do not intersect.
 
 ## [0.4.0](https://github.com/JoshKarpel/waxy/compare/v0.3.0...v0.4.0) - 2026-03-01
 

@@ -293,7 +293,8 @@ impl Rect {
         }
     }
 
-    /// Return the intersection of this rectangle with another, or None if they don't overlap.
+    /// Return the intersection of this rectangle with another, or None if they are disjoint.
+    /// Rectangles that only touch at an edge or corner return a degenerate (zero-area) Rect.
     fn intersection(&self, other: &Rect) -> Option<Rect> {
         let left = self.left.max(other.left);
         let right = self.right.min(other.right);
