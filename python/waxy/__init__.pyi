@@ -122,6 +122,8 @@ class Rect:
 
         Each column is an iterator of Points with the same x coordinate.
         """
+    def intersection(self, other: Rect) -> Rect | None:
+        """Return the intersection of this rectangle with another, or None if they don't overlap."""
 
 class Point:
     """A 2D point with x and y coordinates."""

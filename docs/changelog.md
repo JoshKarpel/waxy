@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased](https://github.com/JoshKarpel/waxy/compare/v0.4.0...HEAD)
 
+### Added
+
+- `Rect.intersection(other)` returns the overlapping rectangle, or `None` if the two rectangles don't overlap.
+
 ## [0.4.0](https://github.com/JoshKarpel/waxy/compare/v0.3.0...v0.4.0) - 2026-03-01
 
 ### Added

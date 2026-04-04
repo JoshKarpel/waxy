@@ -292,6 +292,24 @@ impl Rect {
             (x_count as usize) * (y_count as usize)
         }
     }
+
+    /// Return the intersection of this rectangle with another, or None if they don't overlap.
+    fn intersection(&self, other: &Rect) -> Option<Rect> {
+        let left = self.left.max(other.left);
+        let right = self.right.min(other.right);
+        let top = self.top.max(other.top);
+        let bottom = self.bottom.min(other.bottom);
+        if left <= right && top <= bottom {
+            Some(Rect {
+                left,
+                right,
+                top,
+                bottom,
+            })
+        } else {
+            None
+        }
+    }
 }
 
 impl From<taffy::Rect<f32>> for Rect {

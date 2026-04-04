@@ -293,6 +293,24 @@ def test_rect_size() -> None:
     assert r.size == waxy.Size(3.0, 5.0)
 
 
+def test_rect_intersection() -> None:
+    a = waxy.Rect(0.0, 4.0, 0.0, 4.0)
+    b = waxy.Rect(2.0, 6.0, 2.0, 6.0)
+    assert a.intersection(b) == waxy.Rect(2.0, 4.0, 2.0, 4.0)
+
+
+def test_rect_intersection_no_overlap() -> None:
+    a = waxy.Rect(0.0, 1.0, 0.0, 1.0)
+    b = waxy.Rect(2.0, 3.0, 2.0, 3.0)
+    assert a.intersection(b) is None
+
+
+def test_rect_intersection_touching_edge() -> None:
+    a = waxy.Rect(0.0, 2.0, 0.0, 2.0)
+    b = waxy.Rect(2.0, 4.0, 0.0, 2.0)
+    assert a.intersection(b) == waxy.Rect(2.0, 2.0, 0.0, 2.0)
+
+
 def test_point_mul() -> None:
     p = waxy.Point(2.0, 3.0) * 4.0
     assert p == waxy.Point(8.0, 12.0)
