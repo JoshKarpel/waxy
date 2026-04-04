@@ -1,3 +1,4 @@
+import enum
 from collections.abc import Callable, Iterator
 
 # Exceptions
@@ -454,130 +455,130 @@ class GridSpan:
 
 # Enums
 
-class Display:
+class Display(enum.IntEnum):
     """How the node should be displayed."""
 
-    Block: Display
+    Block = 0
     """Block layout."""
-    Flex: Display
+    Flex = 1
     """Flexbox layout."""
-    Grid: Display
+    Grid = 2
     """CSS Grid layout."""
-    Nil: Display
+    Nil = 3
     """No display (maps to CSS `display: none`)."""
 
-class Position:
+class Position(enum.IntEnum):
     """How the node should be positioned."""
 
-    Relative: Position
+    Relative = 0
     """Positioned according to normal flow, then offset."""
-    Absolute: Position
+    Absolute = 1
     """Removed from normal flow and positioned relative to its containing block."""
 
-class FlexDirection:
+class FlexDirection(enum.IntEnum):
     """The direction of a flex container's main axis."""
 
-    Row: FlexDirection
+    Row = 0
     """Items are laid out in a row (left to right)."""
-    Column: FlexDirection
+    Column = 1
     """Items are laid out in a column (top to bottom)."""
-    RowReverse: FlexDirection
+    RowReverse = 2
     """Items are laid out in a row in reverse order (right to left)."""
-    ColumnReverse: FlexDirection
+    ColumnReverse = 3
     """Items are laid out in a column in reverse order (bottom to top)."""
 
-class FlexWrap:
+class FlexWrap(enum.IntEnum):
     """Whether flex items wrap."""
 
-    NoWrap: FlexWrap
+    NoWrap = 0
     """Items are forced onto a single line."""
-    Wrap: FlexWrap
+    Wrap = 1
     """Items wrap onto multiple lines."""
-    WrapReverse: FlexWrap
+    WrapReverse = 2
     """Items wrap onto multiple lines in reverse order."""
 
-class AlignItems:
+class AlignItems(enum.IntEnum):
     """Alignment of items along the cross axis."""
 
-    Start: AlignItems
+    Start = 0
     """Align to the start of the cross axis."""
-    End: AlignItems
+    End = 1
     """Align to the end of the cross axis."""
-    FlexStart: AlignItems
+    FlexStart = 2
     """Align to the start of the cross axis (respects `flex-direction`)."""
-    FlexEnd: AlignItems
+    FlexEnd = 3
     """Align to the end of the cross axis (respects `flex-direction`)."""
-    Center: AlignItems
+    Center = 4
     """Center along the cross axis."""
-    Baseline: AlignItems
+    Baseline = 5
     """Align to the first baseline."""
-    Stretch: AlignItems
+    Stretch = 6
     """Stretch to fill the cross axis."""
 
-class AlignContent:
+class AlignContent(enum.IntEnum):
     """Alignment of content within the container."""
 
-    Start: AlignContent
+    Start = 0
     """Pack lines to the start of the container."""
-    End: AlignContent
+    End = 1
     """Pack lines to the end of the container."""
-    FlexStart: AlignContent
+    FlexStart = 2
     """Pack lines to the start of the container (respects `flex-direction`)."""
-    FlexEnd: AlignContent
+    FlexEnd = 3
     """Pack lines to the end of the container (respects `flex-direction`)."""
-    Center: AlignContent
+    Center = 4
     """Center lines within the container."""
-    Stretch: AlignContent
+    Stretch = 5
     """Stretch lines to fill the container."""
-    SpaceBetween: AlignContent
+    SpaceBetween = 6
     """Distribute lines evenly; first line at start, last at end."""
-    SpaceEvenly: AlignContent
+    SpaceEvenly = 7
     """Distribute lines with equal space around each line."""
-    SpaceAround: AlignContent
+    SpaceAround = 8
     """Distribute lines with half-size spaces on the edges."""
 
-class Overflow:
+class Overflow(enum.IntEnum):
     """How content overflows its container."""
 
-    Visible: Overflow
+    Visible = 0
     """Content is not clipped and may overflow."""
-    Clip: Overflow
+    Clip = 1
     """Content is clipped without a scrollbar."""
-    Hidden: Overflow
+    Hidden = 2
     """Content is clipped and hidden; scroll position cannot be changed programmatically."""
-    Scroll: Overflow
+    Scroll = 3
     """Content is clipped but scrollable."""
 
-class GridAutoFlow:
+class GridAutoFlow(enum.IntEnum):
     """How grid items are auto-placed."""
 
-    Row: GridAutoFlow
+    Row = 0
     """Place items by filling each row."""
-    Column: GridAutoFlow
+    Column = 1
     """Place items by filling each column."""
-    RowDense: GridAutoFlow
+    RowDense = 2
     """Place items by filling each row, backfilling gaps."""
-    ColumnDense: GridAutoFlow
+    ColumnDense = 3
     """Place items by filling each column, backfilling gaps."""
 
-class BoxSizing:
+class BoxSizing(enum.IntEnum):
     """Box sizing model."""
 
-    BorderBox: BoxSizing
+    BorderBox = 0
     """Width and height include padding and border."""
-    ContentBox: BoxSizing
+    ContentBox = 1
     """Width and height apply to the content area only."""
 
-class TextAlign:
+class TextAlign(enum.IntEnum):
     """Text alignment."""
 
-    Auto: TextAlign
+    Auto = 0
     """Automatic text alignment."""
-    LegacyLeft: TextAlign
+    LegacyLeft = 1
     """Left-aligned text."""
-    LegacyRight: TextAlign
+    LegacyRight = 2
     """Right-aligned text."""
-    LegacyCenter: TextAlign
+    LegacyCenter = 3
     """Centered text."""
 
 type GridPlacementValue = GridLine | GridSpan | Auto
