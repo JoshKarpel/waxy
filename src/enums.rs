@@ -1,4 +1,5 @@
 use pyo3::prelude::*;
+use pyo3::types::PyType;
 
 /// How the node should be displayed.
 #[pyclass(eq, eq_int, from_py_object, module = "waxy")]
@@ -9,6 +10,14 @@ pub enum Display {
     Grid = 2,
     #[pyo3(name = "Nil")]
     None = 3,
+}
+
+#[pymethods]
+impl Display {
+    #[classmethod]
+    fn variants(_cls: &Bound<'_, PyType>) -> Vec<Display> {
+        vec![Display::Block, Display::Flex, Display::Grid, Display::None]
+    }
 }
 
 impl From<taffy::Display> for Display {
@@ -41,6 +50,14 @@ pub enum Position {
     Absolute = 1,
 }
 
+#[pymethods]
+impl Position {
+    #[classmethod]
+    fn variants(_cls: &Bound<'_, PyType>) -> Vec<Position> {
+        vec![Position::Relative, Position::Absolute]
+    }
+}
+
 impl From<taffy::Position> for Position {
     fn from(p: taffy::Position) -> Self {
         match p {
@@ -67,6 +84,19 @@ pub enum FlexDirection {
     Column = 1,
     RowReverse = 2,
     ColumnReverse = 3,
+}
+
+#[pymethods]
+impl FlexDirection {
+    #[classmethod]
+    fn variants(_cls: &Bound<'_, PyType>) -> Vec<FlexDirection> {
+        vec![
+            FlexDirection::Row,
+            FlexDirection::Column,
+            FlexDirection::RowReverse,
+            FlexDirection::ColumnReverse,
+        ]
+    }
 }
 
 impl From<taffy::FlexDirection> for FlexDirection {
@@ -100,6 +130,14 @@ pub enum FlexWrap {
     WrapReverse = 2,
 }
 
+#[pymethods]
+impl FlexWrap {
+    #[classmethod]
+    fn variants(_cls: &Bound<'_, PyType>) -> Vec<FlexWrap> {
+        vec![FlexWrap::NoWrap, FlexWrap::Wrap, FlexWrap::WrapReverse]
+    }
+}
+
 impl From<taffy::FlexWrap> for FlexWrap {
     fn from(w: taffy::FlexWrap) -> Self {
         match w {
@@ -131,6 +169,22 @@ pub enum AlignItems {
     Center = 4,
     Baseline = 5,
     Stretch = 6,
+}
+
+#[pymethods]
+impl AlignItems {
+    #[classmethod]
+    fn variants(_cls: &Bound<'_, PyType>) -> Vec<AlignItems> {
+        vec![
+            AlignItems::Start,
+            AlignItems::End,
+            AlignItems::FlexStart,
+            AlignItems::FlexEnd,
+            AlignItems::Center,
+            AlignItems::Baseline,
+            AlignItems::Stretch,
+        ]
+    }
 }
 
 impl From<taffy::AlignItems> for AlignItems {
@@ -176,6 +230,24 @@ pub enum AlignContent {
     SpaceAround = 8,
 }
 
+#[pymethods]
+impl AlignContent {
+    #[classmethod]
+    fn variants(_cls: &Bound<'_, PyType>) -> Vec<AlignContent> {
+        vec![
+            AlignContent::Start,
+            AlignContent::End,
+            AlignContent::FlexStart,
+            AlignContent::FlexEnd,
+            AlignContent::Center,
+            AlignContent::Stretch,
+            AlignContent::SpaceBetween,
+            AlignContent::SpaceEvenly,
+            AlignContent::SpaceAround,
+        ]
+    }
+}
+
 impl From<taffy::AlignContent> for AlignContent {
     fn from(a: taffy::AlignContent) -> Self {
         match a {
@@ -218,6 +290,19 @@ pub enum Overflow {
     Scroll = 3,
 }
 
+#[pymethods]
+impl Overflow {
+    #[classmethod]
+    fn variants(_cls: &Bound<'_, PyType>) -> Vec<Overflow> {
+        vec![
+            Overflow::Visible,
+            Overflow::Clip,
+            Overflow::Hidden,
+            Overflow::Scroll,
+        ]
+    }
+}
+
 impl From<taffy::Overflow> for Overflow {
     fn from(o: taffy::Overflow) -> Self {
         match o {
@@ -250,6 +335,19 @@ pub enum GridAutoFlow {
     ColumnDense = 3,
 }
 
+#[pymethods]
+impl GridAutoFlow {
+    #[classmethod]
+    fn variants(_cls: &Bound<'_, PyType>) -> Vec<GridAutoFlow> {
+        vec![
+            GridAutoFlow::Row,
+            GridAutoFlow::Column,
+            GridAutoFlow::RowDense,
+            GridAutoFlow::ColumnDense,
+        ]
+    }
+}
+
 impl From<taffy::GridAutoFlow> for GridAutoFlow {
     fn from(g: taffy::GridAutoFlow) -> Self {
         match g {
@@ -280,6 +378,14 @@ pub enum BoxSizing {
     ContentBox = 1,
 }
 
+#[pymethods]
+impl BoxSizing {
+    #[classmethod]
+    fn variants(_cls: &Bound<'_, PyType>) -> Vec<BoxSizing> {
+        vec![BoxSizing::BorderBox, BoxSizing::ContentBox]
+    }
+}
+
 impl From<taffy::BoxSizing> for BoxSizing {
     fn from(b: taffy::BoxSizing) -> Self {
         match b {
@@ -306,6 +412,19 @@ pub enum TextAlign {
     LegacyLeft = 1,
     LegacyRight = 2,
     LegacyCenter = 3,
+}
+
+#[pymethods]
+impl TextAlign {
+    #[classmethod]
+    fn variants(_cls: &Bound<'_, PyType>) -> Vec<TextAlign> {
+        vec![
+            TextAlign::Auto,
+            TextAlign::LegacyLeft,
+            TextAlign::LegacyRight,
+            TextAlign::LegacyCenter,
+        ]
+    }
 }
 
 impl From<taffy::TextAlign> for TextAlign {
