@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased](https://github.com/JoshKarpel/waxy/compare/v0.5.0...HEAD)
 
+### Added
+
+- `Style` exposes the layout features added in taffy 0.10 through 0.14:
+  `direction` (`Direction.Ltr`/`Rtl`),
+  `float` and `clear` (`Float`, `Clear`),
+  `contain` (`Contain`),
+  `flex_line_count`,
+  and `item_is_table`/`item_is_replaced`.
+- `Display.FlowRoot` and `FlexWrap.Balance`/`BalanceReverse`.
+- Safe alignment and self-relative alignment:
+  `AlignItems.SelfStart`/`SelfEnd`, and `Safe*` members of `AlignItems` and `AlignContent`.
+- `size_*` and `flex_basis` accept the CSS sizing keywords
+  `MIN_CONTENT`, `MAX_CONTENT`, `FitContent(limit)`, `FIT_CONTENT` (`FitContentKeyword`),
+  and `STRETCH` (`Stretch`); `flex_basis` also accepts `CONTENT` (`Content`).
+- Grid `repeat()` via `Repeat(count, tracks, line_names)`,
+  with `count` an `int`, `AUTO_FILL`, or `AUTO_FIT`.
+- Named grid lines via `grid_template_row_names`/`grid_template_column_names`,
+  placed with `NamedGridLine` and `NamedGridSpan`.
+- Grid template areas via `grid_template_areas`, built with `GridTemplateArea`/`GridTemplateAreas`
+  or parsed from CSS strings with `GridTemplateAreas.from_strings`.
+- `TaffyTree.detailed_layout_info()` returns a `DetailedGridInfo` for grid containers:
+  track positions, line names, item placements, and resolved `grid-template-*` strings.
+- `Layout.content_box_size()`, `content_box_x()`, `content_box_y()`,
+  `scroll_width()`, and `scroll_height()`.
+- `TaffyTree.remove_children_range()`.
+
+### Changed
+
+- Upgraded taffy from 0.9 to 0.14, which fixes many layout bugs across block, flexbox, and grid
+  and so can change computed layouts.
+  See [taffy's changelog](https://github.com/DioxusLabs/taffy/blob/main/CHANGELOG.md).
+- `Layout.content_size` is replaced by `Layout.scrollable_overflow_rect`, a `Rect`
+  whose `right`/`bottom` are the old width/height.
+- `min_size_*` and `max_size_*` are typed `LengthPercentageAutoValue`,
+  since they don't accept the new sizing keywords.
+
 ## [0.5.0](https://github.com/JoshKarpel/waxy/compare/v0.4.0...v0.5.0) - 2026-04-03
 
 ### Added

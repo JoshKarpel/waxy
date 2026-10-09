@@ -581,3 +581,41 @@ def test_type_aliases_importable() -> None:
     assert hasattr(waxy, "GridTrackMinValue")
     assert hasattr(waxy, "GridTrackMaxValue")
     assert hasattr(waxy, "GridPlacementValue")
+
+
+# --- Zero-argument keyword types ---
+
+KEYWORD_TYPES: list[tuple[type, object, str]] = [
+    (waxy.Stretch, waxy.STRETCH, "Stretch()"),
+    (waxy.FitContentKeyword, waxy.FIT_CONTENT, "FitContentKeyword()"),
+    (waxy.Content, waxy.CONTENT, "Content()"),
+    (waxy.AutoFill, waxy.AUTO_FILL, "AutoFill()"),
+    (waxy.AutoFit, waxy.AUTO_FIT, "AutoFit()"),
+]
+KEYWORD_IDS = [cls.__name__ for cls, _, _ in KEYWORD_TYPES]
+
+
+@pytest.mark.parametrize(("cls", "constant", "expected_repr"), KEYWORD_TYPES, ids=KEYWORD_IDS)
+def test_keyword_constant_is_instance(cls: type, constant: object, expected_repr: str) -> None:
+    assert isinstance(constant, cls)
+    assert constant == cls()
+
+
+@pytest.mark.parametrize(("cls", "constant", "expected_repr"), KEYWORD_TYPES, ids=KEYWORD_IDS)
+def test_keyword_repr(cls: type, constant: object, expected_repr: str) -> None:
+    assert repr(constant) == expected_repr
+
+
+def test_zero_argument_value_types_hash_distinctly() -> None:
+    values = [
+        waxy.AUTO,
+        waxy.MIN_CONTENT,
+        waxy.MAX_CONTENT,
+        waxy.STRETCH,
+        waxy.FIT_CONTENT,
+        waxy.CONTENT,
+        waxy.AUTO_FILL,
+        waxy.AUTO_FIT,
+    ]
+    assert len({hash(v) for v in values}) == len(values)
+    assert len(set(values)) == len(values)

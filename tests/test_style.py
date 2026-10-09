@@ -1,3 +1,6 @@
+from collections.abc import Callable
+from typing import assert_never
+
 import pytest
 
 import waxy
@@ -258,3 +261,192 @@ def test_style_hash_grid_tracks() -> None:
 
     # Different grid tracks hash differently and work as set/dict keys.
     assert len({a, c}) == 2
+
+
+# Each case: a Style with one new field set, the getter for that field, the value it was
+# set to, and the field's default.
+NEW_FIELD_CASES: list[tuple[str, waxy.Style, Callable[[waxy.Style], object], object, object]] = [
+    (
+        "direction",
+        waxy.Style(direction=waxy.Direction.Rtl),
+        lambda s: s.direction,
+        waxy.Direction.Rtl,
+        waxy.Direction.Ltr,
+    ),
+    (
+        "contain",
+        waxy.Style(contain=waxy.Contain.Paint),
+        lambda s: s.contain,
+        waxy.Contain.Paint,
+        waxy.Contain.Nil,
+    ),
+    (
+        "float",
+        waxy.Style(float=waxy.Float.Right),
+        lambda s: s.float,
+        waxy.Float.Right,
+        waxy.Float.Nil,
+    ),
+    (
+        "clear",
+        waxy.Style(clear=waxy.Clear.Both),
+        lambda s: s.clear,
+        waxy.Clear.Both,
+        waxy.Clear.Nil,
+    ),
+    ("item_is_table", waxy.Style(item_is_table=True), lambda s: s.item_is_table, True, False),
+    (
+        "item_is_replaced",
+        waxy.Style(item_is_replaced=True),
+        lambda s: s.item_is_replaced,
+        True,
+        False,
+    ),
+    ("flex_line_count", waxy.Style(flex_line_count=3), lambda s: s.flex_line_count, 3, 1),
+]
+NEW_FIELD_IDS = [case[0] for case in NEW_FIELD_CASES]
+
+
+@pytest.mark.parametrize(
+    ("field", "style", "get", "value", "default"), NEW_FIELD_CASES, ids=NEW_FIELD_IDS
+)
+def test_style_new_field_default(
+    field: str,
+    style: waxy.Style,
+    get: Callable[[waxy.Style], object],
+    value: object,
+    default: object,
+) -> None:
+    assert get(waxy.Style()) == default
+
+
+@pytest.mark.parametrize(
+    ("field", "style", "get", "value", "default"), NEW_FIELD_CASES, ids=NEW_FIELD_IDS
+)
+def test_style_new_field_round_trips(
+    field: str,
+    style: waxy.Style,
+    get: Callable[[waxy.Style], object],
+    value: object,
+    default: object,
+) -> None:
+    assert get(style) == value
+
+
+@pytest.mark.parametrize(
+    ("field", "style", "get", "value", "default"), NEW_FIELD_CASES, ids=NEW_FIELD_IDS
+)
+def test_style_new_field_survives_merge(
+    field: str,
+    style: waxy.Style,
+    get: Callable[[waxy.Style], object],
+    value: object,
+    default: object,
+) -> None:
+    assert get(style | waxy.Style(display=waxy.Display.Grid)) == value
+
+
+@pytest.mark.parametrize(
+    ("field", "style", "get", "value", "default"), NEW_FIELD_CASES, ids=NEW_FIELD_IDS
+)
+def test_style_new_field_affects_eq_and_hash(
+    field: str,
+    style: waxy.Style,
+    get: Callable[[waxy.Style], object],
+    value: object,
+    default: object,
+) -> None:
+    assert style != waxy.Style()
+    assert hash(style) != hash(waxy.Style())
+
+
+def test_style_flex_line_count_zero_raises() -> None:
+    with pytest.raises(waxy.InvalidFlexLineCount, match="at least 1"):
+        waxy.Style(flex_line_count=0)
+
+
+SIZE_KEYWORDS: list[waxy.DimensionValue] = [
+    waxy.MIN_CONTENT,
+    waxy.MAX_CONTENT,
+    waxy.FIT_CONTENT,
+    waxy.STRETCH,
+    waxy.FitContent(waxy.Length(120.0)),
+    waxy.FitContent(waxy.Percent(0.25)),
+]
+
+
+@pytest.mark.parametrize("value", SIZE_KEYWORDS, ids=repr)
+def test_style_size_width_sizing_keywords_round_trip(value: waxy.DimensionValue) -> None:
+    assert waxy.Style(size_width=value).size_width == value
+
+
+@pytest.mark.parametrize("value", SIZE_KEYWORDS, ids=repr)
+def test_style_size_height_sizing_keywords_round_trip(value: waxy.DimensionValue) -> None:
+    assert waxy.Style(size_height=value).size_height == value
+
+
+@pytest.mark.parametrize("value", [*SIZE_KEYWORDS, waxy.CONTENT], ids=repr)
+def test_style_flex_basis_sizing_keywords_round_trip(value: waxy.FlexBasisValue) -> None:
+    assert waxy.Style(flex_basis=value).flex_basis == value
+
+
+def test_style_size_rejects_content() -> None:
+    with pytest.raises(TypeError):
+        waxy.Style(size_width=waxy.CONTENT)  # type: ignore[arg-type]
+
+
+def test_style_min_size_rejects_sizing_keywords() -> None:
+    with pytest.raises(TypeError):
+        waxy.Style(min_size_width=waxy.STRETCH)  # type: ignore[arg-type]
+
+
+def test_style_max_size_rejects_sizing_keywords() -> None:
+    with pytest.raises(TypeError):
+        waxy.Style(max_size_height=waxy.MIN_CONTENT)  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize("value", [waxy.Length(30.0), waxy.Percent(0.4), waxy.AUTO], ids=repr)
+def test_style_min_max_size_round_trip(value: waxy.LengthPercentageAutoValue) -> None:
+    style = waxy.Style(
+        min_size_width=value, min_size_height=value, max_size_width=value, max_size_height=value
+    )
+    assert style.min_size_width == value
+    assert style.min_size_height == value
+    assert style.max_size_width == value
+    assert style.max_size_height == value
+
+
+def test_style_stretch_fills_container_less_margin() -> None:
+    tree: waxy.TaffyTree[object] = waxy.TaffyTree()
+    child = tree.new_leaf(waxy.Style(size_width=waxy.STRETCH, margin_left=waxy.Length(15.0)))
+    root = tree.new_with_children(
+        waxy.Style(display=waxy.Display.Block, size_width=waxy.Length(200.0)), [child]
+    )
+    tree.compute_layout(root)
+    assert tree.layout(child).size.width == 185.0
+
+
+def test_style_fit_content_limit_clamps_width() -> None:
+    # Text that is 50 wide fully wrapped (min-content), 500 wide unwrapped (max-content),
+    # and otherwise wraps to the available width.
+    def measure(known: waxy.KnownSize, available: waxy.AvailableSize, context: str) -> waxy.Size:
+        match available.width:
+            case waxy.MinContent():
+                width = 50.0
+            case waxy.MaxContent():
+                width = 500.0
+            case waxy.Definite(w):
+                width = max(50.0, min(500.0, w))
+            case _ as unreachable:
+                assert_never(unreachable)
+        return waxy.Size(width, 5000.0 / width)
+
+    tree: waxy.TaffyTree[str] = waxy.TaffyTree()
+    child = tree.new_leaf_with_context(
+        waxy.Style(size_width=waxy.FitContent(waxy.Length(120.0))), "text"
+    )
+    root = tree.new_with_children(
+        waxy.Style(display=waxy.Display.Block, size_width=waxy.Length(300.0)), [child]
+    )
+    tree.compute_layout(root, measure=measure)
+    assert tree.layout(child).size.width == 120.0

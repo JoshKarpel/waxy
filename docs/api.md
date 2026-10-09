@@ -12,6 +12,12 @@
 
 ::: waxy.Layout
 
+::: waxy.DetailedGridInfo
+
+::: waxy.DetailedGridTracksInfo
+
+::: waxy.DetailedGridItemInfo
+
 ## Node
 
 ::: waxy.NodeId
@@ -42,6 +48,12 @@
 
 ::: waxy.MaxContent
 
+::: waxy.Stretch
+
+::: waxy.FitContentKeyword
+
+::: waxy.Content
+
 ::: waxy.Definite
 
 ::: waxy.Fraction
@@ -50,19 +62,39 @@
 
 ::: waxy.Minmax
 
+::: waxy.Repeat
+
+::: waxy.AutoFill
+
+::: waxy.AutoFit
+
 ::: waxy.GridLine
 
 ::: waxy.GridSpan
 
+::: waxy.NamedGridLine
+
+::: waxy.NamedGridSpan
+
 ::: waxy.GridPlacement
+
+::: waxy.GridTemplateArea
+
+::: waxy.GridTemplateAreas
 
 ## Type aliases
 
 ::: waxy.DimensionValue
 
+::: waxy.FlexBasisValue
+
+::: waxy.LengthPercentageAutoValue
+
 ::: waxy.LengthPercentageValue
 
 ::: waxy.GridTrackValue
+
+::: waxy.GridTemplateValue
 
 ::: waxy.GridTrackMinValue
 
@@ -94,6 +126,14 @@
 
 ::: waxy.TextAlign
 
+::: waxy.Direction
+
+::: waxy.Float
+
+::: waxy.Clear
+
+::: waxy.Contain
+
 ## Exceptions
 
 ```
@@ -104,12 +144,20 @@ Exception
  │    ├── InvalidPercent [WaxyException]
  │    ├── InvalidLength [WaxyException]
  │    ├── InvalidGridLine [WaxyException]
- │    └── InvalidGridSpan [WaxyException]
+ │    ├── InvalidGridSpan [WaxyException]
+ │    ├── InvalidFlexLineCount [WaxyException]
+ │    ├── InvalidRepeat [WaxyException]
+ │    ├── InvalidGridTemplateArea [WaxyException]
+ │    └── InvalidGridTemplateAreas [WaxyException]
  └── WaxyException
       ├── InvalidPercent [ValueError]
       ├── InvalidLength [ValueError]
       ├── InvalidGridLine [ValueError]
       ├── InvalidGridSpan [ValueError]
+      ├── InvalidFlexLineCount [ValueError]
+      ├── InvalidRepeat [ValueError]
+      ├── InvalidGridTemplateArea [ValueError]
+      ├── InvalidGridTemplateAreas [ValueError]
       └── TaffyException
            ├── ChildIndexOutOfBounds
            ├── InvalidParentNode
@@ -129,6 +177,14 @@ Exception
 ::: waxy.InvalidGridLine
 
 ::: waxy.InvalidGridSpan
+
+::: waxy.InvalidFlexLineCount
+
+::: waxy.InvalidRepeat
+
+::: waxy.InvalidGridTemplateArea
+
+::: waxy.InvalidGridTemplateAreas
 
 ::: waxy.InvalidNodeId
 

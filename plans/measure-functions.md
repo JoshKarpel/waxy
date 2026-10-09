@@ -219,8 +219,7 @@ def my_measure(
     known: KnownDimensions,
     available: AvailableDimensions,
     context: T,  # always present — never None
-) -> Size:
-    ...
+) -> Size: ...
 ```
 
 The measure function always returns a `Size` (no tuple fallback).
@@ -243,6 +242,7 @@ class TaffyTree[T]:
         available: AvailableDimensions | None = None,
         measure: Callable[[KnownDimensions, AvailableDimensions, T], Size] | None = None,
     ) -> None: ...
+
     # ... all existing methods unchanged ...
 ```
 
@@ -284,6 +284,7 @@ root = tree.new_with_children(
     [image_node],
 )
 
+
 # Define how to measure leaf nodes
 # `context` is always present — nodes without context get Size(0, 0) automatically
 # Both-known case is handled by the Rust wrapper, so we don't need to check for it
@@ -313,6 +314,7 @@ def measure(known, available, context):
 
     return Size(0, 0)
 
+
 tree.compute_layout(root, measure=measure)
 
 layout = tree.layout(image_node)
@@ -341,6 +343,7 @@ root = tree.new_with_children(
 CHAR_WIDTH = 8.0
 CHAR_HEIGHT = 16.0
 
+
 def measure(known, available, context):
     kw, kh = known
 
@@ -366,6 +369,7 @@ def measure(known, available, context):
 
     return Size(inline_size, line_count * CHAR_HEIGHT)
 
+
 tree.compute_layout(root, measure=measure)
 layout = tree.layout(text_node)
 print(layout.size)  # Text wrapped within 100px width
@@ -380,13 +384,16 @@ tree: TaffyTree[dict] = TaffyTree()
 
 # Different node types, same tree
 heading = tree.new_leaf_with_context(Style(), {"type": "text", "content": "Title", "font_size": 24})
-body = tree.new_leaf_with_context(Style(), {"type": "text", "content": "Body text here", "font_size": 14})
+body = tree.new_leaf_with_context(
+    Style(), {"type": "text", "content": "Body text here", "font_size": 14}
+)
 avatar = tree.new_leaf_with_context(Style(), {"type": "image", "width": 48, "height": 48})
 
 root = tree.new_with_children(
     Style(display=Display.Flex, flex_direction=FlexDirection.Column, size_width=length(300)),
     [heading, body, avatar],
 )
+
 
 def measure(known, available, ctx):
     kw, kh = known
@@ -398,6 +405,7 @@ def measure(known, available, ctx):
         w = len(ctx["content"]) * char_w
         return Size(w, float(ctx["font_size"]))
     return Size(0, 0)
+
 
 tree.compute_layout(root, measure=measure)
 
@@ -420,10 +428,12 @@ root = tree.new_with_children(
     [text_node],
 )
 
+
 def measure(known, available, context):
     kw, _ = known
     w = kw if kw is not None else len(context["content"]) * 8.0
     return Size(w, 16.0)
+
 
 # Constrain layout to a 800x600 viewport
 viewport = AvailableDimensions(

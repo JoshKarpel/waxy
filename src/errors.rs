@@ -45,7 +45,7 @@ create_exception!(
     TaffyException,
     "Node ID is not valid (node may have been removed)."
 );
-// InvalidPercent, InvalidLength, InvalidGridLine, InvalidGridSpan are defined as subclasses
+// The validation exceptions below are defined as subclasses
 // of WaxyException initially; we set __bases__ to (WaxyException, ValueError) in register()
 // to achieve multi-inheritance.
 create_exception!(
@@ -71,6 +71,30 @@ create_exception!(
     InvalidGridSpan,
     WaxyException,
     "Raised when GridSpan(count) is called with count 0 (must span at least 1 track)."
+);
+create_exception!(
+    waxy,
+    InvalidFlexLineCount,
+    WaxyException,
+    "Raised when Style(flex_line_count=...) is given 0 (a flex container has at least 1 line)."
+);
+create_exception!(
+    waxy,
+    InvalidRepeat,
+    WaxyException,
+    "Raised when Repeat(...) is given a count of 0, no tracks, or a line_names list that is neither empty nor one longer than tracks."
+);
+create_exception!(
+    waxy,
+    InvalidGridTemplateArea,
+    WaxyException,
+    "Raised when GridTemplateArea(...) is given a start line of 0 or an end line not after its start line."
+);
+create_exception!(
+    waxy,
+    InvalidGridTemplateAreas,
+    WaxyException,
+    "Raised when GridTemplateAreas(...) has an area outside its row/column counts or a repeated area name, or when GridTemplateAreas.from_strings(...) is given an invalid template."
 );
 
 pub fn taffy_error_to_py(err: TaffyError) -> PyErr {
@@ -193,6 +217,25 @@ pub fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
     let invalid_grid_span_type = py.get_type::<InvalidGridSpan>();
     invalid_grid_span_type.setattr("__bases__", &bases)?;
     m.add("InvalidGridSpan", invalid_grid_span_type)?;
+
+    let invalid_flex_line_count_type = py.get_type::<InvalidFlexLineCount>();
+    invalid_flex_line_count_type.setattr("__bases__", &bases)?;
+    m.add("InvalidFlexLineCount", invalid_flex_line_count_type)?;
+
+    for (name, exception_type) in [
+        ("InvalidRepeat", py.get_type::<InvalidRepeat>()),
+        (
+            "InvalidGridTemplateArea",
+            py.get_type::<InvalidGridTemplateArea>(),
+        ),
+        (
+            "InvalidGridTemplateAreas",
+            py.get_type::<InvalidGridTemplateAreas>(),
+        ),
+    ] {
+        exception_type.setattr("__bases__", &bases)?;
+        m.add(name, exception_type)?;
+    }
 
     Ok(())
 }

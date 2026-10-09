@@ -2,15 +2,17 @@ use pyo3::prelude::*;
 use pyo3::types::PyDict;
 
 use crate::enums::{
-    AlignContent, AlignItems, BoxSizing, Display, FlexDirection, FlexWrap, GridAutoFlow, Overflow,
-    Position, TextAlign,
+    AlignContent, AlignItems, BoxSizing, Clear, Contain, Direction, Display, FlexDirection,
+    FlexWrap, Float, GridAutoFlow, Overflow, Position, TextAlign,
 };
+use crate::errors::InvalidFlexLineCount;
 use crate::geometry::hash_f32;
 use crate::values::{
     dimension_to_py, grid_track_to_py, hash_taffy_compact_length, hash_taffy_grid_placement,
     hash_taffy_template_area, hash_taffy_template_component, hash_taffy_track_sizing_function,
-    length_percentage_auto_to_py, length_percentage_to_py, DimensionInput, GridPlacement,
-    GridTrackInput, LengthPercentageAutoInput, LengthPercentageInput,
+    length_percentage_auto_to_py, length_percentage_to_py, DimensionInput, FlexBasisInput,
+    GridPlacement, GridTemplateAreas, GridTemplateInput, GridTrackInput, LengthPercentageAutoInput,
+    LengthPercentageInput, Repeat,
 };
 
 // Bit positions for tracking which fields are explicitly set.
@@ -64,6 +66,16 @@ const F_GRID_AUTO_COLUMNS: u64 = 1 << 46;
 const F_GRID_AUTO_FLOW: u64 = 1 << 47;
 const F_GRID_ROW: u64 = 1 << 48;
 const F_GRID_COLUMN: u64 = 1 << 49;
+const F_DIRECTION: u64 = 1 << 50;
+const F_CONTAIN: u64 = 1 << 51;
+const F_FLOAT: u64 = 1 << 52;
+const F_CLEAR: u64 = 1 << 53;
+const F_FLEX_LINE_COUNT: u64 = 1 << 54;
+const F_ITEM_IS_TABLE: u64 = 1 << 55;
+const F_ITEM_IS_REPLACED: u64 = 1 << 56;
+const F_GRID_TEMPLATE_ROW_NAMES: u64 = 1 << 57;
+const F_GRID_TEMPLATE_COLUMN_NAMES: u64 = 1 << 58;
+const F_GRID_TEMPLATE_AREAS: u64 = 1 << 59;
 
 /// Style properties for a layout node.
 #[pyclass(unsendable, frozen, from_py_object, module = "waxy")]
@@ -98,12 +110,9 @@ fn opt_align_content_to_taffy(v: &Option<AlignContent>) -> Option<taffy::AlignCo
 
 fn tracks_to_taffy(
     py: Python<'_>,
-    tracks: &[GridTrackInput],
+    tracks: &[GridTemplateInput],
 ) -> Vec<taffy::style::GridTemplateComponent<String>> {
-    tracks
-        .iter()
-        .map(|t| taffy::style::GridTemplateComponent::Single(t.to_taffy(py)))
-        .collect()
+    tracks.iter().map(|t| t.to_taffy(py)).collect()
 }
 
 fn tracks_from_taffy(
@@ -112,9 +121,11 @@ fn tracks_from_taffy(
 ) -> PyResult<Vec<Py<PyAny>>> {
     tracks
         .iter()
-        .filter_map(|t| match t {
-            taffy::style::GridTemplateComponent::Single(tsf) => Some(grid_track_to_py(py, *tsf)),
-            _ => None, // Skip repeat() for now
+        .map(|t| match t {
+            taffy::style::GridTemplateComponent::Single(tsf) => grid_track_to_py(py, *tsf),
+            taffy::style::GridTemplateComponent::Repeat(r) => {
+                Ok(Py::new(py, Repeat::from_taffy(py, r)?)?.into_any())
+            }
         })
         .collect()
 }
@@ -194,6 +205,20 @@ impl Style {
         set_field!("position", F_POSITION, |v: Position| {
             style.position = (&v).into()
         });
+        set_field!("direction", F_DIRECTION, |v: Direction| {
+            style.direction = (&v).into()
+        });
+        set_field!("contain", F_CONTAIN, |v: Contain| {
+            style.contain = (&v).into()
+        });
+        set_field!("float", F_FLOAT, |v: Float| style.float = (&v).into());
+        set_field!("clear", F_CLEAR, |v: Clear| style.clear = (&v).into());
+        set_field!("item_is_table", F_ITEM_IS_TABLE, |v: bool| {
+            style.item_is_table = v
+        });
+        set_field!("item_is_replaced", F_ITEM_IS_REPLACED, |v: bool| {
+            style.item_is_replaced = v
+        });
 
         // Inset
         set_field!(
@@ -217,23 +242,31 @@ impl Style {
 
         // Size
         set_field!("size_width", F_SIZE_WIDTH, |v: DimensionInput| {
-            style.size.width = v.to_taffy()
+            style.size.width = v.to_taffy(py)
         });
         set_field!("size_height", F_SIZE_HEIGHT, |v: DimensionInput| {
-            style.size.height = v.to_taffy()
+            style.size.height = v.to_taffy(py)
         });
-        set_field!("min_size_width", F_MIN_SIZE_WIDTH, |v: DimensionInput| {
-            style.min_size.width = v.to_taffy()
-        });
-        set_field!("min_size_height", F_MIN_SIZE_HEIGHT, |v: DimensionInput| {
-            style.min_size.height = v.to_taffy()
-        });
-        set_field!("max_size_width", F_MAX_SIZE_WIDTH, |v: DimensionInput| {
-            style.max_size.width = v.to_taffy()
-        });
-        set_field!("max_size_height", F_MAX_SIZE_HEIGHT, |v: DimensionInput| {
-            style.max_size.height = v.to_taffy()
-        });
+        set_field!(
+            "min_size_width",
+            F_MIN_SIZE_WIDTH,
+            |v: LengthPercentageAutoInput| { style.min_size.width = v.to_taffy() }
+        );
+        set_field!(
+            "min_size_height",
+            F_MIN_SIZE_HEIGHT,
+            |v: LengthPercentageAutoInput| { style.min_size.height = v.to_taffy() }
+        );
+        set_field!(
+            "max_size_width",
+            F_MAX_SIZE_WIDTH,
+            |v: LengthPercentageAutoInput| { style.max_size.width = v.to_taffy() }
+        );
+        set_field!(
+            "max_size_height",
+            F_MAX_SIZE_HEIGHT,
+            |v: LengthPercentageAutoInput| { style.max_size.height = v.to_taffy() }
+        );
         set_opt_field!("aspect_ratio", F_ASPECT_RATIO, |v: Option<f32>| {
             style.aspect_ratio = v
         });
@@ -342,25 +375,52 @@ impl Style {
         set_field!("flex_wrap", F_FLEX_WRAP, |v: FlexWrap| {
             style.flex_wrap = (&v).into()
         });
-        set_field!("flex_basis", F_FLEX_BASIS, |v: DimensionInput| {
-            style.flex_basis = v.to_taffy()
+        set_field!("flex_basis", F_FLEX_BASIS, |v: FlexBasisInput| {
+            style.flex_basis = v.to_taffy(py)
         });
         set_field!("flex_grow", F_FLEX_GROW, |v: f32| style.flex_grow = v);
         set_field!("flex_shrink", F_FLEX_SHRINK, |v: f32| {
             style.flex_shrink = v
         });
+        if let Some(py_val) = kwargs.get_item("flex_line_count")? {
+            if !py_val.is_none() {
+                let count: u16 = py_val.extract()?;
+                if count == 0 {
+                    return Err(InvalidFlexLineCount::new_err(
+                        "flex_line_count must be at least 1, got 0",
+                    ));
+                }
+                style.flex_line_count = count;
+                set_fields |= F_FLEX_LINE_COUNT;
+            }
+        }
 
         // Grid
         set_field!("grid_template_rows", F_GRID_TEMPLATE_ROWS, |v: Vec<
-            GridTrackInput,
+            GridTemplateInput,
         >| {
             style.grid_template_rows = tracks_to_taffy(py, &v)
         });
         set_field!(
             "grid_template_columns",
             F_GRID_TEMPLATE_COLUMNS,
-            |v: Vec<GridTrackInput>| { style.grid_template_columns = tracks_to_taffy(py, &v) }
+            |v: Vec<GridTemplateInput>| { style.grid_template_columns = tracks_to_taffy(py, &v) }
         );
+        set_field!(
+            "grid_template_row_names",
+            F_GRID_TEMPLATE_ROW_NAMES,
+            |v: Vec<Vec<String>>| { style.grid_template_row_names = v }
+        );
+        set_field!(
+            "grid_template_column_names",
+            F_GRID_TEMPLATE_COLUMN_NAMES,
+            |v: Vec<Vec<String>>| { style.grid_template_column_names = v }
+        );
+        set_opt_field!("grid_template_areas", F_GRID_TEMPLATE_AREAS, |v: Option<
+            GridTemplateAreas,
+        >| {
+            style.grid_template_areas = v.map(|a| a.inner)
+        });
         set_field!("grid_auto_rows", F_GRID_AUTO_ROWS, |v: Vec<
             GridTrackInput,
         >| {
@@ -419,6 +479,36 @@ impl Style {
         self.inner.position.into()
     }
 
+    #[getter]
+    fn get_direction(&self) -> Direction {
+        self.inner.direction.into()
+    }
+
+    #[getter]
+    fn get_contain(&self) -> Contain {
+        self.inner.contain.into()
+    }
+
+    #[getter]
+    fn get_float(&self) -> Float {
+        self.inner.float.into()
+    }
+
+    #[getter]
+    fn get_clear(&self) -> Clear {
+        self.inner.clear.into()
+    }
+
+    #[getter]
+    fn get_item_is_table(&self) -> bool {
+        self.inner.item_is_table
+    }
+
+    #[getter]
+    fn get_item_is_replaced(&self) -> bool {
+        self.inner.item_is_replaced
+    }
+
     // Inset
     #[getter]
     fn get_inset_left(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
@@ -448,19 +538,19 @@ impl Style {
     }
     #[getter]
     fn get_min_size_width(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
-        dimension_to_py(py, self.inner.min_size.width)
+        length_percentage_auto_to_py(py, self.inner.min_size.width)
     }
     #[getter]
     fn get_min_size_height(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
-        dimension_to_py(py, self.inner.min_size.height)
+        length_percentage_auto_to_py(py, self.inner.min_size.height)
     }
     #[getter]
     fn get_max_size_width(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
-        dimension_to_py(py, self.inner.max_size.width)
+        length_percentage_auto_to_py(py, self.inner.max_size.width)
     }
     #[getter]
     fn get_max_size_height(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
-        dimension_to_py(py, self.inner.max_size.height)
+        length_percentage_auto_to_py(py, self.inner.max_size.height)
     }
 
     #[getter]
@@ -595,6 +685,11 @@ impl Style {
         self.inner.flex_shrink
     }
 
+    #[getter]
+    fn get_flex_line_count(&self) -> u16 {
+        self.inner.flex_line_count
+    }
+
     // Grid
     #[getter]
     fn get_grid_template_rows(&self, py: Python<'_>) -> PyResult<Vec<Py<PyAny>>> {
@@ -604,6 +699,24 @@ impl Style {
     #[getter]
     fn get_grid_template_columns(&self, py: Python<'_>) -> PyResult<Vec<Py<PyAny>>> {
         tracks_from_taffy(py, &self.inner.grid_template_columns)
+    }
+
+    #[getter]
+    fn get_grid_template_row_names(&self) -> Vec<Vec<String>> {
+        self.inner.grid_template_row_names.clone()
+    }
+
+    #[getter]
+    fn get_grid_template_column_names(&self) -> Vec<Vec<String>> {
+        self.inner.grid_template_column_names.clone()
+    }
+
+    #[getter]
+    fn get_grid_template_areas(&self) -> Option<GridTemplateAreas> {
+        self.inner
+            .grid_template_areas
+            .clone()
+            .map(|inner| GridTemplateAreas { inner })
     }
 
     #[getter]
@@ -651,14 +764,36 @@ impl Style {
         discriminant(&s.flex_direction).hash(&mut h);
         discriminant(&s.flex_wrap).hash(&mut h);
         discriminant(&s.grid_auto_flow).hash(&mut h);
+        discriminant(&s.direction).hash(&mut h);
+        discriminant(&s.float).hash(&mut h);
+        discriminant(&s.clear).hash(&mut h);
+        // taffy's Contain is a bitset struct, so hash the enum it maps to.
+        (Contain::from(s.contain) as u8).hash(&mut h);
 
-        // Option<enum> fields.
-        s.align_items.map(|v| discriminant(&v)).hash(&mut h);
-        s.align_self.map(|v| discriminant(&v)).hash(&mut h);
-        s.justify_items.map(|v| discriminant(&v)).hash(&mut h);
-        s.justify_self.map(|v| discriminant(&v)).hash(&mut h);
-        s.align_content.map(|v| discriminant(&v)).hash(&mut h);
-        s.justify_content.map(|v| discriminant(&v)).hash(&mut h);
+        // Option<alignment> fields — taffy's alignment types are (keyword, safety) structs.
+        s.align_items
+            .map(|v| (discriminant(&v.keyword), discriminant(&v.safety)))
+            .hash(&mut h);
+        s.align_self
+            .map(|v| (discriminant(&v.keyword), discriminant(&v.safety)))
+            .hash(&mut h);
+        s.justify_items
+            .map(|v| (discriminant(&v.keyword), discriminant(&v.safety)))
+            .hash(&mut h);
+        s.justify_self
+            .map(|v| (discriminant(&v.keyword), discriminant(&v.safety)))
+            .hash(&mut h);
+        s.align_content
+            .map(|v| (discriminant(&v.keyword), discriminant(&v.safety)))
+            .hash(&mut h);
+        s.justify_content
+            .map(|v| (discriminant(&v.keyword), discriminant(&v.safety)))
+            .hash(&mut h);
+
+        // Plain bool and integer fields.
+        s.item_is_table.hash(&mut h);
+        s.item_is_replaced.hash(&mut h);
+        s.flex_line_count.hash(&mut h);
 
         // Plain f32 fields — normalize -0.0 (consistent with f32's IEEE
         // float equality used by taffy's derived PartialEq for these fields).
@@ -719,9 +854,19 @@ impl Style {
         for comp in &s.grid_template_columns {
             hash_taffy_template_component(comp, &mut h);
         }
-        s.grid_template_areas.len().hash(&mut h);
-        for area in &s.grid_template_areas {
-            hash_taffy_template_area(area, &mut h);
+        s.grid_template_row_names.hash(&mut h);
+        s.grid_template_column_names.hash(&mut h);
+        match &s.grid_template_areas {
+            Some(areas) => {
+                1u8.hash(&mut h);
+                areas.row_count.hash(&mut h);
+                areas.column_count.hash(&mut h);
+                areas.areas.len().hash(&mut h);
+                for area in &areas.areas {
+                    hash_taffy_template_area(area, &mut h);
+                }
+            }
+            None => 0u8.hash(&mut h),
         }
 
         // Grid placement fields.
@@ -767,6 +912,12 @@ impl Style {
         merge!(F_OVERFLOW_Y, overflow.y);
         merge!(F_SCROLLBAR_WIDTH, scrollbar_width);
         merge!(F_POSITION, position);
+        merge!(F_DIRECTION, direction);
+        merge!(F_CONTAIN, contain);
+        merge!(F_FLOAT, float);
+        merge!(F_CLEAR, clear);
+        merge!(F_ITEM_IS_TABLE, item_is_table);
+        merge!(F_ITEM_IS_REPLACED, item_is_replaced);
 
         // Inset
         merge!(F_INSET_LEFT, inset.left);
@@ -822,10 +973,14 @@ impl Style {
         merge!(F_FLEX_BASIS, flex_basis);
         merge!(F_FLEX_GROW, flex_grow);
         merge!(F_FLEX_SHRINK, flex_shrink);
+        merge!(F_FLEX_LINE_COUNT, flex_line_count);
 
         // Grid
         merge!(clone F_GRID_TEMPLATE_ROWS, grid_template_rows);
         merge!(clone F_GRID_TEMPLATE_COLUMNS, grid_template_columns);
+        merge!(clone F_GRID_TEMPLATE_ROW_NAMES, grid_template_row_names);
+        merge!(clone F_GRID_TEMPLATE_COLUMN_NAMES, grid_template_column_names);
+        merge!(clone F_GRID_TEMPLATE_AREAS, grid_template_areas);
         merge!(clone F_GRID_AUTO_ROWS, grid_auto_rows);
         merge!(clone F_GRID_AUTO_COLUMNS, grid_auto_columns);
         merge!(F_GRID_AUTO_FLOW, grid_auto_flow);

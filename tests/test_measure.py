@@ -424,3 +424,21 @@ def test_compute_layout_without_measure_still_works() -> None:
     layout = tree.layout(node)
     assert layout.size.width == 100.0
     assert layout.size.height == 50.0
+
+
+def test_measured_leaf_size_includes_its_padding_and_border() -> None:
+    def measure(known: waxy.KnownSize, available: waxy.AvailableSize, context: str) -> waxy.Size:
+        return waxy.Size(40.0, 15.0)
+
+    tree: waxy.TaffyTree[str] = waxy.TaffyTree()
+    leaf = tree.new_leaf_with_context(
+        waxy.Style(
+            padding_left=waxy.Length(3.0),
+            padding_right=waxy.Length(5.0),
+            border_top=waxy.Length(2.0),
+            min_size_height=waxy.Length(30.0),
+        ),
+        "text",
+    )
+    tree.compute_layout(leaf, measure=measure)
+    assert tree.layout(leaf).size == waxy.Size(48.0, 30.0)

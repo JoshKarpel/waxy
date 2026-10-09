@@ -2,9 +2,9 @@ use pyo3::prelude::*;
 use taffy::prelude as tp;
 use taffy::TraversePartialTree;
 
-use crate::errors::{catch_node_panic, catch_panic, taffy_error_to_py};
+use crate::errors::{catch_node_panic, catch_panic, taffy_error_to_py, ChildIndexOutOfBounds};
 use crate::geometry::{AvailableSize, KnownSize};
-use crate::layout::Layout;
+use crate::layout::{DetailedGridInfo, Layout};
 use crate::node::NodeId;
 use crate::style::Style;
 
@@ -108,6 +108,21 @@ impl TaffyTree {
             self.inner.remove_child_at_index(parent.inner, child_index)
         })?
         .map(NodeId::from)
+        .map_err(taffy_error_to_py)
+    }
+
+    /// Detach the children at indices `start` (inclusive) to `end` (exclusive) from a parent.
+    fn remove_children_range(&mut self, parent: &NodeId, start: usize, end: usize) -> PyResult<()> {
+        let child_count = catch_node_panic(parent, || self.inner.child_count(parent.inner))?;
+        // taffy panics on an invalid range rather than returning an error.
+        if start > end || end > child_count {
+            return Err(ChildIndexOutOfBounds::new_err(format!(
+                "Child range {start}..{end} out of bounds (child count: {child_count})"
+            )));
+        }
+        catch_node_panic(parent, || {
+            self.inner.remove_children_range(parent.inner, start..end)
+        })?
         .map_err(taffy_error_to_py)
     }
 
@@ -218,56 +233,64 @@ impl TaffyTree {
                     self.inner.compute_layout_with_measure(
                         node.inner,
                         avail,
-                        |known,
-                         available,
-                         _node_id,
-                         node_context: Option<&mut Py<PyAny>>,
-                         _style| {
-                            // If we already have a Python error, short-circuit.
-                            if py_err.borrow().is_some() {
-                                return taffy::Size::ZERO;
-                            }
+                        |inputs, _node_id, node_context: Option<&mut Py<PyAny>>, style| {
+                            // compute_leaf_layout applies the leaf's own style (padding,
+                            // border, min/max size, aspect ratio) around the content size
+                            // that the Python measure function reports.
+                            taffy::compute_leaf_layout(
+                                inputs,
+                                style,
+                                |_, _| 0.0,
+                                |known, available| {
+                                    // If we already have a Python error, short-circuit.
+                                    if py_err.borrow().is_some() {
+                                        return taffy::Size::ZERO;
+                                    }
 
-                            // If both dimensions are already known, return them directly.
-                            if let taffy::Size {
-                                width: Some(w),
-                                height: Some(h),
-                            } = known
-                            {
-                                return taffy::Size {
-                                    width: w,
-                                    height: h,
-                                };
-                            }
+                                    // If both dimensions are already known, return them directly.
+                                    if let taffy::Size {
+                                        width: Some(w),
+                                        height: Some(h),
+                                    } = known
+                                    {
+                                        return taffy::Size {
+                                            width: w,
+                                            height: h,
+                                        };
+                                    }
 
-                            // If no context, return zero — don't bother calling Python.
-                            let Some(context) = node_context else {
-                                return taffy::Size::ZERO;
-                            };
+                                    // If no context, return zero — don't bother calling Python.
+                                    let Some(context) = node_context else {
+                                        return taffy::Size::ZERO;
+                                    };
 
-                            // Convert to Python types and call the measure function.
-                            let py_known = KnownSize::from(known);
-                            let py_avail = AvailableSize::from(available);
+                                    // Convert to Python types and call the measure function.
+                                    let py_known = KnownSize::from(known);
+                                    let py_avail = AvailableSize::from(available);
 
-                            let call_result =
-                                measure_fn.call1(py, (py_known, py_avail, context.clone_ref(py)));
+                                    let call_result = measure_fn
+                                        .call1(py, (py_known, py_avail, context.clone_ref(py)));
 
-                            match call_result {
-                                Err(e) => {
-                                    *py_err.borrow_mut() = Some(e);
-                                    taffy::Size::ZERO
-                                }
-                                Ok(result) => match result.extract::<crate::geometry::Size>(py) {
-                                    Ok(size) => taffy::Size {
-                                        width: size.width,
-                                        height: size.height,
-                                    },
-                                    Err(e) => {
-                                        *py_err.borrow_mut() = Some(e.into());
-                                        taffy::Size::ZERO
+                                    match call_result {
+                                        Err(e) => {
+                                            *py_err.borrow_mut() = Some(e);
+                                            taffy::Size::ZERO
+                                        }
+                                        Ok(result) => {
+                                            match result.extract::<crate::geometry::Size>(py) {
+                                                Ok(size) => taffy::Size {
+                                                    width: size.width,
+                                                    height: size.height,
+                                                },
+                                                Err(e) => {
+                                                    *py_err.borrow_mut() = Some(e.into());
+                                                    taffy::Size::ZERO
+                                                }
+                                            }
+                                        }
                                     }
                                 },
-                            }
+                            )
                         },
                     )
                 });
@@ -286,6 +309,13 @@ impl TaffyTree {
         catch_node_panic(node, || self.inner.layout(node.inner))?
             .map(Layout::from)
             .map_err(taffy_error_to_py)
+    }
+
+    /// Get detailed layout information for a grid container, or `None` for other nodes.
+    fn detailed_layout_info(&self, node: &NodeId) -> PyResult<Option<DetailedGridInfo>> {
+        catch_node_panic(node, || {
+            DetailedGridInfo::from_taffy(self.inner.detailed_layout_info(node.inner))
+        })
     }
 
     /// Get the unrounded layout of a node.

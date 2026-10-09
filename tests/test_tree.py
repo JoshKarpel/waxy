@@ -1,3 +1,5 @@
+import pytest
+
 import waxy
 
 
@@ -203,3 +205,29 @@ def test_layout_hash() -> None:
     layout = tree.layout(node)
     assert hash(layout) == hash(tree.layout(node))
     assert len({layout, tree.layout(node)}) == 1
+
+
+def test_remove_children_range_detaches_children() -> None:
+    tree: waxy.TaffyTree[object] = waxy.TaffyTree()
+    children = [tree.new_leaf(waxy.Style()) for _ in range(4)]
+    parent = tree.new_with_children(waxy.Style(), children)
+    tree.remove_children_range(parent, 1, 3)
+    assert tree.children(parent) == [children[0], children[3]]
+    assert tree.parent(children[1]) is None
+    assert tree.total_node_count() == 5
+
+
+def test_remove_children_range_empty_range_is_noop() -> None:
+    tree: waxy.TaffyTree[object] = waxy.TaffyTree()
+    children = [tree.new_leaf(waxy.Style()) for _ in range(2)]
+    parent = tree.new_with_children(waxy.Style(), children)
+    tree.remove_children_range(parent, 1, 1)
+    assert tree.children(parent) == children
+
+
+@pytest.mark.parametrize(("start", "end"), [(0, 3), (2, 1)])
+def test_remove_children_range_out_of_bounds_raises(start: int, end: int) -> None:
+    tree: waxy.TaffyTree[object] = waxy.TaffyTree()
+    parent = tree.new_with_children(waxy.Style(), [tree.new_leaf(waxy.Style()) for _ in range(2)])
+    with pytest.raises(waxy.ChildIndexOutOfBounds):
+        tree.remove_children_range(parent, start, end)

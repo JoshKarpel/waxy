@@ -26,6 +26,9 @@ Homepage = "https://joshkarpel.github.io/waxy"
 Repository = "https://github.com/JoshKarpel/waxy"
 Issues = "https://github.com/JoshKarpel/waxy/issues"
 
+[tool.uv]
+exclude-newer = "7 days"
+
 [tool.maturin]
 features = ["pyo3/extension-module"]
 python-source = "python"

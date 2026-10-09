@@ -1,3 +1,4 @@
+import builtins
 from collections.abc import Callable, Iterator
 
 # Exceptions
@@ -19,6 +20,29 @@ class InvalidGridLine(WaxyException, ValueError):
 
 class InvalidGridSpan(WaxyException, ValueError):
     """Raised when GridSpan(count) is called with count 0 (must span at least 1 track)."""
+
+class InvalidFlexLineCount(WaxyException, ValueError):
+    """Raised when Style(flex_line_count=...) is given 0 (a flex container has at least 1 line)."""
+
+class InvalidRepeat(WaxyException, ValueError):
+    """
+    Raised when Repeat(...) is given invalid arguments.
+
+    That is: a count of 0, no tracks, or a `line_names` list that is neither empty nor
+    one longer than `tracks`.
+    """
+
+class InvalidGridTemplateArea(WaxyException, ValueError):
+    """Raised when GridTemplateArea(...) has a start line of 0 or an end line before its start."""
+
+class InvalidGridTemplateAreas(WaxyException, ValueError):
+    """
+    Raised when a GridTemplateAreas is invalid.
+
+    That is: an area extends past `row_count`/`column_count`, two areas share a name, or
+    `GridTemplateAreas.from_strings(...)` is given a template CSS would reject (ragged rows,
+    non-rectangular areas, or invalid characters).
+    """
 
 class InvalidNodeId(TaffyException, KeyError):
     """Raised when a node ID is not valid (node may have been removed)."""
@@ -173,7 +197,7 @@ class KnownSize:
     Passed to the measure callback to indicate which dimensions are already known
     from the node's style. If a dimension is None, the measure function must compute it.
 
-    See: [taffy `Size<Option<f32>>`](https://docs.rs/taffy/0.9.2/taffy/geometry/struct.Size.html)
+    See: [taffy `Size<Option<f32>>`](https://docs.rs/taffy/0.14.0/taffy/geometry/struct.Size.html)
     """
 
     def __init__(self, width: float | None = None, height: float | None = None) -> None: ...
@@ -196,7 +220,7 @@ class AvailableSize:
     Passed to the measure callback to indicate how much space is available for layout.
     Each dimension is one of the available-space variants.
 
-    See: [taffy `Size<AvailableSpace>`](https://docs.rs/taffy/0.9.2/taffy/geometry/struct.Size.html)
+    See: [taffy `Size<AvailableSpace>`](https://docs.rs/taffy/0.14.0/taffy/geometry/struct.Size.html)
     """
 
     def __init__(
@@ -223,7 +247,7 @@ class Length:
 
     Raises `InvalidLength` if `value` is NaN.
 
-    See: [taffy `Dimension::Length`](https://docs.rs/taffy/0.9.2/taffy/style/enum.Dimension.html),
+    See: [taffy `Dimension::Length`](https://docs.rs/taffy/0.14.0/taffy/style/struct.Dimension.html),
     [MDN `<length>`](https://developer.mozilla.org/en-US/docs/Web/CSS/length)
     """
 
@@ -244,7 +268,7 @@ class Percent:
     Raises InvalidPercent (a subclass of both WaxyException and ValueError) if value
     is outside the range [0.0, 1.0].
 
-    See: [taffy `Dimension::Percent`](https://docs.rs/taffy/0.9.2/taffy/style/enum.Dimension.html),
+    See: [taffy `Dimension::Percent`](https://docs.rs/taffy/0.14.0/taffy/style/struct.Dimension.html),
     [MDN `<percentage>`](https://developer.mozilla.org/en-US/docs/Web/CSS/percentage)
     """
 
@@ -263,7 +287,7 @@ class Auto:
 
     Used for size, margin, inset, flex-basis, and grid placement fields.
 
-    See: [taffy `Dimension::Auto`](https://docs.rs/taffy/0.9.2/taffy/style/enum.Dimension.html)
+    See: [taffy `Dimension::Auto`](https://docs.rs/taffy/0.14.0/taffy/style/struct.Dimension.html)
     """
 
     def __init__(self) -> None: ...
@@ -276,9 +300,10 @@ class MinContent:
     CSS min-content intrinsic sizing.
 
     The smallest size that can fit the item's contents with all soft line-wrapping
-    opportunities taken. Used in available space (measure functions) and grid track sizing.
+    opportunities taken. Used in `size_*`, `flex_basis`, available space (measure functions),
+    and grid track sizing.
 
-    See: [taffy `MinTrackSizingFunction::MinContent`](https://docs.rs/taffy/0.9.2/taffy/style/enum.MinTrackSizingFunction.html),
+    See: [taffy `MinTrackSizingFunction::MinContent`](https://docs.rs/taffy/0.14.0/taffy/style/struct.MinTrackSizingFunction.html),
     [MDN `min-content`](https://developer.mozilla.org/en-US/docs/Web/CSS/min-content)
     """
 
@@ -292,9 +317,10 @@ class MaxContent:
     CSS max-content intrinsic sizing.
 
     The smallest size that can fit the item's contents with no soft line-wrapping
-    opportunities taken. Used in available space (measure functions) and grid track sizing.
+    opportunities taken. Used in `size_*`, `flex_basis`, available space (measure functions),
+    and grid track sizing.
 
-    See: [taffy `MinTrackSizingFunction::MaxContent`](https://docs.rs/taffy/0.9.2/taffy/style/enum.MinTrackSizingFunction.html),
+    See: [taffy `MinTrackSizingFunction::MaxContent`](https://docs.rs/taffy/0.14.0/taffy/style/struct.MinTrackSizingFunction.html),
     [MDN `max-content`](https://developer.mozilla.org/en-US/docs/Web/CSS/max-content)
     """
 
@@ -314,6 +340,66 @@ MAX_CONTENT: MaxContent
 """Module-level MaxContent singleton. Equivalent to MaxContent() but avoids repeated construction.
 """
 
+class Stretch:
+    """
+    CSS stretch sizing keyword.
+
+    Fills the containing block's available space, less the node's margins.
+    Used only in `size_*` and `flex_basis`.
+
+    See: [taffy `Dimension::stretch`](https://docs.rs/taffy/0.14.0/taffy/style/struct.Dimension.html),
+    [MDN `stretch`](https://developer.mozilla.org/en-US/docs/Web/CSS/width#stretch)
+    """
+
+    def __init__(self) -> None: ...
+    def __repr__(self) -> str: ...
+    def __eq__(self, other: object) -> bool: ...
+    def __hash__(self) -> int: ...
+
+class FitContentKeyword:
+    """
+    CSS fit-content sizing keyword (without a limit).
+
+    Equivalent to `fit-content(stretch)`: the node is sized to its contents, clamped between
+    its min-content size and the available space. For an explicit limit, use `FitContent`.
+    Used only in `size_*` and `flex_basis`.
+
+    See: [taffy `Dimension::fit_content`](https://docs.rs/taffy/0.14.0/taffy/style/struct.Dimension.html),
+    [MDN `fit-content`](https://developer.mozilla.org/en-US/docs/Web/CSS/fit-content)
+    """
+
+    def __init__(self) -> None: ...
+    def __repr__(self) -> str: ...
+    def __eq__(self, other: object) -> bool: ...
+    def __hash__(self) -> int: ...
+
+class Content:
+    """
+    CSS content flex basis keyword.
+
+    Sizes the flex item based on its content, ignoring its `size_*` in the main axis.
+    Used only in `flex_basis`.
+
+    See: [taffy `Dimension::content`](https://docs.rs/taffy/0.14.0/taffy/style/struct.Dimension.html),
+    [MDN `flex-basis: content`](https://developer.mozilla.org/en-US/docs/Web/CSS/flex-basis#content)
+    """
+
+    def __init__(self) -> None: ...
+    def __repr__(self) -> str: ...
+    def __eq__(self, other: object) -> bool: ...
+    def __hash__(self) -> int: ...
+
+STRETCH: Stretch
+"""Module-level Stretch singleton. Equivalent to Stretch() but avoids repeated construction."""
+
+FIT_CONTENT: FitContentKeyword
+"""Module-level FitContentKeyword singleton. Equivalent to FitContentKeyword() but avoids repeated
+construction.
+"""
+
+CONTENT: Content
+"""Module-level Content singleton. Equivalent to Content() but avoids repeated construction."""
+
 class Definite:
     """
     A definite available space in pixels.
@@ -321,7 +407,7 @@ class Definite:
     Used only in AvailableSize (measure function input) to represent a concrete
     pixel measurement of available space.
 
-    See: [taffy `AvailableSpace::Definite`](https://docs.rs/taffy/0.9.2/taffy/style/enum.AvailableSpace.html)
+    See: [taffy `AvailableSpace::Definite`](https://docs.rs/taffy/0.14.0/taffy/style/enum.AvailableSpace.html)
     """
 
     __match_args__ = ("value",)
@@ -343,7 +429,7 @@ class Fraction:
 
     Used only in grid track sizing (grid_template_*, grid_auto_*).
 
-    See: [taffy `MaxTrackSizingFunction::Fraction`](https://docs.rs/taffy/0.9.2/taffy/style/enum.MaxTrackSizingFunction.html),
+    See: [taffy `MaxTrackSizingFunction::Fraction`](https://docs.rs/taffy/0.14.0/taffy/style/struct.MaxTrackSizingFunction.html),
     [MDN `<flex>` (fr unit)](https://developer.mozilla.org/en-US/docs/Web/CSS/flex_value)
     """
 
@@ -369,14 +455,15 @@ type GridTrackValue = (
 
 class FitContent:
     """
-    CSS fit-content() grid track sizing function.
+    CSS fit-content() sizing function.
 
     Grows up to a specified limit, then clamps: max(min_content, min(max_content, limit)).
-    The limit must be a Length or Percent.
+    The limit must be a Length or Percent. For the bare `fit-content` keyword, use
+    `FIT_CONTENT`.
 
-    Used only in grid track sizing.
+    Used in `size_*`, `flex_basis`, and grid track sizing.
 
-    See: [taffy `MaxTrackSizingFunction::FitContent`](https://docs.rs/taffy/0.9.2/taffy/style/enum.MaxTrackSizingFunction.html),
+    See: [taffy `MaxTrackSizingFunction::FitContent`](https://docs.rs/taffy/0.14.0/taffy/style/struct.MaxTrackSizingFunction.html),
     [MDN `fit-content()`](https://developer.mozilla.org/en-US/docs/Web/CSS/fit-content_function)
     """
 
@@ -400,7 +487,7 @@ class Minmax:
 
     Used only in grid track sizing.
 
-    See: [taffy `TrackSizingFunction`](https://docs.rs/taffy/0.9.2/taffy/style/enum.TrackSizingFunction.html),
+    See: [taffy `TrackSizingFunction`](https://docs.rs/taffy/0.14.0/taffy/style/type.TrackSizingFunction.html),
     [MDN `minmax()`](https://developer.mozilla.org/en-US/docs/Web/CSS/minmax)
     """
 
@@ -415,6 +502,84 @@ class Minmax:
     @property
     def max(self) -> GridTrackMaxValue: ...
 
+class AutoFill:
+    """
+    CSS auto-fill repetition count.
+
+    Repeat as many times as fit in the container without overflowing, keeping empty tracks.
+    Used only as the `count` of a `Repeat`.
+
+    See: [taffy `RepetitionCount::AutoFill`](https://docs.rs/taffy/0.14.0/taffy/style/enum.RepetitionCount.html),
+    [MDN `auto-fill`](https://developer.mozilla.org/en-US/docs/Web/CSS/repeat#auto-fill)
+    """
+
+    def __init__(self) -> None: ...
+    def __repr__(self) -> str: ...
+    def __eq__(self, other: object) -> bool: ...
+    def __hash__(self) -> int: ...
+
+class AutoFit:
+    """
+    CSS auto-fit repetition count.
+
+    Like `AutoFill`, but empty repeated tracks collapse to zero size.
+    Used only as the `count` of a `Repeat`.
+
+    See: [taffy `RepetitionCount::AutoFit`](https://docs.rs/taffy/0.14.0/taffy/style/enum.RepetitionCount.html),
+    [MDN `auto-fit`](https://developer.mozilla.org/en-US/docs/Web/CSS/repeat#auto-fit)
+    """
+
+    def __init__(self) -> None: ...
+    def __repr__(self) -> str: ...
+    def __eq__(self, other: object) -> bool: ...
+    def __hash__(self) -> int: ...
+
+AUTO_FILL: AutoFill
+"""Module-level AutoFill singleton. Equivalent to AutoFill() but avoids repeated construction."""
+
+AUTO_FIT: AutoFit
+"""Module-level AutoFit singleton. Equivalent to AutoFit() but avoids repeated construction."""
+
+class Repeat:
+    """
+    CSS repeat() in `grid_template_rows` / `grid_template_columns`.
+
+    Repeats `tracks` `count` times, where `count` is a positive `int`, `AUTO_FILL`, or
+    `AUTO_FIT`. `line_names`, if given, names the lines of each repetition positionally:
+    entry `i` names the line before `tracks[i]`, and the final entry names the line after
+    the last track, so it has `len(tracks) + 1` entries.
+
+    Raises `InvalidRepeat` if `count` is 0, `tracks` is empty, or `line_names` is neither
+    empty nor `len(tracks) + 1` long.
+
+    See: [taffy `GridTemplateRepetition`](https://docs.rs/taffy/0.14.0/taffy/style/struct.GridTemplateRepetition.html),
+    [MDN `repeat()`](https://developer.mozilla.org/en-US/docs/Web/CSS/repeat)
+    """
+
+    __match_args__ = ("count", "tracks", "line_names")
+
+    def __init__(
+        self,
+        count: int | AutoFill | AutoFit,
+        tracks: list[GridTrackValue],
+        line_names: list[list[str]] | None = None,
+    ) -> None: ...
+    def __repr__(self) -> str: ...
+    def __eq__(self, other: object) -> bool: ...
+    def __hash__(self) -> int: ...
+    @property
+    def count(self) -> int | AutoFill | AutoFit:
+        """How many times `tracks` repeats."""
+    @property
+    def tracks(self) -> list[GridTrackValue]:
+        """The tracks of one repetition."""
+    @property
+    def line_names(self) -> list[list[str]]:
+        """The names of each line of one repetition (empty if unnamed)."""
+
+type GridTemplateValue = GridTrackValue | Repeat
+"""An entry of `grid_template_rows` / `grid_template_columns`: a track or a `Repeat`."""
+
 class GridLine:
     """
     A 1-based grid line index (negative indices count from the end).
@@ -424,7 +589,7 @@ class GridLine:
     Raises `InvalidGridLine` if `index` is 0
     (grid lines are 1-based; negative indices count from the end).
 
-    See: [taffy `GridPlacement::Line`](https://docs.rs/taffy/0.9.2/taffy/style/enum.GridPlacement.html),
+    See: [taffy `GridPlacement::Line`](https://docs.rs/taffy/0.14.0/taffy/style/enum.GridPlacement.html),
     [MDN Line-based placement](https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_grid_layout/Grid_layout_using_line-based_placement)
     """
 
@@ -445,7 +610,7 @@ class GridSpan:
 
     Raises `InvalidGridSpan` if `count` is 0 (must span at least 1 track).
 
-    See: [taffy `GridPlacement::Span`](https://docs.rs/taffy/0.9.2/taffy/style/enum.GridPlacement.html),
+    See: [taffy `GridPlacement::Span`](https://docs.rs/taffy/0.14.0/taffy/style/enum.GridPlacement.html),
     [MDN `grid-column-start` (span)](https://developer.mozilla.org/en-US/docs/Web/CSS/grid-column-start)
     """
 
@@ -455,6 +620,56 @@ class GridSpan:
     def __repr__(self) -> str: ...
     def __eq__(self, other: object) -> bool: ...
     def __hash__(self) -> int: ...
+    @property
+    def count(self) -> int: ...
+
+class NamedGridLine:
+    """
+    Place at the `index`th grid line with the given name (counting from the end if negative).
+
+    If no line has that name, the implicit `name-start`/`name-end` lines of a named grid
+    area are tried before falling back to the implicit grid, so `NamedGridLine("header")`
+    in both `start` and `end` places an item in the `header` area.
+
+    Used in GridPlacement.start and GridPlacement.end.
+
+    Raises `InvalidGridLine` if `index` is 0.
+
+    See: [taffy `GridPlacement::NamedLine`](https://docs.rs/taffy/0.14.0/taffy/style/enum.GridPlacement.html),
+    [MDN `grid-row-start`](https://developer.mozilla.org/en-US/docs/Web/CSS/grid-row-start)
+    """
+
+    __match_args__ = ("name", "index")
+
+    def __init__(self, name: str, index: int = 1) -> None: ...
+    def __repr__(self) -> str: ...
+    def __eq__(self, other: object) -> bool: ...
+    def __hash__(self) -> int: ...
+    @property
+    def name(self) -> str: ...
+    @property
+    def index(self) -> int: ...
+
+class NamedGridSpan:
+    """
+    Span until the `count`th grid line with the given name.
+
+    Used in GridPlacement.start and GridPlacement.end.
+
+    Raises `InvalidGridSpan` if `count` is 0.
+
+    See: [taffy `GridPlacement::NamedSpan`](https://docs.rs/taffy/0.14.0/taffy/style/enum.GridPlacement.html),
+    [MDN `grid-row-start` (span)](https://developer.mozilla.org/en-US/docs/Web/CSS/grid-row-start)
+    """
+
+    __match_args__ = ("name", "count")
+
+    def __init__(self, name: str, count: int = 1) -> None: ...
+    def __repr__(self) -> str: ...
+    def __eq__(self, other: object) -> bool: ...
+    def __hash__(self) -> int: ...
+    @property
+    def name(self) -> str: ...
     @property
     def count(self) -> int: ...
 
@@ -471,6 +686,8 @@ class Display:
     """CSS Grid layout."""
     Nil: Display
     """No display (maps to CSS `display: none`)."""
+    FlowRoot: Display
+    """Block layout that always establishes an independent formatting context."""
 
 class Position:
     """How the node should be positioned."""
@@ -501,9 +718,22 @@ class FlexWrap:
     """Items wrap onto multiple lines."""
     WrapReverse: FlexWrap
     """Items wrap onto multiple lines in reverse order."""
+    Balance: FlexWrap
+    """
+    Items wrap onto lines of balanced length (CSS `flex-wrap: balance`).
+
+    Lines are balanced into at least `flex_line_count` lines.
+    """
+    BalanceReverse: FlexWrap
+    """Like `Balance`, with lines in reverse order."""
 
 class AlignItems:
-    """Alignment of items along the cross axis."""
+    """
+    Alignment of items along the cross axis.
+
+    The `Safe*` members are the CSS `safe` variants: an item that would overflow its
+    alignment container is aligned as if `Start` instead.
+    """
 
     Start: AlignItems
     """Align to the start of the cross axis."""
@@ -519,9 +749,32 @@ class AlignItems:
     """Align to the first baseline."""
     Stretch: AlignItems
     """Stretch to fill the cross axis."""
+    SelfStart: AlignItems
+    """Align to the start side of the item's own writing direction."""
+    SelfEnd: AlignItems
+    """Align to the end side of the item's own writing direction."""
+    SafeStart: AlignItems
+    """`safe start`."""
+    SafeEnd: AlignItems
+    """`safe end`."""
+    SafeFlexStart: AlignItems
+    """`safe flex-start`."""
+    SafeFlexEnd: AlignItems
+    """`safe flex-end`."""
+    SafeCenter: AlignItems
+    """`safe center`."""
+    SafeSelfStart: AlignItems
+    """`safe self-start`."""
+    SafeSelfEnd: AlignItems
+    """`safe self-end`."""
 
 class AlignContent:
-    """Alignment of content within the container."""
+    """
+    Alignment of content within the container.
+
+    The `Safe*` members are the CSS `safe` variants: content that would overflow the
+    container is aligned as if `Start` instead.
+    """
 
     Start: AlignContent
     """Pack lines to the start of the container."""
@@ -541,6 +794,16 @@ class AlignContent:
     """Distribute lines with equal space around each line."""
     SpaceAround: AlignContent
     """Distribute lines with half-size spaces on the edges."""
+    SafeStart: AlignContent
+    """`safe start`."""
+    SafeEnd: AlignContent
+    """`safe end`."""
+    SafeFlexStart: AlignContent
+    """`safe flex-start`."""
+    SafeFlexEnd: AlignContent
+    """`safe flex-end`."""
+    SafeCenter: AlignContent
+    """`safe center`."""
 
 class Overflow:
     """How content overflows its container."""
@@ -586,17 +849,64 @@ class TextAlign:
     LegacyCenter: TextAlign
     """Centered text."""
 
-type GridPlacementValue = GridLine | GridSpan | Auto
-"""A grid placement value used in GridPlacement start and end: GridLine, GridSpan, or Auto."""
+class Direction:
+    """The inline direction of a node's content (CSS `direction`)."""
+
+    Ltr: Direction
+    """Left to right."""
+    Rtl: Direction
+    """Right to left."""
+
+class Float:
+    """Which side a node floats to within a block container (CSS `float`)."""
+
+    Left: Float
+    """Float to the left side."""
+    Right: Float
+    """Float to the right side."""
+    Nil: Float
+    """Do not float (maps to CSS `float: none`)."""
+
+class Clear:
+    """Which preceding floats a node is moved below (CSS `clear`)."""
+
+    Left: Clear
+    """Move below left floats."""
+    Right: Clear
+    """Move below right floats."""
+    Both: Clear
+    """Move below all floats."""
+    Nil: Clear
+    """Do not clear floats (maps to CSS `clear: none`)."""
+
+class Contain:
+    """CSS containment (`contain`). Taffy supports the `layout` and `paint` containment types."""
+
+    Nil: Contain
+    """No containment (maps to CSS `contain: none`)."""
+    Layout: Contain
+    """
+    Layout containment.
+
+    The node establishes an independent formatting context and has no baseline.
+    """
+    Paint: Contain
+    """Paint containment: the node establishes an independent formatting context."""
+    Content: Contain
+    """Both layout and paint containment (CSS `contain: content`)."""
+
+type GridPlacementValue = GridLine | GridSpan | NamedGridLine | NamedGridSpan | Auto
+"""A grid placement value used in GridPlacement start and end."""
 
 class GridPlacement:
     """
     A start/end pair of grid placements for a child item.
 
-    Each of start and end is a GridPlacementValue (GridLine | GridSpan | Auto).
+    Each of start and end is a GridPlacementValue
+    (GridLine | GridSpan | NamedGridLine | NamedGridSpan | Auto).
     Defaults both to Auto (the CSS default for unplaced items).
 
-    See: [taffy `Line<GridPlacement>`](https://docs.rs/taffy/0.9.2/taffy/geometry/struct.Line.html),
+    See: [taffy `Line<GridPlacement>`](https://docs.rs/taffy/0.14.0/taffy/geometry/struct.Line.html),
     [MDN `grid-row`](https://developer.mozilla.org/en-US/docs/Web/CSS/grid-row),
     [MDN `grid-column`](https://developer.mozilla.org/en-US/docs/Web/CSS/grid-column)
     """
@@ -613,6 +923,91 @@ class GridPlacement:
     def start(self) -> GridPlacementValue: ...
     @property
     def end(self) -> GridPlacementValue: ...
+
+class GridTemplateArea:
+    """
+    A named rectangular area of a grid template, bounded by 1-based grid lines.
+
+    An area covering only the first row and first two columns is
+    `GridTemplateArea("header", 1, 2, 1, 3)`.
+
+    Raises `InvalidGridTemplateArea` if a start line is 0 or an end line is not after its
+    start line.
+
+    See: [taffy `GridTemplateArea`](https://docs.rs/taffy/0.14.0/taffy/style/struct.GridTemplateArea.html),
+    [MDN `grid-template-areas`](https://developer.mozilla.org/en-US/docs/Web/CSS/grid-template-areas)
+    """
+
+    __match_args__ = ("name", "row_start", "row_end", "column_start", "column_end")
+
+    def __init__(
+        self,
+        name: str,
+        row_start: int,
+        row_end: int,
+        column_start: int,
+        column_end: int,
+    ) -> None: ...
+    def __repr__(self) -> str: ...
+    def __eq__(self, other: object) -> bool: ...
+    def __hash__(self) -> int: ...
+    @property
+    def name(self) -> str: ...
+    @property
+    def row_start(self) -> int: ...
+    @property
+    def row_end(self) -> int: ...
+    @property
+    def column_start(self) -> int: ...
+    @property
+    def column_end(self) -> int: ...
+
+class GridTemplateAreas:
+    """
+    A grid template's named areas, plus its size in tracks (CSS `grid-template-areas`).
+
+    The template can be larger than the extent of its named areas because of unnamed
+    cells, so `row_count` and `column_count` are stored explicitly. Most templates are
+    easiest to build from CSS strings with `GridTemplateAreas.from_strings`.
+
+    Each area also defines implicit named lines `name-start` and `name-end`, so items can be
+    placed into an area with `NamedGridLine(name)`.
+
+    Raises `InvalidGridTemplateAreas` if an area extends past `row_count`/`column_count`,
+    or if two areas share a name.
+
+    See: [taffy `GridTemplateAreas`](https://docs.rs/taffy/0.14.0/taffy/style/struct.GridTemplateAreas.html),
+    [MDN `grid-template-areas`](https://developer.mozilla.org/en-US/docs/Web/CSS/grid-template-areas)
+    """
+
+    __match_args__ = ("areas", "row_count", "column_count")
+
+    def __init__(
+        self,
+        areas: list[GridTemplateArea],
+        row_count: int,
+        column_count: int,
+    ) -> None: ...
+    def __repr__(self) -> str: ...
+    def __eq__(self, other: object) -> bool: ...
+    def __hash__(self) -> int: ...
+    @property
+    def areas(self) -> list[GridTemplateArea]: ...
+    @property
+    def row_count(self) -> int: ...
+    @property
+    def column_count(self) -> int: ...
+    @staticmethod
+    def from_strings(rows: list[str]) -> GridTemplateAreas:
+        """
+        Parse CSS `grid-template-areas` row strings.
+
+        Each string is one row of whitespace-separated cell names, and `.` marks an unnamed
+        cell. For example, `GridTemplateAreas.from_strings(["header header", "nav main"])`.
+
+        Raises `InvalidGridTemplateAreas` if the rows have different numbers of cells, an
+        area is not a rectangle, or a row contains a character that is not part of a name.
+        """
 
 # Node
 
@@ -671,8 +1066,13 @@ class Layout:
     def size(self) -> Size:
         """Border box dimensions (includes border + padding + content, excludes margin)."""
     @property
-    def content_size(self) -> Size:
-        """Size of the content inside the node (may exceed the border box if overflowing)."""
+    def scrollable_overflow_rect(self) -> Rect:
+        """
+        The extent of the node's scrollable overflow, relative to its padding box origin.
+
+        `left`/`top` are `<= 0` (overflow before the scroll origin, which scrolling can't
+        reach) and `right`/`bottom` are `>= 0` (the reachable extent of the content).
+        """
     @property
     def scrollbar_size(self) -> Size:
         """Size reserved for scrollbars."""
@@ -689,11 +1089,128 @@ class Layout:
         """Width of the content box (size minus padding and border)."""
     def content_box_height(self) -> float:
         """Height of the content box (size minus padding and border)."""
+    def content_box_size(self) -> Size:
+        """Size of the content box (size minus padding and border)."""
+    def content_box_x(self) -> float:
+        """X offset of the content box, relative to the parent's border box origin."""
+    def content_box_y(self) -> float:
+        """Y offset of the content box, relative to the parent's border box origin."""
+    def scroll_width(self) -> float:
+        """The maximum horizontal scroll offset of the node (0 if its content doesn't overflow)."""
+    def scroll_height(self) -> float:
+        """The maximum vertical scroll offset of the node (0 if its content doesn't overflow)."""
+
+class DetailedGridItemInfo:
+    """The placement of one grid item, as 1-based grid line numbers."""
+
+    def __repr__(self) -> str: ...
+    def __eq__(self, other: object) -> bool: ...
+    def __hash__(self) -> int: ...
+    @property
+    def row_start(self) -> int: ...
+    @property
+    def row_end(self) -> int: ...
+    @property
+    def column_start(self) -> int: ...
+    @property
+    def column_end(self) -> int: ...
+
+class DetailedGridTracksInfo:
+    """
+    The computed tracks of one axis (rows or columns) of a grid container.
+
+    Tracks are indexed over the full grid: leading implicit tracks, then explicit tracks,
+    then trailing implicit tracks. Line `i` bounds the start of track `i`.
+    """
+
+    def __repr__(self) -> str: ...
+    def __eq__(self, other: object) -> bool: ...
+    @property
+    def negative_implicit_tracks(self) -> int:
+        """Number of implicit tracks before the explicit grid."""
+    @property
+    def explicit_tracks(self) -> int:
+        """Number of explicit tracks."""
+    @property
+    def positive_implicit_tracks(self) -> int:
+        """Number of implicit tracks after the explicit grid."""
+    @property
+    def positions(self) -> list[Line]:
+        """
+        The start and end position of each track, relative to the container's border box.
+
+        Positions account for the container's border and padding, gaps, content alignment,
+        and collapsed tracks.
+        """
+    @property
+    def line_names(self) -> list[list[str]]:
+        """The names of each grid line (one more line than there are tracks)."""
+    def names_for_line(self, line_index: int) -> list[str]:
+        """The names of the 0-indexed grid line `line_index` (empty if unnamed or out of range)."""
+
+class DetailedGridInfo:
+    """
+    Detailed results of laying out a grid container: its tracks and item placements.
+
+    Returned by `TaffyTree.detailed_layout_info` for grid containers.
+    """
+
+    def __repr__(self) -> str: ...
+    def __eq__(self, other: object) -> bool: ...
+    @property
+    def rows(self) -> DetailedGridTracksInfo:
+        """The row tracks."""
+    @property
+    def columns(self) -> DetailedGridTracksInfo:
+        """The column tracks."""
+    @property
+    def items(self) -> list[DetailedGridItemInfo]:
+        """
+        The placement of each in-flow grid item.
+
+        Absolutely positioned and `display: Nil` children are not grid items.
+        """
+    def grid_template_rows(self) -> str:
+        """
+        The used row sizes and line names, as a CSS `grid-template-rows` resolved value.
+
+        For example, `"[header-start] 20px [header-end] 30px"`.
+        """
+    def grid_template_columns(self) -> str:
+        """The used column sizes and line names, as a CSS `grid-template-columns` resolved value."""
+    def item_grid_area(self, item_index: int) -> tuple[Point, Size]:
+        """
+        The location and size of the grid area occupied by the item at `item_index`.
+
+        `item_index` indexes `items`. The location is relative to the container's border box,
+        and the area excludes surrounding gaps. Raises `IndexError` if `item_index` is out of
+        range.
+        """
+    def resolve_absolute_grid_area(
+        self,
+        grid_row: GridPlacement,
+        grid_column: GridPlacement,
+        direction: Direction,
+        padding_box: Rect,
+    ) -> Rect:
+        """
+        Resolve the grid area for an absolutely positioned box from its grid placement.
+
+        `padding_box` and the returned area are relative to the grid container's border box.
+        """
 
 # Style
 
-type DimensionValue = Length | Percent | Auto
-"""A dimension value used for sizes, margins, insets, and flex-basis: Length, Percent, or Auto."""
+type DimensionValue = (
+    Length | Percent | Auto | MinContent | MaxContent | FitContent | FitContentKeyword | Stretch
+)
+"""A dimension value used for `size_*`."""
+
+type FlexBasisValue = DimensionValue | Content
+"""A flex basis value: any `DimensionValue`, or `Content`."""
+
+type LengthPercentageAutoValue = Length | Percent | Auto
+"""A length, percentage, or auto value used for margin, inset, and `min_size_*`/`max_size_*`."""
 
 type LengthPercentageValue = Length | Percent
 """A length-or-percentage value used for padding, border, and gap: Length or Percent."""
@@ -705,7 +1222,7 @@ class Style:
     All fields are keyword-only. Passing None (or omitting) uses the taffy default.
     Style is immutable — construct a new instance to change fields, or use | to merge.
 
-    See: [taffy `Style`](https://docs.rs/taffy/0.9.2/taffy/struct.Style.html)
+    See: [taffy `Style`](https://docs.rs/taffy/0.14.0/taffy/struct.Style.html)
     """
 
     def __init__(
@@ -715,23 +1232,29 @@ class Style:
         box_sizing: BoxSizing | None = None,
         overflow_x: Overflow | None = None,
         overflow_y: Overflow | None = None,
-        scrollbar_width: float | None = None,
+        scrollbar_width: builtins.float | None = None,
         position: Position | None = None,
-        inset_left: DimensionValue | None = None,
-        inset_right: DimensionValue | None = None,
-        inset_top: DimensionValue | None = None,
-        inset_bottom: DimensionValue | None = None,
+        direction: Direction | None = None,
+        contain: Contain | None = None,
+        float: Float | None = None,
+        clear: Clear | None = None,
+        item_is_table: bool | None = None,
+        item_is_replaced: bool | None = None,
+        inset_left: LengthPercentageAutoValue | None = None,
+        inset_right: LengthPercentageAutoValue | None = None,
+        inset_top: LengthPercentageAutoValue | None = None,
+        inset_bottom: LengthPercentageAutoValue | None = None,
         size_width: DimensionValue | None = None,
         size_height: DimensionValue | None = None,
-        min_size_width: DimensionValue | None = None,
-        min_size_height: DimensionValue | None = None,
-        max_size_width: DimensionValue | None = None,
-        max_size_height: DimensionValue | None = None,
-        aspect_ratio: float | None = None,
-        margin_left: DimensionValue | None = None,
-        margin_right: DimensionValue | None = None,
-        margin_top: DimensionValue | None = None,
-        margin_bottom: DimensionValue | None = None,
+        min_size_width: LengthPercentageAutoValue | None = None,
+        min_size_height: LengthPercentageAutoValue | None = None,
+        max_size_width: LengthPercentageAutoValue | None = None,
+        max_size_height: LengthPercentageAutoValue | None = None,
+        aspect_ratio: builtins.float | None = None,
+        margin_left: LengthPercentageAutoValue | None = None,
+        margin_right: LengthPercentageAutoValue | None = None,
+        margin_top: LengthPercentageAutoValue | None = None,
+        margin_bottom: LengthPercentageAutoValue | None = None,
         padding_left: LengthPercentageValue | None = None,
         padding_right: LengthPercentageValue | None = None,
         padding_top: LengthPercentageValue | None = None,
@@ -751,11 +1274,15 @@ class Style:
         text_align: TextAlign | None = None,
         flex_direction: FlexDirection | None = None,
         flex_wrap: FlexWrap | None = None,
-        flex_basis: DimensionValue | None = None,
-        flex_grow: float | None = None,
-        flex_shrink: float | None = None,
-        grid_template_rows: list[GridTrackValue] | None = None,
-        grid_template_columns: list[GridTrackValue] | None = None,
+        flex_basis: FlexBasisValue | None = None,
+        flex_grow: builtins.float | None = None,
+        flex_shrink: builtins.float | None = None,
+        flex_line_count: int | None = None,
+        grid_template_rows: list[GridTemplateValue] | None = None,
+        grid_template_columns: list[GridTemplateValue] | None = None,
+        grid_template_row_names: list[list[str]] | None = None,
+        grid_template_column_names: list[list[str]] | None = None,
+        grid_template_areas: GridTemplateAreas | None = None,
         grid_auto_rows: list[GridTrackValue] | None = None,
         grid_auto_columns: list[GridTrackValue] | None = None,
         grid_auto_flow: GridAutoFlow | None = None,
@@ -766,16 +1293,25 @@ class Style:
         Construct a Style with the given fields set.
 
         All arguments are keyword-only. Omitting or passing None for a field uses
-        the taffy default value for that field. See each property for documentation
-        of individual fields.
+        the taffy default value for that field, except `align_*`/`justify_*` and
+        `grid_template_areas`, where None explicitly clears the field. See each property for
+        documentation of individual fields.
+
+        Raises `InvalidFlexLineCount` if `flex_line_count` is 0.
 
         Args:
-            display: How the node is laid out (Block, Flex, Grid, or Nil). [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/display)
+            display: How the node is laid out (Block, FlowRoot, Flex, Grid, or Nil). [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/display)
             box_sizing: Whether size includes border and padding (BorderBox) or not (ContentBox). [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/box-sizing)
             overflow_x: How overflowing content is handled horizontally. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/overflow-x)
             overflow_y: How overflowing content is handled vertically. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/overflow-y)
             scrollbar_width: Width of the scrollbar gutter in pixels. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/scrollbar-gutter)
             position: Whether the node is positioned relative to its parent or absolutely. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/position)
+            direction: Inline direction of the node's content (Ltr or Rtl). [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/direction)
+            contain: Layout and/or paint containment. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/contain)
+            float: Which side the node floats to within a block container. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/float)
+            clear: Which preceding floats the node is moved below. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/clear)
+            item_is_table: Whether the node is a table, which block layout sizes differently.
+            item_is_replaced: Whether the node is a replaced element (like an image). [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/Replaced_element)
             inset_left: Left offset for absolutely-positioned nodes. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/left)
             inset_right: Right offset for absolutely-positioned nodes. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/right)
             inset_top: Top offset for absolutely-positioned nodes. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/top)
@@ -813,8 +1349,12 @@ class Style:
             flex_basis: Default size of a flex item before growing or shrinking. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/flex-basis)
             flex_grow: Rate at which a flex item grows to fill available space. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/flex-grow)
             flex_shrink: Rate at which a flex item shrinks when space is tight. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/flex-shrink)
+            flex_line_count: Minimum number of lines in a multi-line flex container (at least 1). [CSS](https://drafts.csswg.org/css-flexbox-2/#flex-line-count)
             grid_template_rows: Explicit row track sizing in a grid container. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/grid-template-rows)
             grid_template_columns: Explicit column track sizing in a grid container. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/grid-template-columns)
+            grid_template_row_names: Names of the lines between rows. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_grid_layout/Grid_layout_using_named_grid_lines)
+            grid_template_column_names: Names of the lines between columns. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_grid_layout/Grid_layout_using_named_grid_lines)
+            grid_template_areas: Named areas of the grid template. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/grid-template-areas)
             grid_auto_rows: Sizing of implicitly-created row tracks. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/grid-auto-rows)
             grid_auto_columns: Sizing of implicitly-created column tracks. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/grid-auto-columns)
             grid_auto_flow: How auto-placed items are inserted in the grid. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/grid-auto-flow)
@@ -827,7 +1367,7 @@ class Style:
     def __or__(self, other: Style) -> Style: ...
     @property
     def display(self) -> Display:
-        """How the node is laid out (Block, Flex, Grid, or Nil). [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/display)."""
+        """How the node is laid out (Block, FlowRoot, Flex, Grid, or Nil). [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/display)."""
     @property
     def box_sizing(self) -> BoxSizing:
         """Whether size includes border and padding (BorderBox) or not (ContentBox). [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/box-sizing)."""
@@ -838,22 +1378,40 @@ class Style:
     def overflow_y(self) -> Overflow:
         """How overflowing content is handled vertically. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/overflow-y)."""
     @property
-    def scrollbar_width(self) -> float:
+    def scrollbar_width(self) -> builtins.float:
         """Width of the scrollbar gutter in pixels. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/scrollbar-gutter)."""
     @property
     def position(self) -> Position:
         """Whether the node is positioned relative to its parent or absolutely. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/position)."""
     @property
-    def inset_left(self) -> DimensionValue:
+    def direction(self) -> Direction:
+        """Inline direction of the node's content (Ltr or Rtl). [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/direction)."""
+    @property
+    def contain(self) -> Contain:
+        """Layout and/or paint containment. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/contain)."""
+    @property
+    def float(self) -> Float:
+        """Which side the node floats to within a block container. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/float)."""
+    @property
+    def clear(self) -> Clear:
+        """Which preceding floats the node is moved below. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/clear)."""
+    @property
+    def item_is_table(self) -> bool:
+        """Whether the node is a table, which block layout sizes differently."""
+    @property
+    def item_is_replaced(self) -> bool:
+        """Whether the node is a replaced element (like an image). [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/Replaced_element)."""
+    @property
+    def inset_left(self) -> LengthPercentageAutoValue:
         """Left offset for absolutely-positioned nodes. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/left)."""
     @property
-    def inset_right(self) -> DimensionValue:
+    def inset_right(self) -> LengthPercentageAutoValue:
         """Right offset for absolutely-positioned nodes. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/right)."""
     @property
-    def inset_top(self) -> DimensionValue:
+    def inset_top(self) -> LengthPercentageAutoValue:
         """Top offset for absolutely-positioned nodes. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/top)."""
     @property
-    def inset_bottom(self) -> DimensionValue:
+    def inset_bottom(self) -> LengthPercentageAutoValue:
         """Bottom offset for absolutely-positioned nodes. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/bottom)."""
     @property
     def size_width(self) -> DimensionValue:
@@ -862,31 +1420,31 @@ class Style:
     def size_height(self) -> DimensionValue:
         """Preferred height of the node. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/height)."""
     @property
-    def min_size_width(self) -> DimensionValue:
+    def min_size_width(self) -> LengthPercentageAutoValue:
         """Minimum width of the node. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/min-width)."""
     @property
-    def min_size_height(self) -> DimensionValue:
+    def min_size_height(self) -> LengthPercentageAutoValue:
         """Minimum height of the node. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/min-height)."""
     @property
-    def max_size_width(self) -> DimensionValue:
+    def max_size_width(self) -> LengthPercentageAutoValue:
         """Maximum width of the node. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/max-width)."""
     @property
-    def max_size_height(self) -> DimensionValue:
+    def max_size_height(self) -> LengthPercentageAutoValue:
         """Maximum height of the node. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/max-height)."""
     @property
-    def aspect_ratio(self) -> float | None:
+    def aspect_ratio(self) -> builtins.float | None:
         """Preferred aspect ratio (width / height), or None. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/aspect-ratio)."""
     @property
-    def margin_left(self) -> DimensionValue:
+    def margin_left(self) -> LengthPercentageAutoValue:
         """Left outer spacing. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/margin-left)."""
     @property
-    def margin_right(self) -> DimensionValue:
+    def margin_right(self) -> LengthPercentageAutoValue:
         """Right outer spacing. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/margin-right)."""
     @property
-    def margin_top(self) -> DimensionValue:
+    def margin_top(self) -> LengthPercentageAutoValue:
         """Top outer spacing. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/margin-top)."""
     @property
-    def margin_bottom(self) -> DimensionValue:
+    def margin_bottom(self) -> LengthPercentageAutoValue:
         """Bottom outer spacing. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/margin-bottom)."""
     @property
     def padding_left(self) -> LengthPercentageValue:
@@ -946,20 +1504,44 @@ class Style:
     def flex_wrap(self) -> FlexWrap:
         """Whether flex items wrap onto multiple lines. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/flex-wrap)."""
     @property
-    def flex_basis(self) -> DimensionValue:
+    def flex_basis(self) -> FlexBasisValue:
         """Default size of a flex item before growing or shrinking. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/flex-basis)."""
     @property
-    def flex_grow(self) -> float:
+    def flex_grow(self) -> builtins.float:
         """Rate at which a flex item grows to fill available space. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/flex-grow)."""
     @property
-    def flex_shrink(self) -> float:
+    def flex_shrink(self) -> builtins.float:
         """Rate at which a flex item shrinks when space is tight. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/flex-shrink)."""
     @property
-    def grid_template_rows(self) -> list[GridTrackValue]:
+    def flex_line_count(self) -> int:
+        """Minimum number of lines in a multi-line flex container (at least 1). [CSS](https://drafts.csswg.org/css-flexbox-2/#flex-line-count)."""
+    @property
+    def grid_template_rows(self) -> list[GridTemplateValue]:
         """Explicit row track sizing in a grid container. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/grid-template-rows)."""
     @property
-    def grid_template_columns(self) -> list[GridTrackValue]:
+    def grid_template_columns(self) -> list[GridTemplateValue]:
         """Explicit column track sizing in a grid container. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/grid-template-columns)."""
+    @property
+    def grid_template_row_names(self) -> list[list[str]]:
+        """
+        Names of the lines between rows, positional with `grid_template_rows`.
+
+        Entry `i` names the line before `grid_template_rows[i]` (a `Repeat` counts as one
+        entry), and one final entry names the line after the last row.
+        [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_grid_layout/Grid_layout_using_named_grid_lines).
+        """
+    @property
+    def grid_template_column_names(self) -> list[list[str]]:
+        """
+        Names of the lines between columns, positional with `grid_template_columns`.
+
+        Entry `i` names the line before `grid_template_columns[i]` (a `Repeat` counts as one
+        entry), and one final entry names the line after the last column.
+        [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_grid_layout/Grid_layout_using_named_grid_lines).
+        """
+    @property
+    def grid_template_areas(self) -> GridTemplateAreas | None:
+        """Named areas of the grid template. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/grid-template-areas)."""
     @property
     def grid_auto_rows(self) -> list[GridTrackValue]:
         """Sizing of implicitly-created row tracks. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/grid-auto-rows)."""
@@ -1007,6 +1589,13 @@ class TaffyTree[NodeContext = object]:
         """Remove a specific child from a parent."""
     def remove_child_at_index(self, parent: NodeId, child_index: int) -> NodeId:
         """Remove a child at a specific index."""
+    def remove_children_range(self, parent: NodeId, start: int, end: int) -> None:
+        """
+        Detach the children at indices `start` (inclusive) to `end` (exclusive) from a parent.
+
+        The children stay in the tree, without a parent. Raises `ChildIndexOutOfBounds` if
+        the range is not within the parent's children.
+        """
     def replace_child_at_index(self, parent: NodeId, child_index: int, new_child: NodeId) -> NodeId:
         """Replace the child at a specific index with a new child."""
     def child_at_index(self, parent: NodeId, child_index: int) -> NodeId:
@@ -1042,6 +1631,12 @@ class TaffyTree[NodeContext = object]:
         """Get the computed layout of a node."""
     def unrounded_layout(self, node: NodeId) -> Layout:
         """Get the unrounded layout of a node."""
+    def detailed_layout_info(self, node: NodeId) -> DetailedGridInfo | None:
+        """
+        Get detailed grid layout information for a node.
+
+        Returns None if the node is not a grid container or has not been laid out.
+        """
     def enable_rounding(self) -> None:
         """Enable rounding of layout values."""
     def disable_rounding(self) -> None:
