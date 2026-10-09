@@ -152,6 +152,20 @@ Counterweight builds a new `TaffyTree` every frame, which throws away taffy's la
 Reusing one tree across frames needs `set_style`, `set_children`, `set_node_context` and
 `mark_dirty`, all of which waxy already exposes. Two additions make reuse cheaper.
 
+Reuse pays off even though it doesn't skip as much as taffy's cache suggests.
+On a 39-node tree shaped like counterweight's dashboard (two rows of six cards,
+each card a column of two text leaves, 24 leaves in all), with a trivial measure callback,
+on a release build:
+
+| Frame | Layout time | Measure calls |
+|---|---|---|
+| Build a new tree and compute it | 271 µs | 456 |
+| Reuse the tree, change one leaf's context, compute it | 94 µs | 229 |
+
+Changing one leaf dirties its ancestors, which re-query their clean children,
+and half the measure calls come back even though only one leaf changed.
+Item 8 explains why the cache misses.
+
 ### 5a. Make `set_style` do nothing when the style is unchanged
 
 Taffy's `set_style` marks the node dirty unconditionally (`TaffyTree::set_style`).
@@ -300,12 +314,95 @@ Tests: each variant of each union extracts to the right value
 (parametrized, so a variant missing from the macro list fails);
 a value of the wrong type raises `TypeError` naming the accepted types.
 
-## Out of scope## Out of scope
+## 8. Memoize measure results within one `compute_layout` call
+
+Taffy calls the measure callback far more often than there are leaves.
+On the dashboard-shaped tree in item 5, each text leaf is measured 19 times per layout,
+with 13 distinct `(known_size, available_size)` inputs and 6 repeats of earlier ones.
+Taffy's per-node cache has a fixed set of slots chosen by which dimensions are known and what
+kind of available space was given, so different inputs evict each other,
+and the evicted inputs are asked for again in the same pass.
+Every call crosses into Python, costing about 110 ns of waxy overhead
+(building `KnownSize` and `AvailableSize`, calling, extracting the `Size`)
+before the callback does any work.
+
+In `TaffyTree.compute_layout`, keep a `HashMap` from `(node, known_size, available_size)` to the
+measured size for the duration of the call, and answer repeats from it without calling Python.
+Key `f32`s by their bits, the same way the hashing helpers do.
+Drop the map when the call returns:
+a memo that outlives one pass would need its own invalidation on `set_node_context`,
+`set_style` and `mark_dirty`, duplicating the dirty tracking taffy already does.
+
+This assumes the callback returns the same size for the same inputs within one layout,
+which taffy's own cache already assumes. Document it on the `measure` parameter.
+On the dashboard-shaped tree it removes a third of the calls into Python.
+
+Tests: a callback that counts its calls is called once per distinct input per node;
+a callback whose result depends on the node's context still gets the right size for each node.
+
+## 9. Build release wheels with LTO
+
+`Cargo.toml` has no `[profile.release]`, so release wheels build with the default profile:
+no link-time optimization and 16 codegen units.
+Setting `lto = "fat"` and `codegen-units = 1` measured 5 to 10 percent faster across the board
+on a release build:
+
+| Benchmark | Default | LTO |
+|---|---|---|
+| Dashboard-shaped tree, build and compute with measure | 290 µs | 271 µs |
+| Same, without a measure callback | 153 µs | 141 µs |
+| `tree.children(node)` | 162 ns | 104 ns |
+| Construct a typical `Style` | 4425 ns | 4153 ns |
+
+It makes release builds slower, which only CI's release workflow and
+`maturin develop --release` pay; `just build` builds in debug and is unaffected.
+
+## 10. Document performance tips
+
+Add a `docs/performance.md` page to the `nav` in `mkdocs.yml`,
+for callers that rebuild layouts every frame.
+Order the tips by how much they save, largest first:
+
+- **Reuse one `TaffyTree` across frames** (item 5):
+  call `set_style` freely, since an equal style is a no-op,
+  and call `set_node_context` only when a node's content changed.
+- **Memoize the measure callback on what actually changes its answer.**
+  Taffy calls it many times per leaf per layout, with inputs that often differ only in ways the
+  callback ignores; item 8 removes exact repeats, but only the caller knows which differences
+  matter (the out-of-scope note on text measurements has counterweight's case).
+- **Build styles once and merge them**, rather than constructing them per frame:
+  construction costs several times a merge, even after item 7.
+- **Bind `Layout` fields to a local before reading them repeatedly.**
+  `margin`, `padding`, `border`, `location` and `size` build a new object on every access,
+  so `m = layout.margin` followed by four side reads costs half as much as reading
+  `layout.margin.left`, `layout.margin.right` and so on.
+- **Reuse immutable values.** Every value type is frozen, so a module-level `Size`, `Length`
+  or `Style` can be returned or passed again instead of rebuilt;
+  returning a shared `Size` from a measure callback costs a fifth of building a new one.
+- **Pass small value types' arguments positionally.**
+  pyo3 matches keyword arguments by name at runtime,
+  so `Size(3.0, 4.0)` costs about two-thirds of `Size(width=3.0, height=4.0)`;
+  the same holds for `Point`, `KnownSize`, `AvailableSize` and `Length`.
+
+State each saving as a ratio and give the reason, as above, rather than nanoseconds,
+which change with the machine and with every release.
+Write the page after items 5 to 9 land and re-measure each claim against a release build first,
+since those items shift the ratios (item 7 narrows the construction-to-merge gap).
+Keep the benchmark scripts in a `benchmarks/` directory so the page's claims can be re-checked
+whenever the ratios might have moved.
+
+## Out of scope
 
 - Taffy's defaults. Waxy keeps `taffy::Style::DEFAULT` exactly; any terminal-friendly defaults
   are counterweight's choice.
-- Caching text measurements. Taffy caches per node within a tree, and item 5 keeps that cache
-  alive across frames.
+- Caching text measurements across frames.
+  Taffy's cache misses too often to rely on (items 5 and 8),
+  and only the callback's owner knows which inputs actually change the answer.
+  Counterweight's text measure depends on the text and one effective width
+  (`known_size.width`, else a definite available width, else none),
+  so memoizing on that collapses the 13 distinct inputs per leaf to about 3,
+  and since `Text` is an immutable value the memo needs no invalidation.
+  Returning `Size(w, h)` positionally rather than by keyword also saves about 100 ns per call.
 - Rounding policy. Whether counterweight uses taffy's rounding or its own snapping is a
   counterweight decision; waxy already exposes `enable_rounding`, `disable_rounding`,
   `layout` and `unrounded_layout`.
