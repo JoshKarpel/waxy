@@ -32,7 +32,7 @@ jobs:
           rustflags: -D warnings --cfg pyo3_disable_reference_pool
 
       - name: Install just
-        uses: extractions/setup-just@v2
+        uses: extractions/setup-just@v3
 
       - name: Install uv
         uses: astral-sh/setup-uv@v7
