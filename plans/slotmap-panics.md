@@ -403,15 +403,19 @@ def test_invalid_node_id_on_removed_node():
     with pytest.raises(waxy.InvalidNodeId):
         tree.children(node)
 
+
 def test_invalid_node_id_is_taffy_exception():
     assert issubclass(waxy.InvalidNodeId, waxy.TaffyException)
+
 
 def test_invalid_node_id_is_key_error():
     assert issubclass(waxy.InvalidNodeId, KeyError)
 
+
 def test_invalid_node_id_is_exception():
     # Verify it's catchable with `except Exception`
     assert issubclass(waxy.InvalidNodeId, Exception)
+
 
 def test_invalid_node_id_child_count():
     tree = TaffyTree()
@@ -420,12 +424,14 @@ def test_invalid_node_id_child_count():
     with pytest.raises(waxy.InvalidNodeId):
         tree.child_count(node)
 
+
 def test_invalid_node_id_parent():
     tree = TaffyTree()
     node = tree.new_leaf(Style())
     tree.remove(node)
     with pytest.raises(waxy.InvalidNodeId):
         tree.parent(node)
+
 
 def test_invalid_node_id_layout():
     tree = TaffyTree()
@@ -434,12 +440,14 @@ def test_invalid_node_id_layout():
     with pytest.raises(waxy.InvalidNodeId):
         tree.layout(node)
 
+
 def test_invalid_node_id_style():
     tree = TaffyTree()
     node = tree.new_leaf(Style())
     tree.remove(node)
     with pytest.raises(waxy.InvalidNodeId):
         tree.style(node)
+
 
 def test_invalid_node_id_set_style():
     tree = TaffyTree()

@@ -44,5 +44,6 @@ plugins:
 nav:
   - Home: index.md
   - api.md
+  - performance.md
   - changelog.md
   - maintaining.md

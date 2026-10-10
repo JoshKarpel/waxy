@@ -227,10 +227,13 @@ All types are `#[pyclass(frozen)]`. Value-carrying types get `__match_args__`, `
 ```python
 class Length:
     """A length value in pixels."""
+
     __match_args__ = ("value",)
+
     def __init__(self, value: float) -> None: ...
     @property
     def value(self) -> float: ...
+
 
 class Percent:
     """A percentage value (0.0 to 1.0).
@@ -238,26 +241,37 @@ class Percent:
     Raises InvalidPercent (a subclass of both WaxyException and ValueError)
     if value is outside the range [0.0, 1.0].
     """
+
     __match_args__ = ("value",)
+
     def __init__(self, value: float) -> None: ...
     @property
     def value(self) -> float: ...
 
+
 class Auto:
     """Automatic sizing."""
+
     def __init__(self) -> None: ...
+
 
 AUTO: Auto  # Module-level constant
 
+
 class MinContent:
     """Min-content sizing."""
+
     def __init__(self) -> None: ...
+
 
 MIN_CONTENT: MinContent  # Module-level constant
 
+
 class MaxContent:
     """Max-content sizing."""
+
     def __init__(self) -> None: ...
+
 
 MAX_CONTENT: MaxContent  # Module-level constant
 ```
@@ -267,7 +281,9 @@ MAX_CONTENT: MaxContent  # Module-level constant
 ```python
 class Definite:
     """A definite available space in pixels."""
+
     __match_args__ = ("value",)
+
     def __init__(self, value: float) -> None: ...
     @property
     def value(self) -> float: ...
@@ -285,14 +301,19 @@ class Fraction:
     is divided among fractional tracks proportionally. E.g., Fraction(1)
     and Fraction(2) in the same grid get 1/3 and 2/3 of remaining space.
     """
+
     __match_args__ = ("value",)
+
     def __init__(self, value: float) -> None: ...
     @property
     def value(self) -> float: ...
 
+
 class Minmax:
     """A minmax grid track sizing function."""
+
     __match_args__ = ("min", "max")
+
     def __init__(
         self,
         min: Length | Percent | Auto | MinContent | MaxContent,
@@ -303,9 +324,12 @@ class Minmax:
     @property
     def max(self) -> Length | Percent | Auto | MinContent | MaxContent | Fraction | FitContent: ...
 
+
 class FitContent:
     """A fit-content grid track sizing function."""
+
     __match_args__ = ("limit",)
+
     def __init__(self, limit: Length | Percent) -> None: ...
     @property
     def limit(self) -> Length | Percent: ...
@@ -316,14 +340,19 @@ class FitContent:
 ```python
 class GridLine:
     """A grid line index (1-based, negative indices count from the end)."""
+
     __match_args__ = ("index",)
+
     def __init__(self, index: int) -> None: ...
     @property
     def index(self) -> int: ...
 
+
 class GridSpan:
     """Span a number of grid tracks."""
+
     __match_args__ = ("count",)
+
     def __init__(self, count: int) -> None: ...
     @property
     def count(self) -> int: ...
@@ -481,8 +510,15 @@ Style(
     size_width=Dimension.length(10),
     padding_left=LengthPercentage.length(10),
     margin_left=LengthPercentageAuto.auto(),
-    grid_template_columns=[GridTrack.length(200), GridTrack.flex(1), GridTrack.flex(2)],  # "flex" is taffy's name for CSS fr
-    grid_template_rows=[GridTrack.auto(), GridTrack.minmax(GridTrackMin.length(100), GridTrackMax.fr(1))],
+    grid_template_columns=[
+        GridTrack.length(200),
+        GridTrack.flex(1),
+        GridTrack.flex(2),
+    ],  # "flex" is taffy's name for CSS fr
+    grid_template_rows=[
+        GridTrack.auto(),
+        GridTrack.minmax(GridTrackMin.length(100), GridTrackMax.fr(1)),
+    ],
     grid_row=GridPlacement(start=GridPlacement.line(1), end=GridPlacement.span(2)),
 )
 
