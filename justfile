@@ -1,4 +1,4 @@
-set ignore-comments := true
+set ignore-comments
 
 # Export PyO3 env vars so that maturin and cargo share dependency caches in the
 # same target/ directory. Without these, maturin sets PYO3_ENVIRONMENT_SIGNATURE

@@ -82,6 +82,24 @@
 
 ::: waxy.GridTemplateAreas
 
+## Constants
+
+::: waxy.AUTO
+
+::: waxy.MIN_CONTENT
+
+::: waxy.MAX_CONTENT
+
+::: waxy.STRETCH
+
+::: waxy.FIT_CONTENT
+
+::: waxy.CONTENT
+
+::: waxy.AUTO_FILL
+
+::: waxy.AUTO_FIT
+
 ## Type aliases
 
 ::: waxy.DimensionValue

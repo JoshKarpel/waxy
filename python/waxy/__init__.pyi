@@ -69,9 +69,11 @@ class Size:
     def __eq__(self, other: object) -> bool: ...
     def __hash__(self) -> int: ...
     @property
-    def width(self) -> float: ...
+    def width(self) -> float:
+        """The width."""
     @property
-    def height(self) -> float: ...
+    def height(self) -> float:
+        """The height."""
     @property
     def area(self) -> float:
         """The area (width * height)."""
@@ -95,13 +97,17 @@ class Rect:
     def __eq__(self, other: object) -> bool: ...
     def __hash__(self) -> int: ...
     @property
-    def left(self) -> float: ...
+    def left(self) -> float:
+        """The value for the left side."""
     @property
-    def right(self) -> float: ...
+    def right(self) -> float:
+        """The value for the right side."""
     @property
-    def top(self) -> float: ...
+    def top(self) -> float:
+        """The value for the top side."""
     @property
-    def bottom(self) -> float: ...
+    def bottom(self) -> float:
+        """The value for the bottom side."""
 
 class Point:
     """A 2D point with x and y coordinates."""
@@ -117,9 +123,11 @@ class Point:
     def __truediv__(self, scalar: float) -> Point: ...
     def __neg__(self) -> Point: ...
     @property
-    def x(self) -> float: ...
+    def x(self) -> float:
+        """The horizontal coordinate."""
     @property
-    def y(self) -> float: ...
+    def y(self) -> float:
+        """The vertical coordinate."""
 
 class Line:
     """
@@ -134,9 +142,11 @@ class Line:
     def __eq__(self, other: object) -> bool: ...
     def __hash__(self) -> int: ...
     @property
-    def start(self) -> float: ...
+    def start(self) -> float:
+        """The start value."""
     @property
-    def end(self) -> float: ...
+    def end(self) -> float:
+        """The end value."""
 
 class KnownSize:
     """
@@ -154,9 +164,11 @@ class KnownSize:
     def __hash__(self) -> int: ...
     def __iter__(self) -> Iterator[float | None]: ...
     @property
-    def width(self) -> float | None: ...
+    def width(self) -> float | None:
+        """The known width, or `None` if the measure function must compute it."""
     @property
-    def height(self) -> float | None: ...
+    def height(self) -> float | None:
+        """The known height, or `None` if the measure function must compute it."""
 
 type AvailableSpaceValue = Definite | MinContent | MaxContent
 """Available space value for measure functions: Definite, MinContent, or MaxContent."""
@@ -181,9 +193,11 @@ class AvailableSize:
     def __hash__(self) -> int: ...
     def __iter__(self) -> Iterator[AvailableSpaceValue]: ...
     @property
-    def width(self) -> AvailableSpaceValue: ...
+    def width(self) -> AvailableSpaceValue:
+        """The space available in the horizontal axis."""
     @property
-    def height(self) -> AvailableSpaceValue: ...
+    def height(self) -> AvailableSpaceValue:
+        """The space available in the vertical axis."""
 
 # Value types
 
@@ -206,7 +220,8 @@ class Length:
     def __eq__(self, other: object) -> bool: ...
     def __hash__(self) -> int: ...
     @property
-    def value(self) -> float: ...
+    def value(self) -> float:
+        """The length in pixels."""
 
 class Percent:
     """
@@ -227,7 +242,8 @@ class Percent:
     def __eq__(self, other: object) -> bool: ...
     def __hash__(self) -> int: ...
     @property
-    def value(self) -> float: ...
+    def value(self) -> float:
+        """The fraction of the reference size, from 0.0 to 1.0."""
 
 class Auto:
     """
@@ -365,7 +381,8 @@ class Definite:
     def __eq__(self, other: object) -> bool: ...
     def __hash__(self) -> int: ...
     @property
-    def value(self) -> float: ...
+    def value(self) -> float:
+        """The available space in pixels."""
 
 class Fraction:
     """
@@ -388,7 +405,8 @@ class Fraction:
     def __eq__(self, other: object) -> bool: ...
     def __hash__(self) -> int: ...
     @property
-    def value(self) -> float: ...
+    def value(self) -> float:
+        """The number of fractional units (the `fr` value)."""
 
 type GridTrackMinValue = Length | Percent | Auto | MinContent | MaxContent
 """Minimum sizing bound for a Minmax grid track."""
@@ -422,7 +440,8 @@ class FitContent:
     def __eq__(self, other: object) -> bool: ...
     def __hash__(self) -> int: ...
     @property
-    def limit(self) -> Length | Percent: ...
+    def limit(self) -> Length | Percent:
+        """The size the node grows to before clamping."""
 
 class Minmax:
     """
@@ -446,9 +465,11 @@ class Minmax:
     def __eq__(self, other: object) -> bool: ...
     def __hash__(self) -> int: ...
     @property
-    def min(self) -> GridTrackMinValue: ...
+    def min(self) -> GridTrackMinValue:
+        """The minimum track size."""
     @property
-    def max(self) -> GridTrackMaxValue: ...
+    def max(self) -> GridTrackMaxValue:
+        """The maximum track size."""
 
 class AutoFill:
     """
@@ -548,7 +569,8 @@ class GridLine:
     def __eq__(self, other: object) -> bool: ...
     def __hash__(self) -> int: ...
     @property
-    def index(self) -> int: ...
+    def index(self) -> int:
+        """The 1-based line index (negative counts from the end)."""
 
 class GridSpan:
     """
@@ -569,7 +591,8 @@ class GridSpan:
     def __eq__(self, other: object) -> bool: ...
     def __hash__(self) -> int: ...
     @property
-    def count(self) -> int: ...
+    def count(self) -> int:
+        """The number of tracks spanned."""
 
 class NamedGridLine:
     """
@@ -594,9 +617,11 @@ class NamedGridLine:
     def __eq__(self, other: object) -> bool: ...
     def __hash__(self) -> int: ...
     @property
-    def name(self) -> str: ...
+    def name(self) -> str:
+        """The line name."""
     @property
-    def index(self) -> int: ...
+    def index(self) -> int:
+        """Which line with that name, 1-based (negative counts from the end)."""
 
 class NamedGridSpan:
     """
@@ -617,9 +642,11 @@ class NamedGridSpan:
     def __eq__(self, other: object) -> bool: ...
     def __hash__(self) -> int: ...
     @property
-    def name(self) -> str: ...
+    def name(self) -> str:
+        """The line name."""
     @property
-    def count(self) -> int: ...
+    def count(self) -> int:
+        """How many lines with that name the item spans across."""
 
 # Enums
 
@@ -868,9 +895,11 @@ class GridPlacement:
     def __eq__(self, other: object) -> bool: ...
     def __hash__(self) -> int: ...
     @property
-    def start(self) -> GridPlacementValue: ...
+    def start(self) -> GridPlacementValue:
+        """The start placement."""
     @property
-    def end(self) -> GridPlacementValue: ...
+    def end(self) -> GridPlacementValue:
+        """The end placement."""
 
 class GridTemplateArea:
     """
@@ -900,15 +929,20 @@ class GridTemplateArea:
     def __eq__(self, other: object) -> bool: ...
     def __hash__(self) -> int: ...
     @property
-    def name(self) -> str: ...
+    def name(self) -> str:
+        """The area name."""
     @property
-    def row_start(self) -> int: ...
+    def row_start(self) -> int:
+        """The 1-based grid line the area starts at in the row axis."""
     @property
-    def row_end(self) -> int: ...
+    def row_end(self) -> int:
+        """The 1-based grid line the area ends at in the row axis."""
     @property
-    def column_start(self) -> int: ...
+    def column_start(self) -> int:
+        """The 1-based grid line the area starts at in the column axis."""
     @property
-    def column_end(self) -> int: ...
+    def column_end(self) -> int:
+        """The 1-based grid line the area ends at in the column axis."""
 
 class GridTemplateAreas:
     """
@@ -940,11 +974,14 @@ class GridTemplateAreas:
     def __eq__(self, other: object) -> bool: ...
     def __hash__(self) -> int: ...
     @property
-    def areas(self) -> list[GridTemplateArea]: ...
+    def areas(self) -> list[GridTemplateArea]:
+        """The named areas."""
     @property
-    def row_count(self) -> int: ...
+    def row_count(self) -> int:
+        """The number of rows in the template."""
     @property
-    def column_count(self) -> int: ...
+    def column_count(self) -> int:
+        """The number of columns in the template."""
     @staticmethod
     def from_strings(rows: list[str]) -> GridTemplateAreas:
         """
@@ -1055,13 +1092,17 @@ class DetailedGridItemInfo:
     def __eq__(self, other: object) -> bool: ...
     def __hash__(self) -> int: ...
     @property
-    def row_start(self) -> int: ...
+    def row_start(self) -> int:
+        """The 1-based grid line the item starts at in the row axis."""
     @property
-    def row_end(self) -> int: ...
+    def row_end(self) -> int:
+        """The 1-based grid line the item ends at in the row axis."""
     @property
-    def column_start(self) -> int: ...
+    def column_start(self) -> int:
+        """The 1-based grid line the item starts at in the column axis."""
     @property
-    def column_end(self) -> int: ...
+    def column_end(self) -> int:
+        """The 1-based grid line the item ends at in the column axis."""
 
 class DetailedGridTracksInfo:
     """
