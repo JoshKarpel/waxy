@@ -238,8 +238,11 @@ setting a different style makes it true.
 ### 5b. Return all layouts in one call
 
 Add `TaffyTree.absolute_layouts(root) -> list[tuple[NodeId, Point, Layout]]`:
-every node in the subtree in pre-order, with its absolute position
+every visible node in the subtree in pre-order, with its absolute position
 (the sum of its own and its ancestors' locations) and its `Layout` unchanged.
+Leave out `display: Nil` nodes and their subtrees:
+taffy gives them zero sizes at their parent's origin, which would read as real boxes,
+and a caller can't skip a subtree in a flat list without asking for each node's style.
 Keep the absolute position out of `Layout`:
 everywhere else `Layout.location` is relative to the parent,
 and a `Layout` whose `location` means something else is the same overloading item 4 removes

@@ -549,6 +549,30 @@ def test_absolute_layouts_of_any_subtree_match_the_whole_tree(
             assert position == whole[node]
 
 
+def build_hidden_subtree(tree: waxy.TaffyTree[object]) -> tuple[waxy.NodeId, ...]:
+    """A root holding a visible leaf, then a hidden node over a non-hidden child and grandchild."""
+    grandchild = tree.new_leaf(waxy.Style(size_width=waxy.Length(2), size_height=waxy.Length(3)))
+    child = tree.new_with_children(waxy.Style(padding_left=waxy.Length(1)), [grandchild])
+    hidden = tree.new_with_children(waxy.Style(display=waxy.Display.Nil), [child])
+    visible = tree.new_leaf(waxy.Style(size_width=waxy.Length(4), size_height=waxy.Length(5)))
+    root = tree.new_with_children(waxy.Style(size_width=waxy.Length(20)), [visible, hidden])
+    tree.compute_layout(root)
+    return root, visible, hidden, child, grandchild
+
+
+def test_absolute_layouts_leaves_out_hidden_subtrees() -> None:
+    tree: waxy.TaffyTree[object] = waxy.TaffyTree()
+    root, visible, *_ = build_hidden_subtree(tree)
+    assert [node for node, _, _ in tree.absolute_layouts(root)] == [root, visible]
+
+
+@pytest.mark.parametrize("index", [2, 3, 4], ids=["hidden", "child", "grandchild"])
+def test_absolute_layouts_inside_hidden_subtree_is_empty(index: int) -> None:
+    tree: waxy.TaffyTree[object] = waxy.TaffyTree()
+    subtree_root = build_hidden_subtree(tree)[index]
+    assert tree.absolute_layouts(subtree_root) == []
+
+
 def test_absolute_layouts_of_removed_node_raises() -> None:
     tree: waxy.TaffyTree[object] = waxy.TaffyTree()
     node = tree.new_leaf(waxy.Style())

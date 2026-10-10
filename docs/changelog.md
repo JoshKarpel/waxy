@@ -5,7 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## [Unreleased](https://github.com/JoshKarpel/waxy/compare/v0.6.0...HEAD)
+## [Unreleased](https://github.com/JoshKarpel/waxy/compare/v0.7.0...HEAD)
+
+## [0.7.0](https://github.com/JoshKarpel/waxy/compare/v0.6.0...v0.7.0) - 2026-10-10
+
+### Changed
+
+- [#50](https://github.com/JoshKarpel/waxy/pull/50)
+  `TaffyTree.absolute_layouts(root)` leaves out nodes with `display=Display.Nil`
+  and their whole subtrees, instead of reporting them as zero-sized boxes at their parent's origin.
+  It returns an empty list when `root` or one of its ancestors is hidden.
+  This is a breaking change for callers that expect an entry for every node in the subtree.
 
 ## [0.6.0](https://github.com/JoshKarpel/waxy/compare/v0.5.0...v0.6.0) - 2026-10-10
 

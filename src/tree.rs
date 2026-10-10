@@ -385,8 +385,8 @@ impl TaffyTree {
         self.is_rounding_enabled = false;
     }
 
-    /// Every node in the subtree rooted at `root`, in pre-order, with its absolute position and
-    /// its layout.
+    /// Every visible node in the subtree rooted at `root`, in pre-order, with its absolute
+    /// position and its layout.
     fn absolute_layouts(&self, root: &NodeId) -> PyResult<Vec<(NodeId, Point, Layout)>> {
         catch_node_panic(root, || self.collect_absolute_layouts(root.inner))?
     }
@@ -433,6 +433,10 @@ impl TaffyTree {
         let mut ancestors = Vec::new();
         let mut ancestor = self.inner.parent(root);
         while let Some(node) = ancestor {
+            // A hidden ancestor hides `root` too, the same as a walk from the top would.
+            if self.is_hidden(node)? {
+                return Ok(Vec::new());
+            }
             ancestors.push(node);
             ancestor = self.inner.parent(node);
         }
@@ -448,6 +452,11 @@ impl TaffyTree {
         let mut layouts = Vec::new();
         let mut pending = vec![(root, origin)];
         while let Some((node, parent_position)) = pending.pop() {
+            // taffy lays out a hidden node and its whole subtree as zero-sized boxes at the
+            // parent's origin, which would read as real positions, so skip the subtree.
+            if self.is_hidden(node)? {
+                continue;
+            }
             let location = self.inner.unrounded_layout(node).location;
             let position = taffy::Point {
                 x: parent_position.x + location.x,
@@ -471,6 +480,12 @@ impl TaffyTree {
             pending.extend(children.into_iter().rev().map(|child| (child, position)));
         }
         Ok(layouts)
+    }
+
+    /// Whether `node` is `display: Nil`, which takes it and its subtree out of the layout.
+    fn is_hidden(&self, node: taffy::NodeId) -> PyResult<bool> {
+        let style = self.inner.style(node).map_err(taffy_error_to_py)?;
+        Ok(style.display == taffy::Display::None)
     }
 
     /// Append one line per node of the subtree rooted at `node` to `lines`, in pre-order.

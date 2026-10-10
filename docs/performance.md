@@ -42,7 +42,7 @@ and merge them per frame rather than constructing new ones.
 
 ## Read every layout with one call
 
-To read every node's layout and absolute position,
+To read every visible node's layout and absolute position,
 call `absolute_layouts(root)` instead of recursing with `layout` and `children`.
 On the dashboard-shaped tree it costs about a third as much as the recursion in Python,
 and with rounding enabled its positions match taffy's rounded sizes,
