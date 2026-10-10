@@ -1,0 +1,8 @@
+[build]
+# pyo3's reference pool defers decrefs of `Py<T>` values dropped while detached from the
+# interpreter, and once it exists (it does by the time `import waxy` finishes) every call into
+# waxy locks its global mutex. waxy never detaches, so it never needs the pool. Without it, a
+# `Py<T>` dropped while detached aborts the process instead.
+# A RUSTFLAGS environment variable replaces this list rather than extending it, so CI repeats the
+# flag in its own rustflags.
+rustflags = ["--cfg", "pyo3_disable_reference_pool"]

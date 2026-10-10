@@ -28,6 +28,8 @@ jobs:
       - uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           components: clippy, rustfmt
+          # Setting RUSTFLAGS replaces .cargo/config.toml's rustflags, so repeat them here.
+          rustflags: -D warnings --cfg pyo3_disable_reference_pool
 
       - name: Install just
         uses: extractions/setup-just@v2

@@ -526,3 +526,14 @@ def test_measure_memo_keeps_results_separate_per_node() -> None:
 
     assert tree.layout(narrow).size.width == 2
     assert tree.layout(wide).size.width == 8
+
+
+def test_measure_memo_does_not_outlive_one_compute_layout_call() -> None:
+    tree: waxy.TaffyTree[str] = waxy.TaffyTree()
+    leaf = tree.new_leaf_with_context(waxy.Style(), "text")
+    tree.compute_layout(leaf, measure=lambda known, available, text: waxy.Size(3, 1))
+
+    tree.mark_dirty(leaf)
+    tree.compute_layout(leaf, measure=lambda known, available, text: waxy.Size(7, 1))
+
+    assert tree.layout(leaf).size.width == 7

@@ -5,6 +5,7 @@ A Python wrapper around the Rust `taffy` UI layout library, built with PyO3/matu
 ## Key Files
 
 - `plans/` — Design documents: `initial-concept.md` (project goals, tooling, design decisions), `measure-functions.md` (measure function design), `ergonomic-value-types.md` (value type refactor).
+- `benchmarks/` — Timing suite and build-vs-build comparison for hot-path changes; its `README.md` covers the workflow (release builds, comparing builds rather than runs, profiling).
 
 ## Architecture
 
@@ -37,6 +38,7 @@ The Rust source (`src/`) exposes a flat PyO3 module `_waxy`, which Python (`pyth
 - **`compute_layout`** takes an `available` kwarg (type `AvailableSize | None`), not `available_space`.
 - **Node context** — `TaffyTree` uses `TaffyTree<PyObject>` internally. Nodes can have arbitrary Python objects attached via `new_leaf_with_context` / `set_node_context` / `get_node_context`. The `.pyi` stub uses `TaffyTree[T]` (PEP 695) for generic type safety.
 - **Removed node access** raises `InvalidNodeId` (a `TaffyException` and `KeyError` subclass). This is implemented via `catch_unwind` around taffy calls, since taffy panics on invalid slotmap keys. The panic message is checked for slotmap signatures; non-slotmap panics become `TaffyException` instead to avoid misattribution. In `compute_layout` with a measure function, `py_err` lives outside the `catch_unwind` boundary (as a `RefCell`) so Python exceptions from the callback are preserved and take priority over panics.
+- **No pyo3 reference pool** — `.cargo/config.toml` sets `--cfg pyo3_disable_reference_pool`, which removes a global mutex lock from every call into waxy. Never drop a `Py<T>` while detached from the interpreter (inside a `py.detach` closure, say): without the pool, that aborts the process. CI's `setup-rust-toolchain` sets `RUSTFLAGS`, which replaces the config's `rustflags`, so `ci.yml` repeats the flag; keep the two in sync.
 - **Hashing helpers** — Use these `pub(crate)` functions when implementing `__hash__`:
   - `hash_f32()` in `src/geometry.rs` — for plain `f32` fields; normalizes `-0.0` to `+0.0` before `to_bits()`, required because `==` treats them as equal.
   - `hash_taffy_compact_length()` in `src/values.rs` — for a `CompactLength`; call `.into_raw()` first when the field is typed as `Dimension`, `LengthPercentage`, or `LengthPercentageAuto`.
@@ -57,12 +59,14 @@ The Rust source (`src/`) exposes a flat PyO3 module `_waxy`, which Python (`pyth
 - `just lint` — py-lint (ruff check) + rs-lint (clippy --fix)
 - `just format` — py-format (ruff format) + rs-format (cargo fmt)
 - `just upgrade` (alias `u`) — upgrade Python, Rust, and pre-commit dependencies
+- `just bench` — release build + `benchmarks/suite.py`; `just bench-build` only builds
 
 All test/check commands accept override variables from the command line:
 
 - `just pytest-args="-k test_style" test`
 - `just mypy-args="--no-strict" py-test`
 - `just cargo-test-args="-- --nocapture" rs-test`
+- `just bench-args="-k compute --compare /tmp/before.json" bench`
 - `just pre-commit-args="--all-files" fix`
 
 ## Dependencies

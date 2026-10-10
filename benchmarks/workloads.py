@@ -1,7 +1,7 @@
 """
 Shared workloads and timing for the benchmark scripts in this directory.
 
-Run the scripts against a release build (`uv run maturin develop --release`),
+Run the scripts against a release build (`just bench-build`),
 since a debug build's timings say nothing about what users see.
 """
 
@@ -85,6 +85,57 @@ def build_dashboard(tree: waxy.TaffyTree[str]) -> tuple[waxy.NodeId, list[waxy.N
         rows.append(tree.new_with_children(ROW_STYLE, cards))
     root = tree.new_with_children(ROOT_STYLE, rows)
     return root, leaves
+
+
+FIXED_LEAF_STYLE = waxy.Style(size_width=waxy.Length(4), size_height=waxy.Length(1))
+WRAP_ROW_STYLE = waxy.Style(
+    flex_direction=waxy.FlexDirection.Row,
+    flex_wrap=waxy.FlexWrap.Wrap,
+    size_width=waxy.Length(120),
+)
+COLUMN_STYLE = waxy.Style(flex_direction=waxy.FlexDirection.Column, size_width=waxy.Length(80))
+NESTED_STYLE = waxy.Style(
+    padding_left=waxy.Length(1),
+    padding_top=waxy.Length(1),
+    flex_grow=1.0,
+)
+GRID_CONTAINER_STYLE = waxy.Style(
+    display=waxy.Display.Grid,
+    grid_template_columns=[waxy.Repeat(10, [waxy.Fraction(1)])],
+    size_width=waxy.Length(120),
+)
+
+
+def build_wide(tree: waxy.TaffyTree[str], leaf_count: int = 1_000) -> waxy.NodeId:
+    """Build a wrapping row of `leaf_count` fixed-size leaves, with no measured content."""
+    leaves = [tree.new_leaf(FIXED_LEAF_STYLE) for _ in range(leaf_count)]
+    return tree.new_with_children(WRAP_ROW_STYLE, leaves)
+
+
+def build_deep(tree: waxy.TaffyTree[str], depth: int = 100) -> waxy.NodeId:
+    """Build a chain of `depth` padded nodes ending in one text leaf."""
+    node = tree.new_leaf_with_context(TEXT_STYLE, "The innermost text")
+    for _ in range(depth):
+        node = tree.new_with_children(NESTED_STYLE, [node])
+    return node
+
+
+def build_grid(tree: waxy.TaffyTree[str], cell_count: int = 100) -> waxy.NodeId:
+    """Build a 10-column grid of `cell_count` text leaves."""
+    cells = [
+        tree.new_leaf_with_context(TEXT_STYLE, f"Cell number {index}")
+        for index in range(cell_count)
+    ]
+    return tree.new_with_children(GRID_CONTAINER_STYLE, cells)
+
+
+def build_text_column(tree: waxy.TaffyTree[str], leaf_count: int = 200) -> waxy.NodeId:
+    """Build a column of `leaf_count` text leaves of varying length, so measuring dominates."""
+    leaves = [
+        tree.new_leaf_with_context(TEXT_STYLE, "word " * (1 + index % 40))
+        for index in range(leaf_count)
+    ]
+    return tree.new_with_children(COLUMN_STYLE, leaves)
 
 
 def best_of(fn: Callable[[], object], number: int, repeat: int = 5) -> float:

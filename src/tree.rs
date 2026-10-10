@@ -1,7 +1,8 @@
-use std::collections::HashMap;
+use std::collections::hash_map::Entry;
 use std::fmt::Write;
 
 use pyo3::prelude::*;
+use rustc_hash::FxHashMap;
 use taffy::prelude as tp;
 use taffy::TraversePartialTree;
 
@@ -17,6 +18,9 @@ pub struct TaffyTree {
     inner: tp::TaffyTree<Py<PyAny>>,
     /// Mirrors taffy's rounding setting, which taffy doesn't expose.
     is_rounding_enabled: bool,
+    /// `compute_layout`'s memo of measure results, empty between calls. Kept here rather than
+    /// built per call so its allocation is reused across frames.
+    measure_memo: FxHashMap<MeasureKey, taffy::Size<f32>>,
 }
 
 #[pymethods]
@@ -27,6 +31,7 @@ impl TaffyTree {
         Self {
             inner: tp::TaffyTree::new(),
             is_rounding_enabled: true,
+            measure_memo: FxHashMap::default(),
         }
     }
 
@@ -36,6 +41,7 @@ impl TaffyTree {
         Self {
             inner: tp::TaffyTree::with_capacity(capacity),
             is_rounding_enabled: true,
+            measure_memo: FxHashMap::default(),
         }
     }
 
@@ -243,10 +249,10 @@ impl TaffyTree {
                 // py_err lives outside catch_unwind so it survives a panic unwind.
                 let py_err: std::cell::RefCell<Option<PyErr>> = std::cell::RefCell::new(None);
                 // taffy's per-node cache evicts inputs it asks for again within the same pass, so
-                // answer repeats here instead of calling Python. Dropped when this call returns:
+                // answer repeats here instead of calling Python. Cleared when this call returns:
                 // a memo that outlived one pass would need invalidating on every change taffy's
                 // own dirty tracking already sees.
-                let mut memo: HashMap<MeasureKey, taffy::Size<f32>> = HashMap::new();
+                let memo = &mut self.measure_memo;
                 // Leaves measured as zero because of a Python error. taffy still caches their
                 // results and marks them clean, so they're marked dirty again below.
                 let mut poisoned: Vec<taffy::NodeId> = Vec::new();
@@ -287,10 +293,12 @@ impl TaffyTree {
                                         return taffy::Size::ZERO;
                                     };
 
-                                    let key = MeasureKey::new(node_id, known, available);
-                                    if let Some(size) = memo.get(&key) {
-                                        return *size;
-                                    }
+                                    let entry = match memo
+                                        .entry(MeasureKey::new(node_id, known, available))
+                                    {
+                                        Entry::Occupied(entry) => return *entry.get(),
+                                        Entry::Vacant(entry) => entry,
+                                    };
 
                                     // Convert to Python types and call the measure function.
                                     let py_known = KnownSize::from(known);
@@ -305,7 +313,7 @@ impl TaffyTree {
                                     match measured {
                                         Ok(size) => {
                                             let size = taffy::Size::from(&size);
-                                            memo.insert(key, size);
+                                            entry.insert(size);
                                             size
                                         }
                                         Err(e) => {
@@ -319,6 +327,7 @@ impl TaffyTree {
                         },
                     )
                 });
+                self.measure_memo.clear();
 
                 // Priority: Python errors first, then panics, then taffy errors.
                 if let Some(e) = py_err.into_inner() {

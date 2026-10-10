@@ -5,7 +5,7 @@ They're ordered by how much they save, largest first.
 Savings are stated as ratios, since absolute times change with the machine and with every release.
 The scripts behind each ratio are in the repository's
 [`benchmarks/`](https://github.com/JoshKarpel/waxy/tree/main/benchmarks) directory;
-run them against a release build (`uv run maturin develop --release`).
+run them against a release build (`just bench-build`).
 
 ## Reuse one `TaffyTree` across frames
 
@@ -53,7 +53,7 @@ which a sum of rounded `location`s can miss by a pixel in taffy 0.14
 
 Every value type is frozen, so one instance can be returned or passed again
 instead of being rebuilt.
-Returning a shared `Size` from a measure callback costs about a fifth of building a new one.
+Returning a shared `Size` from a measure callback costs about a quarter of building a new one.
 
 ## Bind `Layout` fields to a local before reading them repeatedly
 

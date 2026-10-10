@@ -115,7 +115,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   This assumes the callback returns the same size for the same inputs within one layout.
 - [#49](https://github.com/JoshKarpel/waxy/pull/49)
   `Style` construction and hashing are faster,
-  and release wheels are built with link-time optimization.
+  every call from Python into waxy has less fixed overhead,
+  and `compute_layout` spends less time around each call to the `measure` callback.
+  Release wheels are built with link-time optimization.
 
 ### Fixed
 

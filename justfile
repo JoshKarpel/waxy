@@ -14,6 +14,7 @@ pre-commit-args := ""
 pytest-args := ""
 mypy-args := ""
 cargo-test-args := ""
+bench-args := ""
 
 [default]
 [doc("List available recipes")]
@@ -82,6 +83,18 @@ rs-clean:
 [group("rust")]
 rs-upgrade:
     cargo update
+
+# Benchmarks
+
+[doc("Build the extension module with the release profile, for benchmarking")]
+[group("benchmarks")]
+bench-build:
+    uv run maturin develop --release
+
+[doc("Run the benchmark suite against a release build")]
+[group("benchmarks")]
+bench: bench-build
+    cd benchmarks && uv run python suite.py {{ bench-args }}
 
 # Docs
 
