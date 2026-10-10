@@ -5,6 +5,7 @@ A Python wrapper around the Rust `taffy` UI layout library, built with PyO3/matu
 ## Key Files
 
 - `plans/` — Design documents: `initial-concept.md` (project goals, tooling, design decisions), `measure-functions.md` (measure function design), `ergonomic-value-types.md` (value type refactor).
+- `benchmarks/` — Timing suite and build-vs-build comparison for hot-path changes; its `README.md` covers the workflow (release builds, comparing builds rather than runs, profiling).
 
 ## Architecture
 
@@ -13,28 +14,31 @@ The Rust source (`src/`) exposes a flat PyO3 module `_waxy`, which Python (`pyth
 | File | Contents |
 |------|----------|
 | `src/lib.rs` | PyO3 module definition, wires all submodules |
-| `src/errors.rs` | `WaxyException`, `TaffyException` + 4 subclasses, `InvalidPercent`, `InvalidLength`, `InvalidGridLine`, `InvalidGridSpan` |
+| `src/errors.rs` | `WaxyException`, `TaffyException` and its subclasses, and the `Invalid*` validation exceptions; panic-to-exception helpers |
 | `src/geometry.rs` | `Size`, `Rect`, `Point`, `Line`, `KnownSize`, `AvailableSize` |
-| `src/values.rs` | `Length`, `Percent`, `Auto`, `MinContent`, `MaxContent`, `Definite`, `Fraction`, `FitContent`, `Minmax`, `GridLine`, `GridSpan`, `GridPlacement`; module constants `AUTO`, `MIN_CONTENT`, `MAX_CONTENT` |
-| `src/enums.rs` | All layout enums (`Display`, `Position`, `FlexDirection`, etc.) |
+| `src/values.rs` | Value types (lengths, sizing keywords, grid tracks, `Repeat`, grid placements, template areas) with their `*Input` extractors and taffy-to-Python converters; module constants (`AUTO`, `STRETCH`, `AUTO_FILL`, ...) |
+| `src/enums.rs` | All layout enums (`Display`, `AlignItems`, `Direction`, `Contain`, etc.) |
 | `src/style.rs` | `Style` struct with all-kwargs constructor and getter/setter properties |
 | `src/node.rs` | `NodeId` wrapper |
-| `src/layout.rs` | `Layout` result struct (read-only) |
+| `src/layout.rs` | `Layout` result (read-only, wraps `taffy::Layout`) and the `DetailedGridInfo` family |
 | `src/tree.rs` | `TaffyTree` — core API |
 
 ## Key Design Decisions
 
-- **`#[pyclass(unsendable)]`** is required on types that are not `Send` from Rust's perspective. Currently this applies to `Style` and `TaffyTree`, which wrap taffy's `CompactLength` (containing `*const ()`, not `Send`). Value types in `src/values.rs` convert *to* taffy types but don't store them, so they don't need `unsendable`.
+- **`#[pyclass(unsendable)]`** is required on types that are not `Send` from Rust's perspective. Currently this applies to `Style` and `TaffyTree`, which wrap taffy's `CompactLength` (containing `*const ()`, not `Send`). Value types in `src/values.rs` convert *to* taffy types but don't store them (`FitContent`, `Minmax`, and `Repeat` hold their parts as validated Python objects instead), so they don't need `unsendable`.
 - **`#[pyclass(frozen)]`** is used on all types except `TaffyTree` (which is inherently mutable). All structs are immutable from Python — construct new instances instead of mutating.
-- **Value types** (`Length`, `Percent`, `Auto`, `MinContent`, `MaxContent`, `Definite`, `Fraction`, `FitContent`, `Minmax`, `GridLine`, `GridSpan`) are standalone frozen pyclasses, not enum variants. They support `match`/`case` pattern matching via `__match_args__`. Module-level constants `AUTO`, `MIN_CONTENT`, `MAX_CONTENT` are provided for the zero-argument types.
-- **Exception hierarchy**: `WaxyException(Exception)` is the root. `TaffyException(WaxyException)` covers taffy errors. `InvalidNodeId` is `TaffyException + KeyError` (raised when accessing a removed node). Validation exceptions are `WaxyException + ValueError` via multi-inheritance (achieved by setting `__bases__` in `register()` in `src/errors.rs`): `InvalidPercent` (Percent outside [0.0, 1.0]), `InvalidLength` (NaN), `InvalidGridLine` (index 0), `InvalidGridSpan` (count 0).
+- **Value types** are standalone frozen pyclasses, not enum variants. They support `match`/`case` pattern matching via `__match_args__`. Each zero-argument type (`Auto`, `Stretch`, `AutoFill`, ...) has a module-level constant (`AUTO`, `STRETCH`, `AUTO_FILL`, ...). Where taffy accepts a value in some fields but not others (e.g. `Content` only in `flex_basis`, `Stretch` not in grid tracks), waxy uses separate `*Input` extractors and type aliases so the invalid combination fails at construction. Declare `*Input` extractors with the `input_enum!` macro in `src/values.rs`, not `#[derive(FromPyObject)]`: its cast-based extraction doesn't build an error per missed variant, and its `TypeError` names the accepted types.
+- **Exception hierarchy**: `WaxyException(Exception)` is the root. `TaffyException(WaxyException)` covers taffy errors. `InvalidNodeId` is `TaffyException + KeyError` (raised when accessing a removed node). Validation exceptions (`Invalid*` other than `InvalidNodeId`) are `WaxyException + ValueError` via multi-inheritance, achieved by setting `__bases__` in `register()` in `src/errors.rs`. Validate wherever taffy would otherwise panic during layout (e.g. `Repeat` line name counts).
+- **`Style` set fields**: `Style` records which fields were explicitly set in a bitmask, which `|` uses to merge, so `__eq__` and `__hash__` include it. Every `Style` is built through `Style::from_parts`, which creates the cached hash and debug-asserts that unset fields hold `taffy::Style::DEFAULT` values. The `FIELDS` table in `src/style.rs` lists every field name; its doc comment lists everything else a new field needs.
 - **`Display.Nil`** maps to taffy's `Display::None`. We use `#[pyo3(name = "Nil")]` because `None` is a Python keyword.
 - **`AlignSelf`/`JustifySelf`/`JustifyItems`** are type aliases for `AlignItems` in taffy. **`JustifyContent`** is an alias for `AlignContent`. We reuse the same Python enum types.
-- **Grid template tracks** — `GridTemplateComponent<String>` repeat variants are silently skipped when converting from taffy. Only `Single(TrackSizingFunction)` is round-tripped.
-- **Measure functions** are supported via an optional `measure` kwarg on `compute_layout`. The Rust closure auto-skips nodes without context (returns `Size::ZERO`) and short-circuits when both dimensions are known. The user's Python measure function receives `(known_size, available_size, context)` — taffy also passes `node_id` and `style` internally, but waxy doesn't forward them (the context identifies the node, and the tree is mutably borrowed so you can't call back into it). See `plans/measure-functions.md` for full design rationale.
+- **Alignment**: taffy models alignment as a `(keyword, safety)` struct. waxy flattens it into enum members (`AlignItems.SafeCenter`, ...) mirroring taffy's `SAFE_*` constants; the combinations taffy has no constant for (`safe baseline`, `safe stretch`, safe distributed alignment) are `unreachable!()` when converting back.
+- **Grid line names**: `grid_template_*_names` are positional with `grid_template_*`: entry `i` names the line before template entry `i` (a `Repeat` counts as one entry), mirroring taffy's representation.
+- **Measure functions** are supported via an optional `measure` kwarg on `compute_layout`. The Rust closure wraps the Python call in `taffy::compute_leaf_layout`, which applies the leaf's own padding, border, and min/max sizes around the measured content size; it skips nodes without context (content size `Size::ZERO`), short-circuits when both dimensions are known, and answers repeated `(node, known, available)` inputs from a memo that lives for one `compute_layout` call. The user's Python measure function receives `(known_size, available_size, context)` — taffy also passes `node_id` and `style` internally, but waxy doesn't forward them (the context identifies the node, and the tree is mutably borrowed so you can't call back into it). See `plans/measure-functions.md` for full design rationale.
 - **`compute_layout`** takes an `available` kwarg (type `AvailableSize | None`), not `available_space`.
 - **Node context** — `TaffyTree` uses `TaffyTree<PyObject>` internally. Nodes can have arbitrary Python objects attached via `new_leaf_with_context` / `set_node_context` / `get_node_context`. The `.pyi` stub uses `TaffyTree[T]` (PEP 695) for generic type safety.
 - **Removed node access** raises `InvalidNodeId` (a `TaffyException` and `KeyError` subclass). This is implemented via `catch_unwind` around taffy calls, since taffy panics on invalid slotmap keys. The panic message is checked for slotmap signatures; non-slotmap panics become `TaffyException` instead to avoid misattribution. In `compute_layout` with a measure function, `py_err` lives outside the `catch_unwind` boundary (as a `RefCell`) so Python exceptions from the callback are preserved and take priority over panics.
+- **No pyo3 reference pool** — `.cargo/config.toml` sets `--cfg pyo3_disable_reference_pool`, which removes a global mutex lock from every call into waxy. Never drop a `Py<T>` while detached from the interpreter (inside a `py.detach` closure, say): without the pool, that aborts the process. CI's `setup-rust-toolchain` sets `RUSTFLAGS`, which replaces the config's `rustflags`, so `ci.yml` repeats the flag; keep the two in sync.
 - **Hashing helpers** — Use these `pub(crate)` functions when implementing `__hash__`:
   - `hash_f32()` in `src/geometry.rs` — for plain `f32` fields; normalizes `-0.0` to `+0.0` before `to_bits()`, required because `==` treats them as equal.
   - `hash_taffy_compact_length()` in `src/values.rs` — for a `CompactLength`; call `.into_raw()` first when the field is typed as `Dimension`, `LengthPercentage`, or `LengthPercentageAuto`.
@@ -55,12 +59,14 @@ The Rust source (`src/`) exposes a flat PyO3 module `_waxy`, which Python (`pyth
 - `just lint` — py-lint (ruff check) + rs-lint (clippy --fix)
 - `just format` — py-format (ruff format) + rs-format (cargo fmt)
 - `just upgrade` (alias `u`) — upgrade Python, Rust, and pre-commit dependencies
+- `just bench` — release build + `benchmarks/suite.py`; `just bench-build` only builds
 
 All test/check commands accept override variables from the command line:
 
 - `just pytest-args="-k test_style" test`
 - `just mypy-args="--no-strict" py-test`
 - `just cargo-test-args="-- --nocapture" rs-test`
+- `just bench-args="-k compute --compare /tmp/before.json" bench`
 - `just pre-commit-args="--all-files" fix`
 
 ## Dependencies
@@ -84,7 +90,7 @@ Docstrings for the API reference come from **`python/waxy/__init__.pyi`**, not f
 
 `show_if_no_docstring` defaults to `False` in mkdocstrings-python, so **any property or method without a docstring in the `.pyi` file will be silently omitted from the rendered docs**. Always add docstrings to `.pyi` entries when you want them to appear.
 
-**Type aliases** (`DimensionValue`, `LengthPercentageValue`, `AvailableSpaceValue`, `GridTrackValue`, `GridTrackMinValue`, `GridTrackMaxValue`, `GridPlacementValue`) are defined directly in `python/waxy/__init__.py` using PEP 695 `type` syntax. They are also mirrored in the `.pyi` stub for type checkers. griffe reads pure-Python names from the source file, so the docstrings on these aliases live in `__init__.py` itself, not the stub.
+**Type aliases** (`DimensionValue`, `GridTrackValue`, etc.) are defined directly in `python/waxy/__init__.py` using PEP 695 `type` syntax. They are also mirrored in the `.pyi` stub for type checkers. griffe reads pure-Python names from the source file, so the docstrings on these aliases live in `__init__.py` itself, not the stub.
 
 ## Changelog
 
@@ -92,5 +98,5 @@ Docstrings for the API reference come from **`python/waxy/__init__.pyi`**, not f
 
 ## Taffy Version
 
-Pinned to taffy **0.9.x**. The taffy source can be inspected at:
-`~/.cargo/registry/src/index.crates.io-*/taffy-0.9.*/`
+Pinned to taffy **0.14.x**. The taffy source can be inspected at:
+`~/.cargo/registry/src/index.crates.io-*/taffy-0.14.*/`

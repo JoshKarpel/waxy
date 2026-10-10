@@ -358,3 +358,17 @@ def test_measure_error_preserved_over_invalid_node_id() -> None:
     # not be swallowed and converted to InvalidNodeId.
     with pytest.raises(TypeError, match="measure callback failed"):
         tree.compute_layout(root, measure=bad_measure)
+
+
+@pytest.mark.parametrize(
+    "exception",
+    [
+        waxy.InvalidFlexLineCount,
+        waxy.InvalidRepeat,
+        waxy.InvalidGridTemplateArea,
+        waxy.InvalidGridTemplateAreas,
+    ],
+)
+def test_validation_exception_is_waxy_exception_and_value_error(exception: type) -> None:
+    assert issubclass(exception, waxy.WaxyException)
+    assert issubclass(exception, ValueError)

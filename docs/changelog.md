@@ -5,7 +5,151 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## [Unreleased](https://github.com/JoshKarpel/waxy/compare/v0.5.0...HEAD)
+## [Unreleased](https://github.com/JoshKarpel/waxy/compare/v0.7.0...HEAD)
+
+## [0.7.0](https://github.com/JoshKarpel/waxy/compare/v0.6.0...v0.7.0) - 2026-10-10
+
+### Changed
+
+- [#50](https://github.com/JoshKarpel/waxy/pull/50)
+  `TaffyTree.absolute_layouts(root)` leaves out nodes with `display=Display.Nil`
+  and their whole subtrees, instead of reporting them as zero-sized boxes at their parent's origin.
+  It returns an empty list when `root` or one of its ancestors is hidden.
+  This is a breaking change for callers that expect an entry for every node in the subtree.
+
+## [0.6.0](https://github.com/JoshKarpel/waxy/compare/v0.5.0...v0.6.0) - 2026-10-10
+
+### Added
+
+- [#49](https://github.com/JoshKarpel/waxy/pull/49)
+  Support for Python 3.15, with release wheels built for it.
+- [#49](https://github.com/JoshKarpel/waxy/pull/49)
+  `Style` exposes the layout features added in taffy 0.10 through 0.14:
+  `direction` (`Direction.Ltr`/`Rtl`),
+  `float` and `clear` (`Float`, `Clear`),
+  `contain` (`Contain`),
+  `flex_line_count`,
+  and `item_is_table`/`item_is_replaced`.
+- [#49](https://github.com/JoshKarpel/waxy/pull/49)
+  `Display.FlowRoot` and `FlexWrap.Balance`/`BalanceReverse`.
+- [#49](https://github.com/JoshKarpel/waxy/pull/49)
+  Safe alignment and self-relative alignment:
+  `AlignItems.SelfStart`/`SelfEnd`, and `Safe*` members of `AlignItems` and `AlignContent`.
+- [#49](https://github.com/JoshKarpel/waxy/pull/49)
+  `size_*` and `flex_basis` accept the CSS sizing keywords
+  `MIN_CONTENT`, `MAX_CONTENT`, `FitContent(limit)`, `FIT_CONTENT` (`FitContentKeyword`),
+  and `STRETCH` (`Stretch`); `flex_basis` also accepts `CONTENT` (`Content`).
+- [#49](https://github.com/JoshKarpel/waxy/pull/49)
+  Grid `repeat()` via `Repeat(count, tracks, line_names)`,
+  with `count` an `int`, `AUTO_FILL`, or `AUTO_FIT`.
+- [#49](https://github.com/JoshKarpel/waxy/pull/49)
+  Named grid lines via `grid_template_row_names`/`grid_template_column_names`,
+  placed with `NamedGridLine` and `NamedGridSpan`.
+- [#49](https://github.com/JoshKarpel/waxy/pull/49)
+  Grid template areas via `grid_template_areas`,
+  built with `GridTemplateArea`/`GridTemplateAreas`
+  or parsed from CSS strings with `GridTemplateAreas.from_strings`.
+- [#49](https://github.com/JoshKarpel/waxy/pull/49)
+  `TaffyTree.detailed_layout_info()` returns a `DetailedGridInfo` for grid containers:
+  track positions, line names, item placements, and resolved `grid-template-*` strings,
+  plus `resolve_absolute_grid_area()` for placing absolutely positioned children.
+- [#49](https://github.com/JoshKarpel/waxy/pull/49)
+  `InvalidFlexLineCount`, `InvalidRepeat`,
+  `InvalidGridTemplateArea`, and `InvalidGridTemplateAreas`,
+  raised for values that taffy would otherwise panic on during layout.
+- [#49](https://github.com/JoshKarpel/waxy/pull/49)
+  `Layout.content_box_size()`, `content_box_x()`, `content_box_y()`,
+  `scroll_width()`, and `scroll_height()`.
+- [#49](https://github.com/JoshKarpel/waxy/pull/49)
+  `TaffyTree.remove_children_range()`.
+- [#49](https://github.com/JoshKarpel/waxy/pull/49)
+  `Style.fields_set`, the names of the explicitly set fields.
+- [#49](https://github.com/JoshKarpel/waxy/pull/49)
+  `TaffyTree.absolute_layouts(root)` returns every node in a subtree, in pre-order,
+  with its absolute position and its `Layout`.
+  With rounding enabled, each position is the sum of the unrounded locations rounded once,
+  which matches taffy's rounded sizes.
+  Summing rounded `location`s yourself can leave 1px gaps or overlaps between siblings,
+  because taffy 0.14 rounds `location` relative to the parent but size in absolute coordinates
+  ([taffy#834](https://github.com/DioxusLabs/taffy/issues/834),
+  fixed upstream in [taffy#1189](https://github.com/DioxusLabs/taffy/pull/1189)
+  but not yet released).
+- [#49](https://github.com/JoshKarpel/waxy/pull/49)
+  `TaffyTree.format_tree(root)` returns an indented dump of a subtree
+  (each node's id, location, size, and non-default style fields) as a string,
+  unlike `print_tree`, which writes to stdout.
+- [#49](https://github.com/JoshKarpel/waxy/pull/49)
+  A [performance guide](performance.md) for callers that lay out a tree every frame.
+- [#49](https://github.com/JoshKarpel/waxy/pull/49)
+  The [API reference](api.md) documents every property, including those of the geometry and
+  value types, and the module constants (`AUTO`, `STRETCH`, `AUTO_FILL`, ...).
+
+### Changed
+
+- [#49](https://github.com/JoshKarpel/waxy/pull/49)
+  Upgraded taffy from 0.9 to 0.14, which fixes many layout bugs across block, flexbox, and grid
+  and so can change computed layouts.
+  See [taffy's changelog](https://github.com/DioxusLabs/taffy/blob/main/CHANGELOG.md).
+- [#49](https://github.com/JoshKarpel/waxy/pull/49)
+  `Layout.content_size` is replaced by `Layout.scrollable_overflow_rect`,
+  a `Rect` whose `right`/`bottom` are the old width/height.
+- [#49](https://github.com/JoshKarpel/waxy/pull/49)
+  `DimensionValue` includes the new sizing keywords,
+  so `margin_*`, `inset_*`, `min_size_*`, and `max_size_*`,
+  which don't accept them, are typed `LengthPercentageAutoValue` instead.
+- [#49](https://github.com/JoshKarpel/waxy/pull/49)
+  `Style` equality and hashing take into account which fields were explicitly set,
+  so two styles are equal only if they also merge identically.
+  Styles can no longer be compared by layout alone:
+  `Style() == Style(display=Display.Flex)` is `False`, though `Flex` is the default.
+  `TaffyTree.style(node)` marks every field set,
+  so it equals the style passed to `set_style` only if that style set every field.
+- [#49](https://github.com/JoshKarpel/waxy/pull/49)
+  `Style(...)` raises `TypeError` for an unknown keyword argument instead of ignoring it.
+- [#49](https://github.com/JoshKarpel/waxy/pull/49)
+  A value of the wrong type for a value union
+  (in `Style`, `AvailableSize`, `Minmax`, `Repeat`, `GridPlacement`, ...)
+  raises a one-line `TypeError` naming the accepted types,
+  e.g. `expected Length | Percent | Auto, got int`.
+- [#49](https://github.com/JoshKarpel/waxy/pull/49)
+  `repr(Style(...))` lists the explicitly set fields, as constructor syntax
+  (`Style(flex_grow=1.0, border_top=Length(1))`).
+- [#49](https://github.com/JoshKarpel/waxy/pull/49)
+  `TaffyTree.set_style` does nothing when the new style's values equal the node's current style,
+  so the node keeps its cached layout.
+  Use `mark_dirty` to force a relayout.
+- [#49](https://github.com/JoshKarpel/waxy/pull/49)
+  `compute_layout` calls the `measure` callback at most once per node
+  for each distinct `(known_size, available_size)` input within one call,
+  reusing the earlier result for repeats.
+  This assumes the callback returns the same size for the same inputs within one layout.
+- [#49](https://github.com/JoshKarpel/waxy/pull/49)
+  `Style` construction and hashing are faster,
+  every call from Python into waxy has less fixed overhead,
+  and `compute_layout` spends less time around each call to the `measure` callback.
+  Release wheels are built with link-time optimization.
+
+### Fixed
+
+- [#49](https://github.com/JoshKarpel/waxy/pull/49)
+  After the `measure` callback raised, the next `compute_layout` reused the zero sizes
+  from the failed call instead of measuring the affected leaves again.
+- [#49](https://github.com/JoshKarpel/waxy/pull/49)
+  `repr(Layout)` shows its location and size as `Point(...)` and `Size(...)`
+  instead of Rust debug output.
+
+### Removed
+
+- [#49](https://github.com/JoshKarpel/waxy/pull/49)
+  `Rect` geometry methods, since taffy's `Rect` holds one value per side
+  (like margin, padding and border) rather than a box:
+  `width`, `height`, `size`, `contains`,
+  `top_left`, `top_right`, `bottom_left`, `bottom_right`, `corners`,
+  `top_edge`, `bottom_edge`, `left_edge`, `right_edge`,
+  `points`, `rows`, `columns`, `intersection`, iteration, and `len()`.
+- [#49](https://github.com/JoshKarpel/waxy/pull/49)
+  `Line.length`, `Line.contains`, iteration, and `len()`.
+  `Line` remains as a start/end pair, as in `DetailedGridTracksInfo.positions`.
 
 ## [0.5.0](https://github.com/JoshKarpel/waxy/compare/v0.4.0...v0.5.0) - 2026-04-03
 

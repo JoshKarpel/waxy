@@ -9,6 +9,7 @@ pub enum Display {
     Grid = 2,
     #[pyo3(name = "Nil")]
     None = 3,
+    FlowRoot = 4,
 }
 
 impl From<taffy::Display> for Display {
@@ -18,6 +19,7 @@ impl From<taffy::Display> for Display {
             taffy::Display::Flex => Display::Flex,
             taffy::Display::Grid => Display::Grid,
             taffy::Display::None => Display::None,
+            taffy::Display::FlowRoot => Display::FlowRoot,
         }
     }
 }
@@ -29,6 +31,7 @@ impl From<&Display> for taffy::Display {
             Display::Flex => taffy::Display::Flex,
             Display::Grid => taffy::Display::Grid,
             Display::None => taffy::Display::None,
+            Display::FlowRoot => taffy::Display::FlowRoot,
         }
     }
 }
@@ -98,6 +101,8 @@ pub enum FlexWrap {
     NoWrap = 0,
     Wrap = 1,
     WrapReverse = 2,
+    Balance = 3,
+    BalanceReverse = 4,
 }
 
 impl From<taffy::FlexWrap> for FlexWrap {
@@ -106,6 +111,8 @@ impl From<taffy::FlexWrap> for FlexWrap {
             taffy::FlexWrap::NoWrap => FlexWrap::NoWrap,
             taffy::FlexWrap::Wrap => FlexWrap::Wrap,
             taffy::FlexWrap::WrapReverse => FlexWrap::WrapReverse,
+            taffy::FlexWrap::Balance => FlexWrap::Balance,
+            taffy::FlexWrap::BalanceReverse => FlexWrap::BalanceReverse,
         }
     }
 }
@@ -116,11 +123,16 @@ impl From<&FlexWrap> for taffy::FlexWrap {
             FlexWrap::NoWrap => taffy::FlexWrap::NoWrap,
             FlexWrap::Wrap => taffy::FlexWrap::Wrap,
             FlexWrap::WrapReverse => taffy::FlexWrap::WrapReverse,
+            FlexWrap::Balance => taffy::FlexWrap::Balance,
+            FlexWrap::BalanceReverse => taffy::FlexWrap::BalanceReverse,
         }
     }
 }
 
 /// Alignment of items along the cross axis.
+///
+/// The `Safe*` members are the `safe` overflow-position variants: an item that would
+/// overflow its alignment container is aligned as if `Start` instead.
 #[pyclass(eq, eq_int, from_py_object, module = "waxy")]
 #[derive(Clone, Debug, PartialEq)]
 pub enum AlignItems {
@@ -131,18 +143,43 @@ pub enum AlignItems {
     Center = 4,
     Baseline = 5,
     Stretch = 6,
+    SelfStart = 7,
+    SelfEnd = 8,
+    SafeStart = 9,
+    SafeEnd = 10,
+    SafeFlexStart = 11,
+    SafeFlexEnd = 12,
+    SafeCenter = 13,
+    SafeSelfStart = 14,
+    SafeSelfEnd = 15,
 }
 
 impl From<taffy::AlignItems> for AlignItems {
     fn from(a: taffy::AlignItems) -> Self {
-        match a {
-            taffy::AlignItems::Start => AlignItems::Start,
-            taffy::AlignItems::End => AlignItems::End,
-            taffy::AlignItems::FlexStart => AlignItems::FlexStart,
-            taffy::AlignItems::FlexEnd => AlignItems::FlexEnd,
-            taffy::AlignItems::Center => AlignItems::Center,
-            taffy::AlignItems::Baseline => AlignItems::Baseline,
-            taffy::AlignItems::Stretch => AlignItems::Stretch,
+        use taffy::style::AlignItemsKeyword as K;
+        use taffy::style::AlignmentSafety as S;
+        match (a.keyword, a.safety) {
+            (K::Start, S::Unsafe) => AlignItems::Start,
+            (K::End, S::Unsafe) => AlignItems::End,
+            (K::FlexStart, S::Unsafe) => AlignItems::FlexStart,
+            (K::FlexEnd, S::Unsafe) => AlignItems::FlexEnd,
+            (K::Center, S::Unsafe) => AlignItems::Center,
+            (K::Baseline, S::Unsafe) => AlignItems::Baseline,
+            (K::Stretch, S::Unsafe) => AlignItems::Stretch,
+            (K::SelfStart, S::Unsafe) => AlignItems::SelfStart,
+            (K::SelfEnd, S::Unsafe) => AlignItems::SelfEnd,
+            (K::Start, S::Safe) => AlignItems::SafeStart,
+            (K::End, S::Safe) => AlignItems::SafeEnd,
+            (K::FlexStart, S::Safe) => AlignItems::SafeFlexStart,
+            (K::FlexEnd, S::Safe) => AlignItems::SafeFlexEnd,
+            (K::Center, S::Safe) => AlignItems::SafeCenter,
+            (K::SelfStart, S::Safe) => AlignItems::SafeSelfStart,
+            (K::SelfEnd, S::Safe) => AlignItems::SafeSelfEnd,
+            // CSS has no `safe baseline` or `safe stretch` (taffy has no constant for them),
+            // and only waxy writes these fields.
+            (K::Baseline | K::Stretch, S::Safe) => {
+                unreachable!("waxy never constructs safe {:?} alignment", a.keyword)
+            }
         }
     }
 }
@@ -150,18 +187,30 @@ impl From<taffy::AlignItems> for AlignItems {
 impl From<&AlignItems> for taffy::AlignItems {
     fn from(a: &AlignItems) -> Self {
         match a {
-            AlignItems::Start => taffy::AlignItems::Start,
-            AlignItems::End => taffy::AlignItems::End,
-            AlignItems::FlexStart => taffy::AlignItems::FlexStart,
-            AlignItems::FlexEnd => taffy::AlignItems::FlexEnd,
-            AlignItems::Center => taffy::AlignItems::Center,
-            AlignItems::Baseline => taffy::AlignItems::Baseline,
-            AlignItems::Stretch => taffy::AlignItems::Stretch,
+            AlignItems::Start => taffy::AlignItems::START,
+            AlignItems::End => taffy::AlignItems::END,
+            AlignItems::FlexStart => taffy::AlignItems::FLEX_START,
+            AlignItems::FlexEnd => taffy::AlignItems::FLEX_END,
+            AlignItems::Center => taffy::AlignItems::CENTER,
+            AlignItems::Baseline => taffy::AlignItems::BASELINE,
+            AlignItems::Stretch => taffy::AlignItems::STRETCH,
+            AlignItems::SelfStart => taffy::AlignItems::SELF_START,
+            AlignItems::SelfEnd => taffy::AlignItems::SELF_END,
+            AlignItems::SafeStart => taffy::AlignItems::SAFE_START,
+            AlignItems::SafeEnd => taffy::AlignItems::SAFE_END,
+            AlignItems::SafeFlexStart => taffy::AlignItems::SAFE_FLEX_START,
+            AlignItems::SafeFlexEnd => taffy::AlignItems::SAFE_FLEX_END,
+            AlignItems::SafeCenter => taffy::AlignItems::SAFE_CENTER,
+            AlignItems::SafeSelfStart => taffy::AlignItems::SAFE_SELF_START,
+            AlignItems::SafeSelfEnd => taffy::AlignItems::SAFE_SELF_END,
         }
     }
 }
 
 /// Alignment of content within the container.
+///
+/// The `Safe*` members are the `safe` overflow-position variants: content that would
+/// overflow the container is aligned as if `Start` instead.
 #[pyclass(eq, eq_int, from_py_object, module = "waxy")]
 #[derive(Clone, Debug, PartialEq)]
 pub enum AlignContent {
@@ -174,20 +223,37 @@ pub enum AlignContent {
     SpaceBetween = 6,
     SpaceEvenly = 7,
     SpaceAround = 8,
+    SafeStart = 9,
+    SafeEnd = 10,
+    SafeFlexStart = 11,
+    SafeFlexEnd = 12,
+    SafeCenter = 13,
 }
 
 impl From<taffy::AlignContent> for AlignContent {
     fn from(a: taffy::AlignContent) -> Self {
-        match a {
-            taffy::AlignContent::Start => AlignContent::Start,
-            taffy::AlignContent::End => AlignContent::End,
-            taffy::AlignContent::FlexStart => AlignContent::FlexStart,
-            taffy::AlignContent::FlexEnd => AlignContent::FlexEnd,
-            taffy::AlignContent::Center => AlignContent::Center,
-            taffy::AlignContent::Stretch => AlignContent::Stretch,
-            taffy::AlignContent::SpaceBetween => AlignContent::SpaceBetween,
-            taffy::AlignContent::SpaceEvenly => AlignContent::SpaceEvenly,
-            taffy::AlignContent::SpaceAround => AlignContent::SpaceAround,
+        use taffy::style::AlignContentKeyword as K;
+        use taffy::style::AlignmentSafety as S;
+        match (a.keyword, a.safety) {
+            (K::Start, S::Unsafe) => AlignContent::Start,
+            (K::End, S::Unsafe) => AlignContent::End,
+            (K::FlexStart, S::Unsafe) => AlignContent::FlexStart,
+            (K::FlexEnd, S::Unsafe) => AlignContent::FlexEnd,
+            (K::Center, S::Unsafe) => AlignContent::Center,
+            (K::Stretch, S::Unsafe) => AlignContent::Stretch,
+            (K::SpaceBetween, S::Unsafe) => AlignContent::SpaceBetween,
+            (K::SpaceEvenly, S::Unsafe) => AlignContent::SpaceEvenly,
+            (K::SpaceAround, S::Unsafe) => AlignContent::SpaceAround,
+            (K::Start, S::Safe) => AlignContent::SafeStart,
+            (K::End, S::Safe) => AlignContent::SafeEnd,
+            (K::FlexStart, S::Safe) => AlignContent::SafeFlexStart,
+            (K::FlexEnd, S::Safe) => AlignContent::SafeFlexEnd,
+            (K::Center, S::Safe) => AlignContent::SafeCenter,
+            // CSS has no safe distributed alignment (taffy has no constant for it), and only
+            // waxy writes these fields.
+            (K::Stretch | K::SpaceBetween | K::SpaceEvenly | K::SpaceAround, S::Safe) => {
+                unreachable!("waxy never constructs safe {:?} alignment", a.keyword)
+            }
         }
     }
 }
@@ -195,15 +261,20 @@ impl From<taffy::AlignContent> for AlignContent {
 impl From<&AlignContent> for taffy::AlignContent {
     fn from(a: &AlignContent) -> Self {
         match a {
-            AlignContent::Start => taffy::AlignContent::Start,
-            AlignContent::End => taffy::AlignContent::End,
-            AlignContent::FlexStart => taffy::AlignContent::FlexStart,
-            AlignContent::FlexEnd => taffy::AlignContent::FlexEnd,
-            AlignContent::Center => taffy::AlignContent::Center,
-            AlignContent::Stretch => taffy::AlignContent::Stretch,
-            AlignContent::SpaceBetween => taffy::AlignContent::SpaceBetween,
-            AlignContent::SpaceEvenly => taffy::AlignContent::SpaceEvenly,
-            AlignContent::SpaceAround => taffy::AlignContent::SpaceAround,
+            AlignContent::Start => taffy::AlignContent::START,
+            AlignContent::End => taffy::AlignContent::END,
+            AlignContent::FlexStart => taffy::AlignContent::FLEX_START,
+            AlignContent::FlexEnd => taffy::AlignContent::FLEX_END,
+            AlignContent::Center => taffy::AlignContent::CENTER,
+            AlignContent::Stretch => taffy::AlignContent::STRETCH,
+            AlignContent::SpaceBetween => taffy::AlignContent::SPACE_BETWEEN,
+            AlignContent::SpaceEvenly => taffy::AlignContent::SPACE_EVENLY,
+            AlignContent::SpaceAround => taffy::AlignContent::SPACE_AROUND,
+            AlignContent::SafeStart => taffy::AlignContent::SAFE_START,
+            AlignContent::SafeEnd => taffy::AlignContent::SAFE_END,
+            AlignContent::SafeFlexStart => taffy::AlignContent::SAFE_FLEX_START,
+            AlignContent::SafeFlexEnd => taffy::AlignContent::SAFE_FLEX_END,
+            AlignContent::SafeCenter => taffy::AlignContent::SAFE_CENTER,
         }
     }
 }
@@ -330,6 +401,133 @@ impl From<&TextAlign> for taffy::TextAlign {
     }
 }
 
+/// The inline direction of a node's content (CSS `direction`).
+#[pyclass(eq, eq_int, from_py_object, module = "waxy")]
+#[derive(Clone, Debug, PartialEq)]
+pub enum Direction {
+    Ltr = 0,
+    Rtl = 1,
+}
+
+impl From<taffy::Direction> for Direction {
+    fn from(d: taffy::Direction) -> Self {
+        match d {
+            taffy::Direction::Ltr => Direction::Ltr,
+            taffy::Direction::Rtl => Direction::Rtl,
+        }
+    }
+}
+
+impl From<&Direction> for taffy::Direction {
+    fn from(d: &Direction) -> Self {
+        match d {
+            Direction::Ltr => taffy::Direction::Ltr,
+            Direction::Rtl => taffy::Direction::Rtl,
+        }
+    }
+}
+
+/// Which side a node floats to within a block container (CSS `float`).
+#[pyclass(eq, eq_int, from_py_object, module = "waxy")]
+#[derive(Clone, Debug, PartialEq)]
+pub enum Float {
+    Left = 0,
+    Right = 1,
+    #[pyo3(name = "Nil")]
+    None = 2,
+}
+
+impl From<taffy::Float> for Float {
+    fn from(f: taffy::Float) -> Self {
+        match f {
+            taffy::Float::Left => Float::Left,
+            taffy::Float::Right => Float::Right,
+            taffy::Float::None => Float::None,
+        }
+    }
+}
+
+impl From<&Float> for taffy::Float {
+    fn from(f: &Float) -> Self {
+        match f {
+            Float::Left => taffy::Float::Left,
+            Float::Right => taffy::Float::Right,
+            Float::None => taffy::Float::None,
+        }
+    }
+}
+
+/// Which preceding floats a node is moved below (CSS `clear`).
+#[pyclass(eq, eq_int, from_py_object, module = "waxy")]
+#[derive(Clone, Debug, PartialEq)]
+pub enum Clear {
+    Left = 0,
+    Right = 1,
+    Both = 2,
+    #[pyo3(name = "Nil")]
+    None = 3,
+}
+
+impl From<taffy::Clear> for Clear {
+    fn from(c: taffy::Clear) -> Self {
+        match c {
+            taffy::Clear::Left => Clear::Left,
+            taffy::Clear::Right => Clear::Right,
+            taffy::Clear::Both => Clear::Both,
+            taffy::Clear::None => Clear::None,
+        }
+    }
+}
+
+impl From<&Clear> for taffy::Clear {
+    fn from(c: &Clear) -> Self {
+        match c {
+            Clear::Left => taffy::Clear::Left,
+            Clear::Right => taffy::Clear::Right,
+            Clear::Both => taffy::Clear::Both,
+            Clear::None => taffy::Clear::None,
+        }
+    }
+}
+
+/// CSS containment (`contain`). Taffy supports the `layout` and `paint` containment types;
+/// `Content` is both.
+#[pyclass(eq, eq_int, from_py_object, module = "waxy")]
+#[derive(Clone, Debug, PartialEq)]
+pub enum Contain {
+    #[pyo3(name = "Nil")]
+    None = 0,
+    Layout = 1,
+    Paint = 2,
+    Content = 3,
+}
+
+impl From<taffy::Contain> for Contain {
+    fn from(c: taffy::Contain) -> Self {
+        // taffy's Contain is a two-bit set, so these four cases are all of its values.
+        match (
+            c.contains(taffy::Contain::LAYOUT),
+            c.contains(taffy::Contain::PAINT),
+        ) {
+            (false, false) => Contain::None,
+            (true, false) => Contain::Layout,
+            (false, true) => Contain::Paint,
+            (true, true) => Contain::Content,
+        }
+    }
+}
+
+impl From<&Contain> for taffy::Contain {
+    fn from(c: &Contain) -> Self {
+        match c {
+            Contain::None => taffy::Contain::NONE,
+            Contain::Layout => taffy::Contain::LAYOUT,
+            Contain::Paint => taffy::Contain::PAINT,
+            Contain::Content => taffy::Contain::CONTENT,
+        }
+    }
+}
+
 pub fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Display>()?;
     m.add_class::<Position>()?;
@@ -341,5 +539,9 @@ pub fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<GridAutoFlow>()?;
     m.add_class::<BoxSizing>()?;
     m.add_class::<TextAlign>()?;
+    m.add_class::<Direction>()?;
+    m.add_class::<Float>()?;
+    m.add_class::<Clear>()?;
+    m.add_class::<Contain>()?;
     Ok(())
 }
