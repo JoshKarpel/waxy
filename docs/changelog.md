@@ -33,6 +33,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   `scroll_width()`, and `scroll_height()`.
 - `TaffyTree.remove_children_range()`.
 - `Style.fields_set`, the names of the explicitly set fields.
+- `TaffyTree.absolute_layouts(root)` returns every node in a subtree, in pre-order,
+  with its absolute position and its `Layout`.
+  In taffy 0.14, a node's rounded `location` is rounded relative to its parent
+  while its rounded size is rounded in absolute coordinates,
+  so summing rounded `location`s can put a node a pixel away from where its size assumes it starts,
+  leaving 1px gaps or overlaps between siblings
+  ([taffy#834](https://github.com/DioxusLabs/taffy/issues/834)).
+  Taffy has fixed this upstream ([taffy#1189](https://github.com/DioxusLabs/taffy/pull/1189)),
+  but no release includes the fix yet.
+  `absolute_layouts` works around it today: with rounding enabled, each position is the sum of
+  the unrounded locations rounded once, which matches taffy's rounded sizes.
 - `TaffyTree.format_tree(root)` returns an indented dump of a subtree
   (each node's id, location, size, and non-default style fields) as a string,
   unlike `print_tree`, which writes to stdout.

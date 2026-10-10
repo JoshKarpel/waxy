@@ -1608,6 +1608,20 @@ class TaffyTree[NodeContext = object]:
         """Get the computed layout of a node."""
     def unrounded_layout(self, node: NodeId) -> Layout:
         """Get the unrounded layout of a node."""
+    def absolute_layouts(self, root: NodeId) -> list[tuple[NodeId, Point, Layout]]:
+        """
+        Every node in the subtree rooted at `root`, in pre-order, with its absolute position.
+
+        The position is relative to the top of the tree (the ancestor with no parent):
+        the sum of the node's own and all its ancestors' locations. Each `Layout` is the same as
+        `layout(node)` returns, so its `location` stays relative to the node's parent.
+
+        Like `layout`, this follows the tree's rounding setting. With rounding enabled, the
+        position is the sum of the unrounded locations, rounded once, which is where taffy's
+        rounded `size` assumes the node starts. In taffy 0.14, summing the rounded locations
+        instead can be off by a pixel, since it rounds each location relative to its parent
+        ([taffy#834](https://github.com/DioxusLabs/taffy/issues/834)).
+        """
     def detailed_layout_info(self, node: NodeId) -> DetailedGridInfo | None:
         """
         Get detailed grid layout information for a node.

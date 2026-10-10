@@ -80,6 +80,32 @@ def reuse_frame_time() -> float:
     return best_of(reuse_frame, 2_000)
 
 
+def read_back_times() -> tuple[float, float]:
+    """Time reading every node's layout and absolute position, in Python and with one call."""
+    tree: waxy.TaffyTree[str] = waxy.TaffyTree()
+    root, _ = build_dashboard(tree)
+    tree.compute_layout(root, DASHBOARD_AVAILABLE, measure_text)
+
+    def recurse(
+        node: waxy.NodeId,
+        origin: waxy.Point,
+        out: list[tuple[waxy.NodeId, waxy.Point, waxy.Layout]],
+    ) -> None:
+        layout = tree.layout(node)
+        position = origin + layout.location
+        out.append((node, position, layout))
+        for child in tree.children(node):
+            recurse(child, position, out)
+
+    def python_recursion() -> None:
+        recurse(root, waxy.Point(), [])
+
+    return (
+        best_of(python_recursion, 5_000),
+        best_of(lambda: tree.absolute_layouts(root), 5_000),
+    )
+
+
 def children_time() -> float:
     """Time `tree.children(node)` on a card."""
     tree: waxy.TaffyTree[str] = waxy.TaffyTree()
@@ -98,6 +124,11 @@ if __name__ == "__main__":
             ),
             ("reused tree, change one leaf, compute", format_time(reuse_frame_time())),
             ("tree.children(node)", format_time(children_time())),
+            *zip(
+                ["read back, Python recursion", "read back, absolute_layouts"],
+                map(format_time, read_back_times()),
+                strict=True,
+            ),
             *measure_calls(),
         ]
     )

@@ -40,6 +40,15 @@ Constructing a `Style` costs about four times as much as merging two with `|`.
 Build the styles you reuse once, as module constants or cached functions,
 and merge them per frame rather than constructing new ones.
 
+## Read every layout with one call
+
+To read every node's layout and absolute position,
+call `absolute_layouts(root)` instead of recursing with `layout` and `children`.
+On the dashboard-shaped tree it costs about a third as much as the recursion in Python,
+and with rounding enabled its positions match taffy's rounded sizes,
+which a sum of rounded `location`s can miss by a pixel in taffy 0.14
+([taffy#834](https://github.com/DioxusLabs/taffy/issues/834)).
+
 ## Reuse immutable values
 
 Every value type is frozen, so one instance can be returned or passed again

@@ -14,12 +14,11 @@ Anything taffy doesn't have, waxy adds only when it's generic to any taffy consu
 
 ## Release
 
-All ungated items ship together in `0.6.0`, before counterweight takes any of them up.
+All items ship together in `0.6.0`, before counterweight takes any of them up.
 Items 1, 2, 4 and 5a change observable behavior, so this is a breaking release;
 waxy is pre-1.0, so a minor bump carries that.
 Item 8 is observable too (the measure callback is called less often),
 so it gets a changelog `Changed` entry.
-Item 5b is gated on a measurement counterweight has to make and may ship in a later release.
 
 No released counterweight version depends on waxy, so nothing published breaks.
 Counterweight's `main` still calls `Rect.contains` (`app.py:407`);
@@ -236,7 +235,7 @@ when a `Text` element actually changed. No waxy change is needed there.
 Tests: after `compute_layout`, setting an equal style leaves `dirty(node)` false;
 setting a different style makes it true.
 
-### 5b. Return all layouts in one call (gated)
+### 5b. Return all layouts in one call
 
 Add `TaffyTree.absolute_layouts(root) -> list[tuple[NodeId, Point, Layout]]`:
 every node in the subtree in pre-order, with its absolute position
@@ -263,9 +262,16 @@ has rounded locations summing to 0, while its rounded size puts its left edge at
 Pin that case with a test: the returned position, plus the returned `Layout.size`,
 must match the edges taffy's rounding implies.
 
-Gate: build this only if counterweight's measurement, which splits its "Calculated layout"
-time into building the tree, computing it and reading results back, shows that reading results
-back is a significant share.
+This only adds a method, so callers can still recurse themselves,
+and it ships whether or not counterweight adopts it.
+Beyond speed, it keeps the rounding-consistent position in waxy,
+rather than leaving every caller to rebuild it from `unrounded_layout` and taffy's rounding rule.
+Taffy's own `location` rounding is the root of the problem
+([taffy#834](https://github.com/DioxusLabs/taffy/issues/834)).
+[taffy#1189](https://github.com/DioxusLabs/taffy/pull/1189) fixes it upstream by storing
+`round(absolute) - round(parent_absolute)`, but no release includes it as of 0.14.0.
+Once waxy upgrades past it, summing rounded locations is correct too,
+and `absolute_layouts` stays correct, since the fixed locations sum to the same position.
 
 ## 6. Cache `Style`'s hash
 
