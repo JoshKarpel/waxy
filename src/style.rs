@@ -186,9 +186,11 @@ impl Style {
         );
         debug_assert!(
             {
-                let mut expected = taffy::Style::DEFAULT;
-                copy_fields(&mut expected, &inner, set_fields);
-                expected == inner
+                // Reset the set fields rather than comparing them, since a set field can hold a
+                // value that isn't equal to itself (a NaN `flex_grow`).
+                let mut unset_fields_only = inner.clone();
+                copy_fields(&mut unset_fields_only, &taffy::Style::DEFAULT, set_fields);
+                unset_fields_only == taffy::Style::DEFAULT
             },
             "an unset field holds a non-default value"
         );
@@ -206,20 +208,18 @@ impl Style {
     /// A `Style` holding `inner` whose set fields are the ones that differ from
     /// `taffy::Style::DEFAULT`, for displaying a stored style, which has no set-field bitmask.
     ///
-    /// Compares each getter's value through Python equality, so it needs no per-field code.
-    pub(crate) fn with_non_default_fields_set(
-        py: Python<'_>,
-        inner: &taffy::Style,
-    ) -> PyResult<Style> {
-        let all = Bound::new(py, Style::from_parts(inner.clone(), ALL_FIELDS))?;
-        let default = Bound::new(py, Style::from_parts(taffy::Style::DEFAULT, 0))?;
+    /// Copies one field at a time onto the default with `copy_fields`, so it needs no per-field
+    /// code.
+    pub(crate) fn with_non_default_fields_set(inner: &taffy::Style) -> Style {
         let mut mask = 0;
-        for (name, flag) in FIELDS {
-            if !all.getattr(*name)?.eq(default.getattr(*name)?)? {
+        for &(_, flag) in FIELDS {
+            let mut only_this_field = taffy::Style::DEFAULT;
+            copy_fields(&mut only_this_field, inner, flag);
+            if only_this_field != taffy::Style::DEFAULT {
                 mask |= flag;
             }
         }
-        Ok(Style::from_parts(inner.clone(), mask))
+        Style::from_parts(inner.clone(), mask)
     }
 
     fn compute_hash(&self) -> u64 {

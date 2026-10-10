@@ -202,27 +202,15 @@ pub fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
     let value_error_type = py.get_type::<PyValueError>();
     let bases = pyo3::types::PyTuple::new(py, [waxy_exc_type.clone(), value_error_type.clone()])?;
 
-    let invalid_percent_type = py.get_type::<InvalidPercent>();
-    invalid_percent_type.setattr("__bases__", &bases)?;
-    m.add("InvalidPercent", invalid_percent_type)?;
-
-    let invalid_length_type = py.get_type::<InvalidLength>();
-    invalid_length_type.setattr("__bases__", &bases)?;
-    m.add("InvalidLength", invalid_length_type)?;
-
-    let invalid_grid_line_type = py.get_type::<InvalidGridLine>();
-    invalid_grid_line_type.setattr("__bases__", &bases)?;
-    m.add("InvalidGridLine", invalid_grid_line_type)?;
-
-    let invalid_grid_span_type = py.get_type::<InvalidGridSpan>();
-    invalid_grid_span_type.setattr("__bases__", &bases)?;
-    m.add("InvalidGridSpan", invalid_grid_span_type)?;
-
-    let invalid_flex_line_count_type = py.get_type::<InvalidFlexLineCount>();
-    invalid_flex_line_count_type.setattr("__bases__", &bases)?;
-    m.add("InvalidFlexLineCount", invalid_flex_line_count_type)?;
-
     for (name, exception_type) in [
+        ("InvalidPercent", py.get_type::<InvalidPercent>()),
+        ("InvalidLength", py.get_type::<InvalidLength>()),
+        ("InvalidGridLine", py.get_type::<InvalidGridLine>()),
+        ("InvalidGridSpan", py.get_type::<InvalidGridSpan>()),
+        (
+            "InvalidFlexLineCount",
+            py.get_type::<InvalidFlexLineCount>(),
+        ),
         ("InvalidRepeat", py.get_type::<InvalidRepeat>()),
         (
             "InvalidGridTemplateArea",

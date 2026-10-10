@@ -370,6 +370,20 @@ def test_detailed_layout_info_none_for_non_grid() -> None:
     assert tree.detailed_layout_info(children[0]) is None
 
 
+def test_detailed_layout_info_none_after_grid_becomes_flex() -> None:
+    tree, root, _ = grid_with_two_items()
+    tree.set_style(root, waxy.Style(display=waxy.Display.Flex))
+    tree.compute_layout(root)
+    assert tree.detailed_layout_info(root) is None
+
+
+def test_detailed_layout_info_none_after_grid_loses_its_children() -> None:
+    tree, root, _ = grid_with_two_items()
+    tree.set_children(root, [])
+    tree.compute_layout(root)
+    assert tree.detailed_layout_info(root) is None
+
+
 def test_detailed_layout_info_track_counts() -> None:
     tree, root, _ = grid_with_two_items()
     info = tree.detailed_layout_info(root)

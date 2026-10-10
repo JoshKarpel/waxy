@@ -56,3 +56,12 @@ def test_layout_eq_and_hash() -> None:
     b = padded_scroll_container()
     assert a == b
     assert hash(a) == hash(b)
+
+
+def test_layout_repr_uses_python_reprs_of_its_parts() -> None:
+    tree: waxy.TaffyTree[object] = waxy.TaffyTree()
+    node = tree.new_leaf(waxy.Style(size_width=waxy.Length(7.0), size_height=waxy.Length(3.0)))
+    tree.compute_layout(node)
+    assert repr(tree.layout(node)) == (
+        "Layout(location=Point(x=0, y=0), size=Size(width=7, height=3))"
+    )

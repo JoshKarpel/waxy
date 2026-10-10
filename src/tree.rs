@@ -247,6 +247,9 @@ impl TaffyTree {
                 // a memo that outlived one pass would need invalidating on every change taffy's
                 // own dirty tracking already sees.
                 let mut memo: HashMap<MeasureKey, taffy::Size<f32>> = HashMap::new();
+                // Leaves measured as zero because of a Python error. taffy still caches their
+                // results and marks them clean, so they're marked dirty again below.
+                let mut poisoned: Vec<taffy::NodeId> = Vec::new();
 
                 let result = catch_panic(|| {
                     self.inner.compute_layout_with_measure(
@@ -263,6 +266,7 @@ impl TaffyTree {
                                 |known, available| {
                                     // If we already have a Python error, short-circuit.
                                     if py_err.borrow().is_some() {
+                                        poisoned.push(node_id);
                                         return taffy::Size::ZERO;
                                     }
 
@@ -292,25 +296,23 @@ impl TaffyTree {
                                     let py_known = KnownSize::from(known);
                                     let py_avail = AvailableSize::from(available);
 
-                                    let call_result = measure_fn
-                                        .call1(py, (py_known, py_avail, context.clone_ref(py)));
+                                    let measured = measure_fn
+                                        .call1(py, (py_known, py_avail, context.clone_ref(py)))
+                                        .and_then(|result| {
+                                            result.extract::<Size>(py).map_err(Into::into)
+                                        });
 
-                                    match call_result {
+                                    match measured {
+                                        Ok(size) => {
+                                            let size = taffy::Size::from(&size);
+                                            memo.insert(key, size);
+                                            size
+                                        }
                                         Err(e) => {
                                             *py_err.borrow_mut() = Some(e);
+                                            poisoned.push(node_id);
                                             taffy::Size::ZERO
                                         }
-                                        Ok(result) => match result.extract::<Size>(py) {
-                                            Ok(size) => {
-                                                let size = taffy::Size::from(&size);
-                                                memo.insert(key, size);
-                                                size
-                                            }
-                                            Err(e) => {
-                                                *py_err.borrow_mut() = Some(e.into());
-                                                taffy::Size::ZERO
-                                            }
-                                        },
                                     }
                                 },
                             )
@@ -320,6 +322,11 @@ impl TaffyTree {
 
                 // Priority: Python errors first, then panics, then taffy errors.
                 if let Some(e) = py_err.into_inner() {
+                    // mark_dirty also dirties each ancestor, whose cached layout was built on the
+                    // zero sizes, so the next compute_layout measures these leaves again.
+                    for leaf in poisoned {
+                        self.inner.mark_dirty(leaf).map_err(taffy_error_to_py)?;
+                    }
                     return Err(e);
                 }
                 result?.map_err(taffy_error_to_py)
@@ -337,8 +344,17 @@ impl TaffyTree {
     /// Get detailed layout information for a grid container, or `None` for other nodes.
     fn detailed_layout_info(&self, node: &NodeId) -> PyResult<Option<DetailedGridInfo>> {
         catch_node_panic(node, || {
-            DetailedGridInfo::from_taffy(self.inner.detailed_layout_info(node.inner))
-        })
+            // taffy only ever writes a node's grid info, never clears it, so a node that stopped
+            // being a grid container (or lost its children, making it a leaf) still has the info
+            // from its last grid layout.
+            let style = self.inner.style(node.inner).map_err(taffy_error_to_py)?;
+            if style.display != taffy::Display::Grid || self.inner.child_count(node.inner) == 0 {
+                return Ok(None);
+            }
+            Ok(DetailedGridInfo::from_taffy(
+                self.inner.detailed_layout_info(node.inner),
+            ))
+        })?
     }
 
     /// Get the unrounded layout of a node.
@@ -460,7 +476,7 @@ impl TaffyTree {
         // Stored styles have no set-field bitmask, so show the fields that differ from taffy's
         // defaults instead.
         let style = self.inner.style(node).map_err(taffy_error_to_py)?;
-        let style = Bound::new(py, Style::with_non_default_fields_set(py, style)?)?;
+        let style = Bound::new(py, Style::with_non_default_fields_set(style))?;
         let mut line = "  ".repeat(depth);
         write!(
             line,

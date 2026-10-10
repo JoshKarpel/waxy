@@ -297,6 +297,32 @@ def test_measure_error_propagation() -> None:
         tree.compute_layout(root, measure=bad_measure)
 
 
+def test_layout_after_measure_error_measures_again() -> None:
+    tree = waxy.TaffyTree[str]()
+    failing = tree.new_leaf_with_context(waxy.Style(), "failing")
+    after_failure = tree.new_leaf_with_context(waxy.Style(), "after_failure")
+    root = tree.new_with_children(waxy.Style(), [failing, after_failure])
+
+    def bad_measure(
+        known: waxy.KnownSize,
+        available: waxy.AvailableSize,
+        context: str,
+    ) -> waxy.Size:
+        if context == "failing":
+            msg = "measure failed!"
+            raise ValueError(msg)
+        return waxy.Size(5, 5)
+
+    with pytest.raises(ValueError, match="measure failed!"):
+        tree.compute_layout(root, measure=bad_measure)
+
+    tree.compute_layout(root, measure=lambda known, available, context: waxy.Size(7, 3))
+
+    assert tree.layout(failing).size == waxy.Size(7, 3)
+    assert tree.layout(after_failure).size == waxy.Size(7, 3)
+    assert tree.layout(root).size == waxy.Size(14, 3)
+
+
 def test_compute_layout_with_available_space_param() -> None:
     tree = waxy.TaffyTree[TextContent]()
     node = tree.new_leaf_with_context(

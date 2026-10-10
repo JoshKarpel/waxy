@@ -117,6 +117,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   `Style` construction and hashing are faster,
   and release wheels are built with link-time optimization.
 
+### Fixed
+
+- [#49](https://github.com/JoshKarpel/waxy/pull/49)
+  After the `measure` callback raised, the next `compute_layout` reused the zero sizes
+  from the failed call instead of measuring the affected leaves again.
+- [#49](https://github.com/JoshKarpel/waxy/pull/49)
+  `repr(Layout)` shows its location and size as `Point(...)` and `Size(...)`
+  instead of Rust debug output.
+
 ### Removed
 
 - [#49](https://github.com/JoshKarpel/waxy/pull/49)

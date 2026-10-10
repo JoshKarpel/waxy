@@ -289,6 +289,13 @@ def test_format_tree_includes_every_node_indented_by_depth() -> None:
     ]
 
 
+def test_format_tree_shows_a_nan_field_as_set() -> None:
+    tree: waxy.TaffyTree[object] = waxy.TaffyTree()
+    node = tree.new_leaf(waxy.Style(flex_grow=float("nan")))
+    tree.compute_layout(node)
+    assert tree.format_tree(node).endswith(" Style(flex_grow=nan)")
+
+
 def test_format_tree_of_removed_node_raises() -> None:
     tree: waxy.TaffyTree[object] = waxy.TaffyTree()
     node = tree.new_leaf(waxy.Style())

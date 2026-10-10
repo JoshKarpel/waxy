@@ -17,9 +17,9 @@ pub struct Layout {
 impl Layout {
     fn __repr__(&self) -> String {
         format!(
-            "Layout(location={:?}, size={:?})",
-            Point::from(self.inner.location),
-            Size::from(self.inner.size)
+            "Layout(location={}, size={})",
+            Point::from(self.inner.location).__repr__(),
+            Size::from(self.inner.size).__repr__()
         )
     }
 
