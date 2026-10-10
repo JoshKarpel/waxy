@@ -17,11 +17,21 @@ Anything taffy doesn't have, waxy adds only when it's generic to any taffy consu
 All ungated items ship together in `0.6.0`, before counterweight takes any of them up.
 Items 1, 2, 4 and 5a change observable behavior, so this is a breaking release;
 waxy is pre-1.0, so a minor bump carries that.
+Item 8 is observable too (the measure callback is called less often),
+so it gets a changelog `Changed` entry.
 Item 5b is gated on a measurement counterweight has to make and may ship in a later release.
 
 No released counterweight version depends on waxy, so nothing published breaks.
 Counterweight's `main` still calls `Rect.contains` (`app.py:407`);
 its plan removes that before it raises its floor to `waxy>=0.6.0`.
+
+## Measurements
+
+The scripts behind every number in this plan go in a `benchmarks/` directory,
+committed with the first item that lands,
+so each later item's before and after can be re-run against the same workloads.
+Each table names the build profile it was measured on:
+the default release profile, or release with LTO (item 9).
 
 ## 1. Make `Style` equality match merge behavior
 
@@ -38,6 +48,19 @@ Style() == Style(flex_grow=0)                       -> True, same hash
 Any cache keyed on style equality can therefore return the wrong merge.
 
 Change `__eq__` to compare both `inner` and `set_fields`, and mix `set_fields` into `__hash__`.
+
+Comparing `inner` is only sound because a field that isn't set always holds its
+`taffy::Style::DEFAULT` value:
+the constructor starts from `DEFAULT`, and `|` keeps the left operand's unset fields.
+If any path left a non-default value in an unset field,
+two styles that merge identically would compare unequal.
+Enforce it with a `debug_assert!` in item 6's `Style::from_parts`,
+the single constructor every path goes through.
+
+This also means Python callers can no longer compare styles by layout alone:
+`Style() == Style(display=Display.Flex)` is `False`, though `Flex` is the default.
+Say so in the changelog entry.
+Item 5a, which needs the layout-only comparison, compares `inner` internally.
 
 `TaffyTree.style(node)` builds a `Style` from the stored `taffy::Style` and marks every field as
 set, since taffy doesn't keep the bitmask.
@@ -78,19 +101,37 @@ Add one constant table of `(name, flag)` pairs, in declaration order,
 and use it for `ALL_FIELDS` (item 1), `fields_set` and `__repr__` (item 3).
 The table can't drive extraction or merging, since each field converts differently,
 so adding a field still means touching the `F_*` constant, the `match` arm, `merge!`,
-the getter, `__hash__`, the stub and the table.
+the getter, `__hash__`, the stub, the table,
+and the test table of non-default values below.
 
-Nothing type-checks the table against the `match` arms or the getters.
-Guard it with a test over every property on `Style`:
-`Style(**{p: getattr(Style(), p)}).fields_set == {p}`.
-That holds for every field, since non-`Option` getters never return `None`
-and an explicit `None` for an `Option` field counts as set.
-It catches a table entry without a `match` arm (the constructor raises),
-a `match` arm without a table entry (`fields_set` misses it),
-and a getter without either.
+Nothing type-checks the table against the `match` arms, the getters, `merge!` or `__hash__`.
+Two tests guard it, both over every property on `Style` except `fields_set`
+(item 3's property, which isn't a field).
+
+- **Round trip with the default value:**
+  `Style(**{p: getattr(Style(), p)}).fields_set == {p}`.
+  That holds for every field, since non-`Option` getters never return `None`
+  and an explicit `None` for an `Option` field counts as set.
+  It catches a table entry without a `match` arm (the constructor raises),
+  a `match` arm without a table entry (`fields_set` misses it),
+  and a getter without either.
+- **Merge and hash with a non-default value:**
+  a test-side dict maps every field to a value that differs from its default,
+  and the test first asserts that the dict's keys are exactly the property set.
+  For each field, `s = Style(**{p: v})` must satisfy `getattr(s, p) == v`,
+  `Style() | s == s`, and `hash(s) != hash(Style())`.
+  The default-value test can't catch a missing `merge!` line,
+  because merging a default value into a default style changes nothing;
+  a non-default value makes the dropped field visible.
+  (The hash assertion can collide in principle, but a fixed table makes it deterministic.)
+
+`__hash__` also destructures `taffy::Style` without `..`.
+`taffy::Style` has public fields and isn't `#[non_exhaustive]`,
+so a field added in a taffy upgrade is a compile error there
+rather than a field silently left out of the hash.
 
 Tests: a misspelled keyword raises `TypeError` naming that keyword;
-the per-property round trip above.
+the two per-property tests above.
 
 ## 3. Make styles and trees inspectable
 
@@ -101,6 +142,8 @@ whatever was set, so a style can't show its own contents while you debug.
   The name follows pydantic's `model_fields_set`.
 - **`Style.__repr__`**: list the set fields in declaration order, each with its getter's repr,
   e.g. `Style(flex_grow=1.0, border_top=Length(1))`. An empty style prints `Style()`.
+  Walk item 2's table and fetch each value by name through Python `getattr`,
+  so `__repr__` needs no per-field code.
 - **`TaffyTree.format_tree(root) -> str`**: an indented dump of the subtree, giving each node's
   id, computed location and size, and its style.
   Taffy's `print_tree` writes to stdout with `println!`, which corrupts the screen of a running
@@ -108,6 +151,11 @@ whatever was set, so a style can't show its own contents while you debug.
   Stored styles have no bitmask (see item 1), so the dump shows fields that differ from
   `taffy::Style::DEFAULT` rather than fields that were set:
   compute that mask, build a `Style` with it, and reuse `__repr__`.
+  Compute the mask from item 2's table too,
+  comparing `getattr(style, name)` with `getattr(default, name)` through Python equality,
+  rather than writing a per-field Rust comparison that would be one more place to update
+  when adding a field. It's a debugging path, so building the Python values costs nothing
+  that matters.
 
 Tests: `repr` round-trips through `eval` (with waxy's names in scope) for representative styles,
 since every value type's repr is already constructor syntax;
@@ -155,7 +203,7 @@ Reusing one tree across frames needs `set_style`, `set_children`, `set_node_cont
 Reuse pays off even though it doesn't skip as much as taffy's cache suggests.
 On a 39-node tree shaped like counterweight's dashboard (two rows of six cards,
 each card a column of two text leaves, 24 leaves in all), with a trivial measure callback,
-on a release build:
+on a release build with LTO:
 
 | Frame | Layout time | Measure calls |
 |---|---|---|
@@ -202,10 +250,17 @@ for every node.
 Use the tree's rounding setting, the same as `layout()` does:
 taffy's `layout()` returns the rounded layout when rounding is enabled and the unrounded one
 otherwise.
-Summing rounded relative locations gives the rounded absolute position,
-because taffy rounds each node against its cumulative absolute coordinates
-rather than its relative location.
-Pin that with a test on a tree with fractional sizes.
+With rounding enabled, the absolute position is the sum of the *unrounded* locations,
+rounded once at the end. Summing the rounded locations is wrong:
+taffy rounds each `location` relative to its parent,
+but rounds `size` (and border and padding) against the running absolute offset
+(`round_layout` in taffy's `src/compute/mod.rs`),
+so a node's rounded size assumes its left edge is at `round(absolute_x)`.
+A leaf with a 0.4px left margin inside a parent with a 0.4px left margin
+has rounded locations summing to 0, while its rounded size puts its left edge at
+`round(0.8) = 1`.
+Pin that case with a test: the returned position, plus the returned `Layout.size`,
+must match the edges taffy's rounding implies.
 
 Gate: build this only if counterweight's measurement, which splits its "Calculated layout"
 time into building the tree, computing it and reading results back, shows that reading results
@@ -214,7 +269,8 @@ back is a significant share.
 ## 6. Cache `Style`'s hash
 
 `Style` is frozen, so its hash can be computed once and stored.
-Measured on a release build (`timeit`, best of 5 runs of 1,000,000 `hash()` calls):
+Measured on a release build with the default profile
+(`timeit`, best of 5 runs of 1,000,000 `hash()` calls):
 
 | Style | Uncached | Cached |
 |---|---|---|
@@ -240,24 +296,28 @@ and the 16 bytes are about 3% of a `Style`.
 The cache only pays when the same `Style` object is hashed more than once,
 which counterweight doesn't do yet:
 a headless run of its `dashboard.py` and `canvas.py` workloads,
-with `Style.__hash__` patched to hash `layout` as counterweight's plan step 2 does,
+with counterweight's own `Style.__hash__` patched to also hash its `layout` field
+(a `waxy.Style`), as counterweight's plan step 2 will,
 made zero `waxy.Style` hashes.
 Its plan step 3 (one merge rule) may add a merge cache keyed on `(self, other)`;
 utility styles like `pad(1)` are `lru_cache`d and merge results come back from the cache,
 so the same objects would then be hashed every frame.
-Since the cache is free, it ships now rather than waiting for that.
+Since the cache costs neither measurable time nor meaningful memory,
+it ships now rather than waiting for that.
 
-Implementation:
+The one thing it does cost is an invariant:
+a cached hash is only correct if no `Style` is mutated after construction.
+The implementation makes that true by structure.
 
-- Add a `std::cell::OnceCell<u64>` field (`Style` is `unsendable`, so it needn't be `Sync`).
-- Move the hash body into a `compute_hash` method in the plain `impl Style` block
-  (beside `to_taffy`), outside `#[pymethods]`,
+- Build every `Style` through a single `Style::from_parts(inner, set_fields)`
+  in the plain `impl Style` block (beside `to_taffy`), outside `#[pymethods]`.
+  Today `__or__` clones `self` and mutates the clone, which would copy the cached hash;
+  instead, clone only `self.inner`, merge into it, and call `from_parts`.
+  `from_parts` is also where item 1's `debug_assert!` lives.
+- Add a `std::cell::OnceCell<u64>` field (`Style` is `unsendable`, so it needn't be `Sync`),
+  created only in `from_parts`.
+- Move the hash body into a `compute_hash` method beside `from_parts`,
   and have `__hash__` return `get_or_init(compute_hash)`.
-- Never mutate a `Style` after construction, so a cached hash can't go stale.
-  Today `__or__` clones `self` and mutates the clone, which would copy the cached hash.
-  Instead, clone only `self.inner`, merge into it,
-  and build the result through a single `Style::from_parts(inner, set_fields)` constructor
-  that every construction path uses and that is the only place the cell is created.
 
 Tests: a merge result whose left operand was hashed first
 hashes equal to a directly constructed equal style.
@@ -265,7 +325,8 @@ hashes equal to a directly constructed equal style.
 ## 7. Make `Style` construction cheap
 
 Constructing a `Style` costs far more than merging or hashing one.
-Measured on a release build (`timeit`, best of 5 runs of 200,000 calls):
+Measured on a release build with the default profile
+(`timeit`, best of 5 runs of 200,000 calls):
 
 | Call | Now | Interned keys | Interned keys + cast-based extraction |
 |---|---|---|---|
@@ -301,6 +362,12 @@ a pyclass, checked with `cast`, and a nested input
 When every variant misses, raise one `TypeError` naming the accepted types and the type received,
 e.g. `expected Length | Percent | Auto | ..., got int`.
 This replaces pyo3's multi-line per-variant message, which no test matches on.
+A nested variant contributes its own accepted types, not its enum's name:
+`GridTemplateInput` reports `Repeat | Length | ...`, not `Repeat | GridTrackInput`.
+So the macro also generates a constant list of type names per enum,
+which an outer enum splices in for each nested variant.
+A miss on a nested `extract` builds a `PyErr`,
+so the macro tries pyclass variants before nested ones.
 
 The extractors serve every constructor that takes a value union, not only `Style`:
 `AvailableSize`, grid tracks, `Repeat` and grid placements share them.
@@ -336,6 +403,8 @@ a memo that outlives one pass would need its own invalidation on `set_node_conte
 This assumes the callback returns the same size for the same inputs within one layout,
 which taffy's own cache already assumes. Document it on the `measure` parameter.
 On the dashboard-shaped tree it removes a third of the calls into Python.
+Callers can observe the change, through a callback with side effects or one that counts its calls,
+so it gets a changelog `Changed` entry that states the assumption.
 
 Tests: a callback that counts its calls is called once per distinct input per node;
 a callback whose result depends on the node's context still gets the right size for each node.
@@ -356,6 +425,10 @@ on a release build:
 
 It makes release builds slower, which only CI's release workflow and
 `maturin develop --release` pay; `just build` builds in debug and is unaffected.
+
+Don't add `panic = "abort"` to the profile, though it's a common companion to these settings.
+`InvalidNodeId` and the panic-to-`TaffyException` conversion rely on `catch_unwind`,
+which can't catch anything when panics abort.
 
 ## 10. Document performance tips
 
@@ -388,8 +461,8 @@ State each saving as a ratio and give the reason, as above, rather than nanoseco
 which change with the machine and with every release.
 Write the page after items 5 to 9 land and re-measure each claim against a release build first,
 since those items shift the ratios (item 7 narrows the construction-to-merge gap).
-Keep the benchmark scripts in a `benchmarks/` directory so the page's claims can be re-checked
-whenever the ratios might have moved.
+Each claim gets a script in `benchmarks/` (see Measurements),
+so the page can be re-checked whenever the ratios might have moved.
 
 ## Out of scope
 
