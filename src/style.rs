@@ -1,5 +1,8 @@
+use std::cell::OnceCell;
+
+use pyo3::exceptions::PyTypeError;
 use pyo3::prelude::*;
-use pyo3::types::PyDict;
+use pyo3::types::{PyDict, PyFrozenSet, PyString};
 
 use crate::enums::{
     AlignContent, AlignItems, BoxSizing, Clear, Contain, Direction, Display, FlexDirection,
@@ -77,6 +80,86 @@ const F_GRID_TEMPLATE_ROW_NAMES: u64 = 1 << 57;
 const F_GRID_TEMPLATE_COLUMN_NAMES: u64 = 1 << 58;
 const F_GRID_TEMPLATE_AREAS: u64 = 1 << 59;
 
+/// Every field's keyword name and flag, in declaration order.
+///
+/// `fields_set`, `__repr__` and `ALL_FIELDS` walk this table. Adding a field also means adding
+/// its `F_*` constant, a `match` arm in `new`, a line in `copy_fields`, a getter, a line in
+/// `compute_hash`, the stub, and an entry in `tests/test_style.py`'s non-default values, whose
+/// tests check this table against the getters.
+const FIELDS: &[(&str, u64)] = &[
+    ("display", F_DISPLAY),
+    ("box_sizing", F_BOX_SIZING),
+    ("overflow_x", F_OVERFLOW_X),
+    ("overflow_y", F_OVERFLOW_Y),
+    ("scrollbar_width", F_SCROLLBAR_WIDTH),
+    ("position", F_POSITION),
+    ("direction", F_DIRECTION),
+    ("contain", F_CONTAIN),
+    ("float", F_FLOAT),
+    ("clear", F_CLEAR),
+    ("item_is_table", F_ITEM_IS_TABLE),
+    ("item_is_replaced", F_ITEM_IS_REPLACED),
+    ("inset_left", F_INSET_LEFT),
+    ("inset_right", F_INSET_RIGHT),
+    ("inset_top", F_INSET_TOP),
+    ("inset_bottom", F_INSET_BOTTOM),
+    ("size_width", F_SIZE_WIDTH),
+    ("size_height", F_SIZE_HEIGHT),
+    ("min_size_width", F_MIN_SIZE_WIDTH),
+    ("min_size_height", F_MIN_SIZE_HEIGHT),
+    ("max_size_width", F_MAX_SIZE_WIDTH),
+    ("max_size_height", F_MAX_SIZE_HEIGHT),
+    ("aspect_ratio", F_ASPECT_RATIO),
+    ("margin_left", F_MARGIN_LEFT),
+    ("margin_right", F_MARGIN_RIGHT),
+    ("margin_top", F_MARGIN_TOP),
+    ("margin_bottom", F_MARGIN_BOTTOM),
+    ("padding_left", F_PADDING_LEFT),
+    ("padding_right", F_PADDING_RIGHT),
+    ("padding_top", F_PADDING_TOP),
+    ("padding_bottom", F_PADDING_BOTTOM),
+    ("border_left", F_BORDER_LEFT),
+    ("border_right", F_BORDER_RIGHT),
+    ("border_top", F_BORDER_TOP),
+    ("border_bottom", F_BORDER_BOTTOM),
+    ("align_items", F_ALIGN_ITEMS),
+    ("align_self", F_ALIGN_SELF),
+    ("justify_items", F_JUSTIFY_ITEMS),
+    ("justify_self", F_JUSTIFY_SELF),
+    ("align_content", F_ALIGN_CONTENT),
+    ("justify_content", F_JUSTIFY_CONTENT),
+    ("gap_width", F_GAP_WIDTH),
+    ("gap_height", F_GAP_HEIGHT),
+    ("text_align", F_TEXT_ALIGN),
+    ("flex_direction", F_FLEX_DIRECTION),
+    ("flex_wrap", F_FLEX_WRAP),
+    ("flex_basis", F_FLEX_BASIS),
+    ("flex_grow", F_FLEX_GROW),
+    ("flex_shrink", F_FLEX_SHRINK),
+    ("flex_line_count", F_FLEX_LINE_COUNT),
+    ("grid_template_rows", F_GRID_TEMPLATE_ROWS),
+    ("grid_template_columns", F_GRID_TEMPLATE_COLUMNS),
+    ("grid_template_row_names", F_GRID_TEMPLATE_ROW_NAMES),
+    ("grid_template_column_names", F_GRID_TEMPLATE_COLUMN_NAMES),
+    ("grid_template_areas", F_GRID_TEMPLATE_AREAS),
+    ("grid_auto_rows", F_GRID_AUTO_ROWS),
+    ("grid_auto_columns", F_GRID_AUTO_COLUMNS),
+    ("grid_auto_flow", F_GRID_AUTO_FLOW),
+    ("grid_row", F_GRID_ROW),
+    ("grid_column", F_GRID_COLUMN),
+];
+
+/// The flags of every field in `FIELDS`.
+const ALL_FIELDS: u64 = {
+    let mut mask = 0;
+    let mut i = 0;
+    while i < FIELDS.len() {
+        mask |= FIELDS[i].1;
+        i += 1;
+    }
+    mask
+};
+
 /// Style properties for a layout node.
 #[pyclass(unsendable, frozen, from_py_object, module = "waxy")]
 #[derive(Clone, Debug)]
@@ -84,12 +167,332 @@ pub struct Style {
     pub(crate) inner: taffy::Style,
     /// Bitmask tracking which fields have been explicitly set.
     set_fields: u64,
+    /// `__hash__`'s result, computed on first use. Only correct because no `Style` is mutated
+    /// after `from_parts` builds it.
+    hash: OnceCell<u64>,
 }
 
 impl Style {
+    /// Build a `Style`. Every constructor goes through here, so it's the one place that creates
+    /// the hash cache and checks that unset fields hold their default values.
+    ///
+    /// Equality and hashing compare `inner` whole, which only matches merge behavior if a field
+    /// that isn't set always holds its `taffy::Style::DEFAULT` value.
+    pub(crate) fn from_parts(inner: taffy::Style, set_fields: u64) -> Self {
+        debug_assert_eq!(
+            set_fields & !ALL_FIELDS,
+            0,
+            "set_fields has bits for no field"
+        );
+        debug_assert!(
+            {
+                let mut expected = taffy::Style::DEFAULT;
+                copy_fields(&mut expected, &inner, set_fields);
+                expected == inner
+            },
+            "an unset field holds a non-default value"
+        );
+        Self {
+            inner,
+            set_fields,
+            hash: OnceCell::new(),
+        }
+    }
+
     pub(crate) fn to_taffy(&self) -> taffy::Style {
         self.inner.clone()
     }
+
+    /// A `Style` holding `inner` whose set fields are the ones that differ from
+    /// `taffy::Style::DEFAULT`, for displaying a stored style, which has no set-field bitmask.
+    ///
+    /// Compares each getter's value through Python equality, so it needs no per-field code.
+    pub(crate) fn with_non_default_fields_set(
+        py: Python<'_>,
+        inner: &taffy::Style,
+    ) -> PyResult<Style> {
+        let all = Bound::new(py, Style::from_parts(inner.clone(), ALL_FIELDS))?;
+        let default = Bound::new(py, Style::from_parts(taffy::Style::DEFAULT, 0))?;
+        let mut mask = 0;
+        for (name, flag) in FIELDS {
+            if !all.getattr(*name)?.eq(default.getattr(*name)?)? {
+                mask |= flag;
+            }
+        }
+        Ok(Style::from_parts(inner.clone(), mask))
+    }
+
+    fn compute_hash(&self) -> u64 {
+        use std::hash::{Hash, Hasher};
+        use std::mem::discriminant;
+        let mut h = std::collections::hash_map::DefaultHasher::new();
+
+        // Destructured without `..`, so a field added in a taffy upgrade is a compile error
+        // here rather than a field silently left out of the hash.
+        let taffy::Style {
+            dummy: _,
+            display,
+            item_is_table,
+            item_is_replaced,
+            box_sizing,
+            direction,
+            overflow,
+            scrollbar_width,
+            contain,
+            float,
+            clear,
+            position,
+            inset,
+            size,
+            min_size,
+            max_size,
+            aspect_ratio,
+            margin,
+            padding,
+            border,
+            align_items,
+            align_self,
+            justify_items,
+            justify_self,
+            align_content,
+            justify_content,
+            gap,
+            text_align,
+            flex_direction,
+            flex_wrap,
+            flex_line_count,
+            flex_basis,
+            flex_grow,
+            flex_shrink,
+            grid_template_rows,
+            grid_template_columns,
+            grid_auto_rows,
+            grid_auto_columns,
+            grid_auto_flow,
+            grid_template_areas,
+            grid_template_column_names,
+            grid_template_row_names,
+            grid_row,
+            grid_column,
+        } = &self.inner;
+
+        self.set_fields.hash(&mut h);
+
+        // Enum fields — use discriminant since taffy enums don't derive Hash.
+        discriminant(display).hash(&mut h);
+        discriminant(box_sizing).hash(&mut h);
+        discriminant(&overflow.x).hash(&mut h);
+        discriminant(&overflow.y).hash(&mut h);
+        discriminant(position).hash(&mut h);
+        discriminant(text_align).hash(&mut h);
+        discriminant(flex_direction).hash(&mut h);
+        discriminant(flex_wrap).hash(&mut h);
+        discriminant(grid_auto_flow).hash(&mut h);
+        discriminant(direction).hash(&mut h);
+        discriminant(float).hash(&mut h);
+        discriminant(clear).hash(&mut h);
+        // taffy's Contain is a bitset struct, so hash the enum it maps to.
+        (Contain::from(*contain) as u8).hash(&mut h);
+
+        // Option<alignment> fields — taffy's alignment types are (keyword, safety) structs.
+        for alignment in [align_items, align_self, justify_items, justify_self] {
+            alignment
+                .map(|v| (discriminant(&v.keyword), discriminant(&v.safety)))
+                .hash(&mut h);
+        }
+        for alignment in [align_content, justify_content] {
+            alignment
+                .map(|v| (discriminant(&v.keyword), discriminant(&v.safety)))
+                .hash(&mut h);
+        }
+
+        // Plain bool and integer fields.
+        item_is_table.hash(&mut h);
+        item_is_replaced.hash(&mut h);
+        flex_line_count.hash(&mut h);
+
+        // Plain f32 fields — normalize -0.0 (consistent with f32's IEEE
+        // float equality used by taffy's derived PartialEq for these fields).
+        hash_f32(*scrollbar_width, &mut h);
+        hash_f32(*flex_grow, &mut h);
+        hash_f32(*flex_shrink, &mut h);
+        match aspect_ratio {
+            Some(v) => {
+                1u8.hash(&mut h);
+                hash_f32(*v, &mut h);
+            }
+            None => 0u8.hash(&mut h),
+        }
+
+        // CompactLength fields — bit-exact, matching CompactLength's PartialEq.
+        // Each field type (Dimension, LengthPercentage, etc.) wraps CompactLength;
+        // into_raw() extracts it.
+        for side in [inset, margin] {
+            hash_taffy_compact_length(side.left.into_raw(), &mut h);
+            hash_taffy_compact_length(side.right.into_raw(), &mut h);
+            hash_taffy_compact_length(side.top.into_raw(), &mut h);
+            hash_taffy_compact_length(side.bottom.into_raw(), &mut h);
+        }
+        for side in [padding, border] {
+            hash_taffy_compact_length(side.left.into_raw(), &mut h);
+            hash_taffy_compact_length(side.right.into_raw(), &mut h);
+            hash_taffy_compact_length(side.top.into_raw(), &mut h);
+            hash_taffy_compact_length(side.bottom.into_raw(), &mut h);
+        }
+        hash_taffy_compact_length(size.width.into_raw(), &mut h);
+        hash_taffy_compact_length(size.height.into_raw(), &mut h);
+        for bound in [min_size, max_size] {
+            hash_taffy_compact_length(bound.width.into_raw(), &mut h);
+            hash_taffy_compact_length(bound.height.into_raw(), &mut h);
+        }
+        hash_taffy_compact_length(gap.width.into_raw(), &mut h);
+        hash_taffy_compact_length(gap.height.into_raw(), &mut h);
+        hash_taffy_compact_length(flex_basis.into_raw(), &mut h);
+
+        // Grid track Vecs.
+        for tracks in [grid_auto_rows, grid_auto_columns] {
+            tracks.len().hash(&mut h);
+            for tsf in tracks {
+                hash_taffy_track_sizing_function(*tsf, &mut h);
+            }
+        }
+        for tracks in [grid_template_rows, grid_template_columns] {
+            tracks.len().hash(&mut h);
+            for comp in tracks {
+                hash_taffy_template_component(comp, &mut h);
+            }
+        }
+        grid_template_row_names.hash(&mut h);
+        grid_template_column_names.hash(&mut h);
+        match grid_template_areas {
+            Some(areas) => {
+                1u8.hash(&mut h);
+                areas.row_count.hash(&mut h);
+                areas.column_count.hash(&mut h);
+                areas.areas.len().hash(&mut h);
+                for area in &areas.areas {
+                    hash_taffy_template_area(area, &mut h);
+                }
+            }
+            None => 0u8.hash(&mut h),
+        }
+
+        // Grid placement fields.
+        hash_taffy_grid_placement(&grid_row.start, &mut h);
+        hash_taffy_grid_placement(&grid_row.end, &mut h);
+        hash_taffy_grid_placement(&grid_column.start, &mut h);
+        hash_taffy_grid_placement(&grid_column.end, &mut h);
+
+        h.finish()
+    }
+}
+
+/// Copy the fields whose flags are in `mask` from `src` to `dst`.
+fn copy_fields(dst: &mut taffy::Style, src: &taffy::Style, mask: u64) {
+    macro_rules! copy {
+        // Copy field: dst.$($path).+ = src.$($path).+
+        ($flag:expr, $($path:ident).+) => {
+            if mask & $flag != 0 {
+                dst.$($path).+ = src.$($path).+;
+            }
+        };
+        // Clone field (for non-Copy types like Vec)
+        (clone $flag:expr, $($path:ident).+) => {
+            if mask & $flag != 0 {
+                dst.$($path).+ = src.$($path).+.clone();
+            }
+        };
+    }
+
+    copy!(F_DISPLAY, display);
+    copy!(F_BOX_SIZING, box_sizing);
+    copy!(F_OVERFLOW_X, overflow.x);
+    copy!(F_OVERFLOW_Y, overflow.y);
+    copy!(F_SCROLLBAR_WIDTH, scrollbar_width);
+    copy!(F_POSITION, position);
+    copy!(F_DIRECTION, direction);
+    copy!(F_CONTAIN, contain);
+    copy!(F_FLOAT, float);
+    copy!(F_CLEAR, clear);
+    copy!(F_ITEM_IS_TABLE, item_is_table);
+    copy!(F_ITEM_IS_REPLACED, item_is_replaced);
+
+    // Inset
+    copy!(F_INSET_LEFT, inset.left);
+    copy!(F_INSET_RIGHT, inset.right);
+    copy!(F_INSET_TOP, inset.top);
+    copy!(F_INSET_BOTTOM, inset.bottom);
+
+    // Size
+    copy!(F_SIZE_WIDTH, size.width);
+    copy!(F_SIZE_HEIGHT, size.height);
+    copy!(F_MIN_SIZE_WIDTH, min_size.width);
+    copy!(F_MIN_SIZE_HEIGHT, min_size.height);
+    copy!(F_MAX_SIZE_WIDTH, max_size.width);
+    copy!(F_MAX_SIZE_HEIGHT, max_size.height);
+    copy!(F_ASPECT_RATIO, aspect_ratio);
+
+    // Margin
+    copy!(F_MARGIN_LEFT, margin.left);
+    copy!(F_MARGIN_RIGHT, margin.right);
+    copy!(F_MARGIN_TOP, margin.top);
+    copy!(F_MARGIN_BOTTOM, margin.bottom);
+
+    // Padding
+    copy!(F_PADDING_LEFT, padding.left);
+    copy!(F_PADDING_RIGHT, padding.right);
+    copy!(F_PADDING_TOP, padding.top);
+    copy!(F_PADDING_BOTTOM, padding.bottom);
+
+    // Border
+    copy!(F_BORDER_LEFT, border.left);
+    copy!(F_BORDER_RIGHT, border.right);
+    copy!(F_BORDER_TOP, border.top);
+    copy!(F_BORDER_BOTTOM, border.bottom);
+
+    // Alignment
+    copy!(F_ALIGN_ITEMS, align_items);
+    copy!(F_ALIGN_SELF, align_self);
+    copy!(F_JUSTIFY_ITEMS, justify_items);
+    copy!(F_JUSTIFY_SELF, justify_self);
+    copy!(F_ALIGN_CONTENT, align_content);
+    copy!(F_JUSTIFY_CONTENT, justify_content);
+
+    // Gap
+    copy!(F_GAP_WIDTH, gap.width);
+    copy!(F_GAP_HEIGHT, gap.height);
+
+    // Block
+    copy!(F_TEXT_ALIGN, text_align);
+
+    // Flexbox
+    copy!(F_FLEX_DIRECTION, flex_direction);
+    copy!(F_FLEX_WRAP, flex_wrap);
+    copy!(F_FLEX_BASIS, flex_basis);
+    copy!(F_FLEX_GROW, flex_grow);
+    copy!(F_FLEX_SHRINK, flex_shrink);
+    copy!(F_FLEX_LINE_COUNT, flex_line_count);
+
+    // Grid
+    copy!(clone F_GRID_TEMPLATE_ROWS, grid_template_rows);
+    copy!(clone F_GRID_TEMPLATE_COLUMNS, grid_template_columns);
+    copy!(clone F_GRID_TEMPLATE_ROW_NAMES, grid_template_row_names);
+    copy!(clone F_GRID_TEMPLATE_COLUMN_NAMES, grid_template_column_names);
+    copy!(clone F_GRID_TEMPLATE_AREAS, grid_template_areas);
+    copy!(clone F_GRID_AUTO_ROWS, grid_auto_rows);
+    copy!(clone F_GRID_AUTO_COLUMNS, grid_auto_columns);
+    copy!(F_GRID_AUTO_FLOW, grid_auto_flow);
+    copy!(clone F_GRID_ROW, grid_row);
+    copy!(clone F_GRID_COLUMN, grid_column);
+}
+
+/// Note which keyword's value failed to extract, as pyo3 does for its own arguments.
+fn note_keyword(py: Python<'_>, name: &str, error: impl Into<PyErr>) -> PyErr {
+    let error = error.into();
+    let note = format!("while processing '{name}'");
+    // Like pyo3, keep the original error if adding the note fails.
+    let _ = error.value(py).call_method1("add_note", (note,));
+    error
 }
 
 fn opt_align_items_from_taffy(v: Option<taffy::AlignItems>) -> Option<AlignItems> {
@@ -153,298 +556,250 @@ impl Style {
         let mut set_fields: u64 = 0;
 
         let Some(kwargs) = kwargs else {
-            return Ok(Self {
-                inner: style,
-                set_fields,
-            });
+            return Ok(Self::from_parts(style, set_fields));
         };
 
-        /// Extract a value for a field. None means "use the default" (skip).
-        macro_rules! set_field {
-            ($key:literal, $flag:expr, $body:expr) => {
-                if let Some(py_val) = kwargs.get_item($key)? {
-                    if !py_val.is_none() {
-                        #[allow(clippy::redundant_closure_call)]
-                        ($body)(py_val.extract()?);
+        // Dispatch over the keywords actually passed, so an unknown keyword reaches the final
+        // arm instead of being silently ignored.
+        for (key, value) in kwargs.iter() {
+            let key = key.cast_into::<PyString>()?;
+            let name = key.to_str()?;
+
+            /// Set a field from `value`. `None` means "use the default" (leave it unset).
+            macro_rules! field {
+                ($flag:expr, |$v:ident: $t:ty| $body:expr) => {
+                    if !value.is_none() {
+                        let $v: $t = value.extract().map_err(|e| note_keyword(py, name, e))?;
+                        $body;
                         set_fields |= $flag;
                     }
-                }
-            };
-        }
+                };
+            }
 
-        /// Extract an optional (None-able) value for a field.
-        macro_rules! set_opt_field {
-            ($key:literal, $flag:expr, $body:expr) => {
-                if let Some(py_val) = kwargs.get_item($key)? {
-                    #[allow(clippy::redundant_closure_call)]
-                    if py_val.is_none() {
-                        ($body)(None);
-                    } else {
-                        ($body)(Some(py_val.extract()?));
-                    }
+            /// Set an optional field from `value`, where `None` explicitly clears it.
+            macro_rules! opt_field {
+                ($flag:expr, |$v:ident: $t:ty| $body:expr) => {{
+                    let $v: Option<$t> = value.extract().map_err(|e| note_keyword(py, name, e))?;
+                    $body;
                     set_fields |= $flag;
+                }};
+            }
+
+            match name {
+                "display" => field!(F_DISPLAY, |v: Display| style.display = (&v).into()),
+                "box_sizing" => field!(F_BOX_SIZING, |v: BoxSizing| {
+                    style.box_sizing = (&v).into()
+                }),
+                "overflow_x" => field!(F_OVERFLOW_X, |v: Overflow| {
+                    style.overflow.x = (&v).into()
+                }),
+                "overflow_y" => field!(F_OVERFLOW_Y, |v: Overflow| {
+                    style.overflow.y = (&v).into()
+                }),
+                "scrollbar_width" => {
+                    field!(F_SCROLLBAR_WIDTH, |v: f32| { style.scrollbar_width = v })
                 }
-            };
-        }
-
-        set_field!("display", F_DISPLAY, |v: Display| {
-            style.display = (&v).into()
-        });
-        set_field!("box_sizing", F_BOX_SIZING, |v: BoxSizing| {
-            style.box_sizing = (&v).into()
-        });
-        set_field!("overflow_x", F_OVERFLOW_X, |v: Overflow| {
-            style.overflow.x = (&v).into()
-        });
-        set_field!("overflow_y", F_OVERFLOW_Y, |v: Overflow| {
-            style.overflow.y = (&v).into()
-        });
-        set_field!("scrollbar_width", F_SCROLLBAR_WIDTH, |v: f32| {
-            style.scrollbar_width = v
-        });
-        set_field!("position", F_POSITION, |v: Position| {
-            style.position = (&v).into()
-        });
-        set_field!("direction", F_DIRECTION, |v: Direction| {
-            style.direction = (&v).into()
-        });
-        set_field!("contain", F_CONTAIN, |v: Contain| {
-            style.contain = (&v).into()
-        });
-        set_field!("float", F_FLOAT, |v: Float| style.float = (&v).into());
-        set_field!("clear", F_CLEAR, |v: Clear| style.clear = (&v).into());
-        set_field!("item_is_table", F_ITEM_IS_TABLE, |v: bool| {
-            style.item_is_table = v
-        });
-        set_field!("item_is_replaced", F_ITEM_IS_REPLACED, |v: bool| {
-            style.item_is_replaced = v
-        });
-
-        // Inset
-        set_field!(
-            "inset_left",
-            F_INSET_LEFT,
-            |v: LengthPercentageAutoInput| { style.inset.left = v.to_taffy() }
-        );
-        set_field!(
-            "inset_right",
-            F_INSET_RIGHT,
-            |v: LengthPercentageAutoInput| { style.inset.right = v.to_taffy() }
-        );
-        set_field!("inset_top", F_INSET_TOP, |v: LengthPercentageAutoInput| {
-            style.inset.top = v.to_taffy()
-        });
-        set_field!(
-            "inset_bottom",
-            F_INSET_BOTTOM,
-            |v: LengthPercentageAutoInput| { style.inset.bottom = v.to_taffy() }
-        );
-
-        // Size
-        set_field!("size_width", F_SIZE_WIDTH, |v: DimensionInput| {
-            style.size.width = v.to_taffy(py)
-        });
-        set_field!("size_height", F_SIZE_HEIGHT, |v: DimensionInput| {
-            style.size.height = v.to_taffy(py)
-        });
-        set_field!(
-            "min_size_width",
-            F_MIN_SIZE_WIDTH,
-            |v: LengthPercentageAutoInput| { style.min_size.width = v.to_taffy() }
-        );
-        set_field!(
-            "min_size_height",
-            F_MIN_SIZE_HEIGHT,
-            |v: LengthPercentageAutoInput| { style.min_size.height = v.to_taffy() }
-        );
-        set_field!(
-            "max_size_width",
-            F_MAX_SIZE_WIDTH,
-            |v: LengthPercentageAutoInput| { style.max_size.width = v.to_taffy() }
-        );
-        set_field!(
-            "max_size_height",
-            F_MAX_SIZE_HEIGHT,
-            |v: LengthPercentageAutoInput| { style.max_size.height = v.to_taffy() }
-        );
-        set_opt_field!("aspect_ratio", F_ASPECT_RATIO, |v: Option<f32>| {
-            style.aspect_ratio = v
-        });
-
-        // Margin
-        set_field!(
-            "margin_left",
-            F_MARGIN_LEFT,
-            |v: LengthPercentageAutoInput| { style.margin.left = v.to_taffy() }
-        );
-        set_field!(
-            "margin_right",
-            F_MARGIN_RIGHT,
-            |v: LengthPercentageAutoInput| { style.margin.right = v.to_taffy() }
-        );
-        set_field!(
-            "margin_top",
-            F_MARGIN_TOP,
-            |v: LengthPercentageAutoInput| { style.margin.top = v.to_taffy() }
-        );
-        set_field!(
-            "margin_bottom",
-            F_MARGIN_BOTTOM,
-            |v: LengthPercentageAutoInput| { style.margin.bottom = v.to_taffy() }
-        );
-
-        // Padding
-        set_field!(
-            "padding_left",
-            F_PADDING_LEFT,
-            |v: LengthPercentageInput| { style.padding.left = v.to_taffy() }
-        );
-        set_field!(
-            "padding_right",
-            F_PADDING_RIGHT,
-            |v: LengthPercentageInput| { style.padding.right = v.to_taffy() }
-        );
-        set_field!("padding_top", F_PADDING_TOP, |v: LengthPercentageInput| {
-            style.padding.top = v.to_taffy()
-        });
-        set_field!(
-            "padding_bottom",
-            F_PADDING_BOTTOM,
-            |v: LengthPercentageInput| { style.padding.bottom = v.to_taffy() }
-        );
-
-        // Border
-        set_field!("border_left", F_BORDER_LEFT, |v: LengthPercentageInput| {
-            style.border.left = v.to_taffy()
-        });
-        set_field!(
-            "border_right",
-            F_BORDER_RIGHT,
-            |v: LengthPercentageInput| { style.border.right = v.to_taffy() }
-        );
-        set_field!("border_top", F_BORDER_TOP, |v: LengthPercentageInput| {
-            style.border.top = v.to_taffy()
-        });
-        set_field!(
-            "border_bottom",
-            F_BORDER_BOTTOM,
-            |v: LengthPercentageInput| { style.border.bottom = v.to_taffy() }
-        );
-
-        // Alignment (these accept None to explicitly clear)
-        set_opt_field!("align_items", F_ALIGN_ITEMS, |v: Option<AlignItems>| {
-            style.align_items = opt_align_items_to_taffy(&v)
-        });
-        set_opt_field!("align_self", F_ALIGN_SELF, |v: Option<AlignItems>| {
-            style.align_self = opt_align_items_to_taffy(&v)
-        });
-        set_opt_field!("justify_items", F_JUSTIFY_ITEMS, |v: Option<AlignItems>| {
-            style.justify_items = opt_align_items_to_taffy(&v)
-        });
-        set_opt_field!("justify_self", F_JUSTIFY_SELF, |v: Option<AlignItems>| {
-            style.justify_self = opt_align_items_to_taffy(&v)
-        });
-        set_opt_field!("align_content", F_ALIGN_CONTENT, |v: Option<
-            AlignContent,
-        >| {
-            style.align_content = opt_align_content_to_taffy(&v)
-        });
-        set_opt_field!("justify_content", F_JUSTIFY_CONTENT, |v: Option<
-            AlignContent,
-        >| {
-            style.justify_content = opt_align_content_to_taffy(&v)
-        });
-
-        // Gap
-        set_field!("gap_width", F_GAP_WIDTH, |v: LengthPercentageInput| {
-            style.gap.width = v.to_taffy()
-        });
-        set_field!("gap_height", F_GAP_HEIGHT, |v: LengthPercentageInput| {
-            style.gap.height = v.to_taffy()
-        });
-
-        // Block
-        set_field!("text_align", F_TEXT_ALIGN, |v: TextAlign| {
-            style.text_align = (&v).into()
-        });
-
-        // Flexbox
-        set_field!("flex_direction", F_FLEX_DIRECTION, |v: FlexDirection| {
-            style.flex_direction = (&v).into()
-        });
-        set_field!("flex_wrap", F_FLEX_WRAP, |v: FlexWrap| {
-            style.flex_wrap = (&v).into()
-        });
-        set_field!("flex_basis", F_FLEX_BASIS, |v: FlexBasisInput| {
-            style.flex_basis = v.to_taffy(py)
-        });
-        set_field!("flex_grow", F_FLEX_GROW, |v: f32| style.flex_grow = v);
-        set_field!("flex_shrink", F_FLEX_SHRINK, |v: f32| {
-            style.flex_shrink = v
-        });
-        if let Some(py_val) = kwargs.get_item("flex_line_count")? {
-            if !py_val.is_none() {
-                let count: u16 = py_val.extract()?;
-                if count == 0 {
-                    return Err(InvalidFlexLineCount::new_err(
-                        "flex_line_count must be at least 1, got 0",
-                    ));
+                "position" => field!(F_POSITION, |v: Position| style.position = (&v).into()),
+                "direction" => field!(F_DIRECTION, |v: Direction| {
+                    style.direction = (&v).into()
+                }),
+                "contain" => field!(F_CONTAIN, |v: Contain| style.contain = (&v).into()),
+                "float" => field!(F_FLOAT, |v: Float| style.float = (&v).into()),
+                "clear" => field!(F_CLEAR, |v: Clear| style.clear = (&v).into()),
+                "item_is_table" => field!(F_ITEM_IS_TABLE, |v: bool| style.item_is_table = v),
+                "item_is_replaced" => {
+                    field!(F_ITEM_IS_REPLACED, |v: bool| { style.item_is_replaced = v })
                 }
-                style.flex_line_count = count;
-                set_fields |= F_FLEX_LINE_COUNT;
+
+                // Inset
+                "inset_left" => field!(F_INSET_LEFT, |v: LengthPercentageAutoInput| {
+                    style.inset.left = v.to_taffy()
+                }),
+                "inset_right" => field!(F_INSET_RIGHT, |v: LengthPercentageAutoInput| {
+                    style.inset.right = v.to_taffy()
+                }),
+                "inset_top" => field!(F_INSET_TOP, |v: LengthPercentageAutoInput| {
+                    style.inset.top = v.to_taffy()
+                }),
+                "inset_bottom" => field!(F_INSET_BOTTOM, |v: LengthPercentageAutoInput| {
+                    style.inset.bottom = v.to_taffy()
+                }),
+
+                // Size
+                "size_width" => field!(F_SIZE_WIDTH, |v: DimensionInput| {
+                    style.size.width = v.to_taffy(py)
+                }),
+                "size_height" => field!(F_SIZE_HEIGHT, |v: DimensionInput| {
+                    style.size.height = v.to_taffy(py)
+                }),
+                "min_size_width" => field!(F_MIN_SIZE_WIDTH, |v: LengthPercentageAutoInput| {
+                    style.min_size.width = v.to_taffy()
+                }),
+                "min_size_height" => field!(F_MIN_SIZE_HEIGHT, |v: LengthPercentageAutoInput| {
+                    style.min_size.height = v.to_taffy()
+                }),
+                "max_size_width" => field!(F_MAX_SIZE_WIDTH, |v: LengthPercentageAutoInput| {
+                    style.max_size.width = v.to_taffy()
+                }),
+                "max_size_height" => field!(F_MAX_SIZE_HEIGHT, |v: LengthPercentageAutoInput| {
+                    style.max_size.height = v.to_taffy()
+                }),
+                "aspect_ratio" => opt_field!(F_ASPECT_RATIO, |v: f32| style.aspect_ratio = v),
+
+                // Margin
+                "margin_left" => field!(F_MARGIN_LEFT, |v: LengthPercentageAutoInput| {
+                    style.margin.left = v.to_taffy()
+                }),
+                "margin_right" => field!(F_MARGIN_RIGHT, |v: LengthPercentageAutoInput| {
+                    style.margin.right = v.to_taffy()
+                }),
+                "margin_top" => field!(F_MARGIN_TOP, |v: LengthPercentageAutoInput| {
+                    style.margin.top = v.to_taffy()
+                }),
+                "margin_bottom" => field!(F_MARGIN_BOTTOM, |v: LengthPercentageAutoInput| {
+                    style.margin.bottom = v.to_taffy()
+                }),
+
+                // Padding
+                "padding_left" => field!(F_PADDING_LEFT, |v: LengthPercentageInput| {
+                    style.padding.left = v.to_taffy()
+                }),
+                "padding_right" => field!(F_PADDING_RIGHT, |v: LengthPercentageInput| {
+                    style.padding.right = v.to_taffy()
+                }),
+                "padding_top" => field!(F_PADDING_TOP, |v: LengthPercentageInput| {
+                    style.padding.top = v.to_taffy()
+                }),
+                "padding_bottom" => field!(F_PADDING_BOTTOM, |v: LengthPercentageInput| {
+                    style.padding.bottom = v.to_taffy()
+                }),
+
+                // Border
+                "border_left" => field!(F_BORDER_LEFT, |v: LengthPercentageInput| {
+                    style.border.left = v.to_taffy()
+                }),
+                "border_right" => field!(F_BORDER_RIGHT, |v: LengthPercentageInput| {
+                    style.border.right = v.to_taffy()
+                }),
+                "border_top" => field!(F_BORDER_TOP, |v: LengthPercentageInput| {
+                    style.border.top = v.to_taffy()
+                }),
+                "border_bottom" => field!(F_BORDER_BOTTOM, |v: LengthPercentageInput| {
+                    style.border.bottom = v.to_taffy()
+                }),
+
+                // Alignment (these accept None to explicitly clear)
+                "align_items" => opt_field!(F_ALIGN_ITEMS, |v: AlignItems| {
+                    style.align_items = opt_align_items_to_taffy(&v)
+                }),
+                "align_self" => opt_field!(F_ALIGN_SELF, |v: AlignItems| {
+                    style.align_self = opt_align_items_to_taffy(&v)
+                }),
+                "justify_items" => opt_field!(F_JUSTIFY_ITEMS, |v: AlignItems| {
+                    style.justify_items = opt_align_items_to_taffy(&v)
+                }),
+                "justify_self" => opt_field!(F_JUSTIFY_SELF, |v: AlignItems| {
+                    style.justify_self = opt_align_items_to_taffy(&v)
+                }),
+                "align_content" => opt_field!(F_ALIGN_CONTENT, |v: AlignContent| {
+                    style.align_content = opt_align_content_to_taffy(&v)
+                }),
+                "justify_content" => opt_field!(F_JUSTIFY_CONTENT, |v: AlignContent| {
+                    style.justify_content = opt_align_content_to_taffy(&v)
+                }),
+
+                // Gap
+                "gap_width" => field!(F_GAP_WIDTH, |v: LengthPercentageInput| {
+                    style.gap.width = v.to_taffy()
+                }),
+                "gap_height" => field!(F_GAP_HEIGHT, |v: LengthPercentageInput| {
+                    style.gap.height = v.to_taffy()
+                }),
+
+                // Block
+                "text_align" => field!(F_TEXT_ALIGN, |v: TextAlign| {
+                    style.text_align = (&v).into()
+                }),
+
+                // Flexbox
+                "flex_direction" => field!(F_FLEX_DIRECTION, |v: FlexDirection| {
+                    style.flex_direction = (&v).into()
+                }),
+                "flex_wrap" => field!(F_FLEX_WRAP, |v: FlexWrap| style.flex_wrap = (&v).into()),
+                "flex_basis" => field!(F_FLEX_BASIS, |v: FlexBasisInput| {
+                    style.flex_basis = v.to_taffy(py)
+                }),
+                "flex_grow" => field!(F_FLEX_GROW, |v: f32| style.flex_grow = v),
+                "flex_shrink" => field!(F_FLEX_SHRINK, |v: f32| style.flex_shrink = v),
+                "flex_line_count" => field!(F_FLEX_LINE_COUNT, |v: u16| {
+                    if v == 0 {
+                        return Err(InvalidFlexLineCount::new_err(
+                            "flex_line_count must be at least 1, got 0",
+                        ));
+                    }
+                    style.flex_line_count = v
+                }),
+
+                // Grid
+                "grid_template_rows" => {
+                    field!(F_GRID_TEMPLATE_ROWS, |v: Vec<GridTemplateInput>| {
+                        style.grid_template_rows = tracks_to_taffy(py, &v)
+                    })
+                }
+                "grid_template_columns" => {
+                    field!(F_GRID_TEMPLATE_COLUMNS, |v: Vec<GridTemplateInput>| {
+                        style.grid_template_columns = tracks_to_taffy(py, &v)
+                    })
+                }
+                "grid_template_row_names" => {
+                    field!(F_GRID_TEMPLATE_ROW_NAMES, |v: Vec<Vec<String>>| {
+                        style.grid_template_row_names = v
+                    })
+                }
+                "grid_template_column_names" => {
+                    field!(F_GRID_TEMPLATE_COLUMN_NAMES, |v: Vec<Vec<String>>| {
+                        style.grid_template_column_names = v
+                    })
+                }
+                "grid_template_areas" => {
+                    opt_field!(F_GRID_TEMPLATE_AREAS, |v: GridTemplateAreas| {
+                        style.grid_template_areas = v.map(|a| a.inner)
+                    })
+                }
+                "grid_auto_rows" => field!(F_GRID_AUTO_ROWS, |v: Vec<GridTrackInput>| {
+                    style.grid_auto_rows = auto_tracks_to_taffy(py, &v)
+                }),
+                "grid_auto_columns" => field!(F_GRID_AUTO_COLUMNS, |v: Vec<GridTrackInput>| {
+                    style.grid_auto_columns = auto_tracks_to_taffy(py, &v)
+                }),
+                "grid_auto_flow" => field!(F_GRID_AUTO_FLOW, |v: GridAutoFlow| {
+                    style.grid_auto_flow = (&v).into()
+                }),
+                "grid_row" => field!(F_GRID_ROW, |v: GridPlacement| style.grid_row = (&v).into()),
+                "grid_column" => field!(F_GRID_COLUMN, |v: GridPlacement| {
+                    style.grid_column = (&v).into()
+                }),
+
+                // Worded like pyo3's error for a keyword its own signatures don't accept.
+                _ => {
+                    return Err(PyTypeError::new_err(format!(
+                        "Style.__new__() got an unexpected keyword argument '{name}'"
+                    )))
+                }
             }
         }
 
-        // Grid
-        set_field!("grid_template_rows", F_GRID_TEMPLATE_ROWS, |v: Vec<
-            GridTemplateInput,
-        >| {
-            style.grid_template_rows = tracks_to_taffy(py, &v)
-        });
-        set_field!(
-            "grid_template_columns",
-            F_GRID_TEMPLATE_COLUMNS,
-            |v: Vec<GridTemplateInput>| { style.grid_template_columns = tracks_to_taffy(py, &v) }
-        );
-        set_field!(
-            "grid_template_row_names",
-            F_GRID_TEMPLATE_ROW_NAMES,
-            |v: Vec<Vec<String>>| { style.grid_template_row_names = v }
-        );
-        set_field!(
-            "grid_template_column_names",
-            F_GRID_TEMPLATE_COLUMN_NAMES,
-            |v: Vec<Vec<String>>| { style.grid_template_column_names = v }
-        );
-        set_opt_field!("grid_template_areas", F_GRID_TEMPLATE_AREAS, |v: Option<
-            GridTemplateAreas,
-        >| {
-            style.grid_template_areas = v.map(|a| a.inner)
-        });
-        set_field!("grid_auto_rows", F_GRID_AUTO_ROWS, |v: Vec<
-            GridTrackInput,
-        >| {
-            style.grid_auto_rows = auto_tracks_to_taffy(py, &v)
-        });
-        set_field!("grid_auto_columns", F_GRID_AUTO_COLUMNS, |v: Vec<
-            GridTrackInput,
-        >| {
-            style.grid_auto_columns = auto_tracks_to_taffy(py, &v)
-        });
-        set_field!("grid_auto_flow", F_GRID_AUTO_FLOW, |v: GridAutoFlow| {
-            style.grid_auto_flow = (&v).into()
-        });
-        set_field!("grid_row", F_GRID_ROW, |v: GridPlacement| {
-            style.grid_row = (&v).into()
-        });
-        set_field!("grid_column", F_GRID_COLUMN, |v: GridPlacement| {
-            style.grid_column = (&v).into()
-        });
+        Ok(Self::from_parts(style, set_fields))
+    }
 
-        Ok(Self {
-            inner: style,
-            set_fields,
-        })
+    /// The names of the explicitly set fields.
+    #[getter]
+    fn fields_set<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyFrozenSet>> {
+        let names = FIELDS
+            .iter()
+            .filter(|(_, flag)| self.set_fields & flag != 0)
+            .map(|(name, _)| *name);
+        PyFrozenSet::new(py, names)
     }
 
     // --- Getters ---
@@ -745,263 +1100,38 @@ impl Style {
     }
 
     fn __eq__(&self, other: &Style) -> bool {
-        self.inner == other.inner
+        self.set_fields == other.set_fields && self.inner == other.inner
     }
 
     fn __hash__(&self) -> u64 {
-        use std::hash::{Hash, Hasher};
-        use std::mem::discriminant;
-        let mut h = std::collections::hash_map::DefaultHasher::new();
-        let s = &self.inner;
-
-        // Enum fields — use discriminant since taffy enums don't derive Hash.
-        discriminant(&s.display).hash(&mut h);
-        discriminant(&s.box_sizing).hash(&mut h);
-        discriminant(&s.overflow.x).hash(&mut h);
-        discriminant(&s.overflow.y).hash(&mut h);
-        discriminant(&s.position).hash(&mut h);
-        discriminant(&s.text_align).hash(&mut h);
-        discriminant(&s.flex_direction).hash(&mut h);
-        discriminant(&s.flex_wrap).hash(&mut h);
-        discriminant(&s.grid_auto_flow).hash(&mut h);
-        discriminant(&s.direction).hash(&mut h);
-        discriminant(&s.float).hash(&mut h);
-        discriminant(&s.clear).hash(&mut h);
-        // taffy's Contain is a bitset struct, so hash the enum it maps to.
-        (Contain::from(s.contain) as u8).hash(&mut h);
-
-        // Option<alignment> fields — taffy's alignment types are (keyword, safety) structs.
-        s.align_items
-            .map(|v| (discriminant(&v.keyword), discriminant(&v.safety)))
-            .hash(&mut h);
-        s.align_self
-            .map(|v| (discriminant(&v.keyword), discriminant(&v.safety)))
-            .hash(&mut h);
-        s.justify_items
-            .map(|v| (discriminant(&v.keyword), discriminant(&v.safety)))
-            .hash(&mut h);
-        s.justify_self
-            .map(|v| (discriminant(&v.keyword), discriminant(&v.safety)))
-            .hash(&mut h);
-        s.align_content
-            .map(|v| (discriminant(&v.keyword), discriminant(&v.safety)))
-            .hash(&mut h);
-        s.justify_content
-            .map(|v| (discriminant(&v.keyword), discriminant(&v.safety)))
-            .hash(&mut h);
-
-        // Plain bool and integer fields.
-        s.item_is_table.hash(&mut h);
-        s.item_is_replaced.hash(&mut h);
-        s.flex_line_count.hash(&mut h);
-
-        // Plain f32 fields — normalize -0.0 (consistent with f32's IEEE
-        // float equality used by taffy's derived PartialEq for these fields).
-        hash_f32(s.scrollbar_width, &mut h);
-        hash_f32(s.flex_grow, &mut h);
-        hash_f32(s.flex_shrink, &mut h);
-        match s.aspect_ratio {
-            Some(v) => {
-                1u8.hash(&mut h);
-                hash_f32(v, &mut h);
-            }
-            None => 0u8.hash(&mut h),
-        }
-
-        // CompactLength fields — bit-exact, matching CompactLength's PartialEq.
-        // Each field type (Dimension, LengthPercentage, etc.) wraps CompactLength;
-        // into_raw() extracts it.
-        hash_taffy_compact_length(s.inset.left.into_raw(), &mut h);
-        hash_taffy_compact_length(s.inset.right.into_raw(), &mut h);
-        hash_taffy_compact_length(s.inset.top.into_raw(), &mut h);
-        hash_taffy_compact_length(s.inset.bottom.into_raw(), &mut h);
-        hash_taffy_compact_length(s.size.width.into_raw(), &mut h);
-        hash_taffy_compact_length(s.size.height.into_raw(), &mut h);
-        hash_taffy_compact_length(s.min_size.width.into_raw(), &mut h);
-        hash_taffy_compact_length(s.min_size.height.into_raw(), &mut h);
-        hash_taffy_compact_length(s.max_size.width.into_raw(), &mut h);
-        hash_taffy_compact_length(s.max_size.height.into_raw(), &mut h);
-        hash_taffy_compact_length(s.margin.left.into_raw(), &mut h);
-        hash_taffy_compact_length(s.margin.right.into_raw(), &mut h);
-        hash_taffy_compact_length(s.margin.top.into_raw(), &mut h);
-        hash_taffy_compact_length(s.margin.bottom.into_raw(), &mut h);
-        hash_taffy_compact_length(s.padding.left.into_raw(), &mut h);
-        hash_taffy_compact_length(s.padding.right.into_raw(), &mut h);
-        hash_taffy_compact_length(s.padding.top.into_raw(), &mut h);
-        hash_taffy_compact_length(s.padding.bottom.into_raw(), &mut h);
-        hash_taffy_compact_length(s.border.left.into_raw(), &mut h);
-        hash_taffy_compact_length(s.border.right.into_raw(), &mut h);
-        hash_taffy_compact_length(s.border.top.into_raw(), &mut h);
-        hash_taffy_compact_length(s.border.bottom.into_raw(), &mut h);
-        hash_taffy_compact_length(s.gap.width.into_raw(), &mut h);
-        hash_taffy_compact_length(s.gap.height.into_raw(), &mut h);
-        hash_taffy_compact_length(s.flex_basis.into_raw(), &mut h);
-
-        // Grid track Vecs.
-        s.grid_auto_rows.len().hash(&mut h);
-        for tsf in &s.grid_auto_rows {
-            hash_taffy_track_sizing_function(*tsf, &mut h);
-        }
-        s.grid_auto_columns.len().hash(&mut h);
-        for tsf in &s.grid_auto_columns {
-            hash_taffy_track_sizing_function(*tsf, &mut h);
-        }
-        s.grid_template_rows.len().hash(&mut h);
-        for comp in &s.grid_template_rows {
-            hash_taffy_template_component(comp, &mut h);
-        }
-        s.grid_template_columns.len().hash(&mut h);
-        for comp in &s.grid_template_columns {
-            hash_taffy_template_component(comp, &mut h);
-        }
-        s.grid_template_row_names.hash(&mut h);
-        s.grid_template_column_names.hash(&mut h);
-        match &s.grid_template_areas {
-            Some(areas) => {
-                1u8.hash(&mut h);
-                areas.row_count.hash(&mut h);
-                areas.column_count.hash(&mut h);
-                areas.areas.len().hash(&mut h);
-                for area in &areas.areas {
-                    hash_taffy_template_area(area, &mut h);
-                }
-            }
-            None => 0u8.hash(&mut h),
-        }
-
-        // Grid placement fields.
-        hash_taffy_grid_placement(&s.grid_row.start, &mut h);
-        hash_taffy_grid_placement(&s.grid_row.end, &mut h);
-        hash_taffy_grid_placement(&s.grid_column.start, &mut h);
-        hash_taffy_grid_placement(&s.grid_column.end, &mut h);
-
-        h.finish()
+        *self.hash.get_or_init(|| self.compute_hash())
     }
 
-    fn __repr__(&self) -> String {
-        format!(
-            "Style(display={:?}, position={:?})",
-            self.inner.display, self.inner.position
-        )
+    /// The set fields in declaration order, each with its getter's repr.
+    fn __repr__(slf: &Bound<'_, Self>) -> PyResult<String> {
+        let set_fields = slf.borrow().set_fields;
+        let mut parts = Vec::new();
+        for (name, flag) in FIELDS {
+            if set_fields & flag != 0 {
+                parts.push(format!("{name}={}", slf.getattr(*name)?.repr()?));
+            }
+        }
+        Ok(format!("Style({})", parts.join(", ")))
     }
 
     /// Merge two styles: `self | other`. Fields explicitly set in `other` override
     /// those in `self`. Fields not set in `other` are preserved from `self`.
     fn __or__(&self, other: &Style) -> Style {
-        let mut result = self.clone();
-        let rhs = other.set_fields;
-
-        macro_rules! merge {
-            // Copy field: result.inner.$($path).+ = other.inner.$($path).+
-            ($flag:expr, $($path:ident).+) => {
-                if rhs & $flag != 0 {
-                    result.inner.$($path).+ = other.inner.$($path).+;
-                }
-            };
-            // Clone field (for non-Copy types like Vec)
-            (clone $flag:expr, $($path:ident).+) => {
-                if rhs & $flag != 0 {
-                    result.inner.$($path).+ = other.inner.$($path).+.clone();
-                }
-            };
-        }
-
-        merge!(F_DISPLAY, display);
-        merge!(F_BOX_SIZING, box_sizing);
-        merge!(F_OVERFLOW_X, overflow.x);
-        merge!(F_OVERFLOW_Y, overflow.y);
-        merge!(F_SCROLLBAR_WIDTH, scrollbar_width);
-        merge!(F_POSITION, position);
-        merge!(F_DIRECTION, direction);
-        merge!(F_CONTAIN, contain);
-        merge!(F_FLOAT, float);
-        merge!(F_CLEAR, clear);
-        merge!(F_ITEM_IS_TABLE, item_is_table);
-        merge!(F_ITEM_IS_REPLACED, item_is_replaced);
-
-        // Inset
-        merge!(F_INSET_LEFT, inset.left);
-        merge!(F_INSET_RIGHT, inset.right);
-        merge!(F_INSET_TOP, inset.top);
-        merge!(F_INSET_BOTTOM, inset.bottom);
-
-        // Size
-        merge!(F_SIZE_WIDTH, size.width);
-        merge!(F_SIZE_HEIGHT, size.height);
-        merge!(F_MIN_SIZE_WIDTH, min_size.width);
-        merge!(F_MIN_SIZE_HEIGHT, min_size.height);
-        merge!(F_MAX_SIZE_WIDTH, max_size.width);
-        merge!(F_MAX_SIZE_HEIGHT, max_size.height);
-        merge!(F_ASPECT_RATIO, aspect_ratio);
-
-        // Margin
-        merge!(F_MARGIN_LEFT, margin.left);
-        merge!(F_MARGIN_RIGHT, margin.right);
-        merge!(F_MARGIN_TOP, margin.top);
-        merge!(F_MARGIN_BOTTOM, margin.bottom);
-
-        // Padding
-        merge!(F_PADDING_LEFT, padding.left);
-        merge!(F_PADDING_RIGHT, padding.right);
-        merge!(F_PADDING_TOP, padding.top);
-        merge!(F_PADDING_BOTTOM, padding.bottom);
-
-        // Border
-        merge!(F_BORDER_LEFT, border.left);
-        merge!(F_BORDER_RIGHT, border.right);
-        merge!(F_BORDER_TOP, border.top);
-        merge!(F_BORDER_BOTTOM, border.bottom);
-
-        // Alignment
-        merge!(F_ALIGN_ITEMS, align_items);
-        merge!(F_ALIGN_SELF, align_self);
-        merge!(F_JUSTIFY_ITEMS, justify_items);
-        merge!(F_JUSTIFY_SELF, justify_self);
-        merge!(F_ALIGN_CONTENT, align_content);
-        merge!(F_JUSTIFY_CONTENT, justify_content);
-
-        // Gap
-        merge!(F_GAP_WIDTH, gap.width);
-        merge!(F_GAP_HEIGHT, gap.height);
-
-        // Block
-        merge!(F_TEXT_ALIGN, text_align);
-
-        // Flexbox
-        merge!(F_FLEX_DIRECTION, flex_direction);
-        merge!(F_FLEX_WRAP, flex_wrap);
-        merge!(F_FLEX_BASIS, flex_basis);
-        merge!(F_FLEX_GROW, flex_grow);
-        merge!(F_FLEX_SHRINK, flex_shrink);
-        merge!(F_FLEX_LINE_COUNT, flex_line_count);
-
-        // Grid
-        merge!(clone F_GRID_TEMPLATE_ROWS, grid_template_rows);
-        merge!(clone F_GRID_TEMPLATE_COLUMNS, grid_template_columns);
-        merge!(clone F_GRID_TEMPLATE_ROW_NAMES, grid_template_row_names);
-        merge!(clone F_GRID_TEMPLATE_COLUMN_NAMES, grid_template_column_names);
-        merge!(clone F_GRID_TEMPLATE_AREAS, grid_template_areas);
-        merge!(clone F_GRID_AUTO_ROWS, grid_auto_rows);
-        merge!(clone F_GRID_AUTO_COLUMNS, grid_auto_columns);
-        merge!(F_GRID_AUTO_FLOW, grid_auto_flow);
-        merge!(clone F_GRID_ROW, grid_row);
-        merge!(clone F_GRID_COLUMN, grid_column);
-
-        // Merge the set_fields bitmask: result has everything self had plus everything other set.
-        result.set_fields |= rhs;
-
-        result
+        let mut inner = self.inner.clone();
+        copy_fields(&mut inner, &other.inner, other.set_fields);
+        Style::from_parts(inner, self.set_fields | other.set_fields)
     }
 }
 
 impl From<&taffy::Style> for Style {
     fn from(s: &taffy::Style) -> Self {
-        Self {
-            inner: s.clone(),
-            // When converting from a taffy::Style, we don't know which fields were
-            // explicitly set, so we mark all fields as set.
-            set_fields: u64::MAX,
-        }
+        // taffy doesn't keep track of which fields were explicitly set, so mark them all set.
+        Self::from_parts(s.clone(), ALL_FIELDS)
     }
 }
 

@@ -231,3 +231,63 @@ def test_remove_children_range_out_of_bounds_raises(start: int, end: int) -> Non
     parent = tree.new_with_children(waxy.Style(), [tree.new_leaf(waxy.Style()) for _ in range(2)])
     with pytest.raises(waxy.ChildIndexOutOfBounds):
         tree.remove_children_range(parent, start, end)
+
+
+def test_set_style_with_equal_style_keeps_node_clean() -> None:
+    tree: waxy.TaffyTree[object] = waxy.TaffyTree()
+    node = tree.new_leaf(waxy.Style(flex_grow=1))
+    tree.compute_layout(node)
+    tree.set_style(node, waxy.Style(flex_grow=1))
+    assert not tree.dirty(node)
+
+
+def test_set_style_with_equal_values_but_different_set_fields_keeps_node_clean() -> None:
+    tree: waxy.TaffyTree[object] = waxy.TaffyTree()
+    node = tree.new_leaf(waxy.Style())
+    tree.compute_layout(node)
+    tree.set_style(node, waxy.Style(display=waxy.Display.Flex))
+    assert not tree.dirty(node)
+
+
+def test_set_style_with_different_style_marks_node_dirty() -> None:
+    tree: waxy.TaffyTree[object] = waxy.TaffyTree()
+    node = tree.new_leaf(waxy.Style(flex_grow=1))
+    tree.compute_layout(node)
+    tree.set_style(node, waxy.Style(flex_grow=2))
+    assert tree.dirty(node)
+
+
+def test_set_style_on_removed_node_raises() -> None:
+    tree: waxy.TaffyTree[object] = waxy.TaffyTree()
+    node = tree.new_leaf(waxy.Style())
+    tree.remove(node)
+    with pytest.raises(waxy.InvalidNodeId):
+        tree.set_style(node, waxy.Style())
+
+
+def test_format_tree_includes_every_node_indented_by_depth() -> None:
+    tree: waxy.TaffyTree[object] = waxy.TaffyTree()
+    leaf = tree.new_leaf(waxy.Style(size_width=waxy.Length(3)))
+    middle = tree.new_with_children(waxy.Style(padding_left=waxy.Length(1)), [leaf])
+    root = tree.new_with_children(waxy.Style(), [middle])
+    tree.compute_layout(root)
+
+    assert tree.format_tree(root).splitlines() == [
+        f"{root!r} location=Point(x=0, y=0) size=Size(width=4, height=0) Style()",
+        (
+            f"  {middle!r} location=Point(x=0, y=0) size=Size(width=4, height=0)"
+            " Style(padding_left=Length(1))"
+        ),
+        (
+            f"    {leaf!r} location=Point(x=1, y=0) size=Size(width=3, height=0)"
+            " Style(size_width=Length(3))"
+        ),
+    ]
+
+
+def test_format_tree_of_removed_node_raises() -> None:
+    tree: waxy.TaffyTree[object] = waxy.TaffyTree()
+    node = tree.new_leaf(waxy.Style())
+    tree.remove(node)
+    with pytest.raises(waxy.InvalidNodeId):
+        tree.format_tree(node)

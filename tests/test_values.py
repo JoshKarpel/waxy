@@ -1,5 +1,6 @@
 """Tests for the new standalone value types."""
 
+from collections.abc import Callable
 from dataclasses import dataclass
 
 import pytest
@@ -619,3 +620,158 @@ def test_zero_argument_value_types_hash_distinctly() -> None:
     ]
     assert len({hash(v) for v in values}) == len(values)
     assert len(set(values)) == len(values)
+
+
+# Each case: the union, a function that passes a value through a constructor that takes that
+# union and reads it back, and one value of each type the union accepts.
+EXTRACTION_CASES: list[tuple[str, Callable[..., object], list[object]]] = [
+    (
+        "DimensionValue",
+        lambda v: waxy.Style(size_width=v).size_width,
+        [
+            waxy.Length(1),
+            waxy.Percent(0.5),
+            waxy.AUTO,
+            waxy.MIN_CONTENT,
+            waxy.MAX_CONTENT,
+            waxy.FitContent(waxy.Length(3)),
+            waxy.FIT_CONTENT,
+            waxy.STRETCH,
+        ],
+    ),
+    (
+        "FlexBasisValue",
+        lambda v: waxy.Style(flex_basis=v).flex_basis,
+        [waxy.CONTENT, waxy.Length(1), waxy.STRETCH, waxy.FitContent(waxy.Percent(0.5))],
+    ),
+    (
+        "LengthPercentageValue",
+        lambda v: waxy.Style(padding_left=v).padding_left,
+        [waxy.Length(1), waxy.Percent(0.5)],
+    ),
+    (
+        "LengthPercentageAutoValue",
+        lambda v: waxy.Style(margin_left=v).margin_left,
+        [waxy.Length(1), waxy.Percent(0.5), waxy.AUTO],
+    ),
+    (
+        "AvailableSpaceValue",
+        lambda v: waxy.AvailableSize(v, waxy.MIN_CONTENT).width,
+        [waxy.Definite(4), waxy.MIN_CONTENT, waxy.MAX_CONTENT],
+    ),
+    (
+        "GridTrackMinValue",
+        lambda v: waxy.Minmax(v, waxy.Fraction(1)).min,
+        [waxy.Length(1), waxy.Percent(0.5), waxy.AUTO, waxy.MIN_CONTENT, waxy.MAX_CONTENT],
+    ),
+    (
+        "GridTrackMaxValue",
+        lambda v: waxy.Minmax(waxy.AUTO, v).max,
+        [
+            waxy.Length(1),
+            waxy.Percent(0.5),
+            waxy.AUTO,
+            waxy.MIN_CONTENT,
+            waxy.MAX_CONTENT,
+            waxy.Fraction(2),
+            waxy.FitContent(waxy.Length(3)),
+        ],
+    ),
+    (
+        "GridTrackValue",
+        lambda v: waxy.Style(grid_auto_rows=[v]).grid_auto_rows[0],
+        [
+            waxy.Length(1),
+            waxy.Percent(0.5),
+            waxy.AUTO,
+            waxy.MIN_CONTENT,
+            waxy.MAX_CONTENT,
+            waxy.Fraction(2),
+            waxy.Minmax(waxy.Length(1), waxy.Fraction(2)),
+            waxy.FitContent(waxy.Length(3)),
+        ],
+    ),
+    (
+        "GridTemplateValue",
+        lambda v: waxy.Style(grid_template_rows=[v]).grid_template_rows[0],
+        [
+            waxy.Repeat(2, [waxy.AUTO]),
+            waxy.Length(1),
+            waxy.Minmax(waxy.Length(2), waxy.Fraction(1)),
+        ],
+    ),
+    (
+        "GridPlacementValue",
+        lambda v: waxy.GridPlacement(v).start,
+        [
+            waxy.GridLine(2),
+            waxy.GridSpan(3),
+            waxy.NamedGridLine("a", 2),
+            waxy.NamedGridSpan("b"),
+            waxy.AUTO,
+        ],
+    ),
+    (
+        "Repeat count",
+        lambda v: waxy.Repeat(v, [waxy.AUTO]).count,
+        [3, waxy.AUTO_FILL, waxy.AUTO_FIT],
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    ("round_trip", "value"),
+    [
+        pytest.param(round_trip, value, id=f"{union}-{value!r}")
+        for union, round_trip, values in EXTRACTION_CASES
+        for value in values
+    ],
+)
+def test_union_extracts_each_accepted_type(
+    round_trip: Callable[..., object], value: object
+) -> None:
+    assert round_trip(value) == value
+
+
+@pytest.mark.parametrize(
+    ("make", "message"),
+    [
+        (
+            lambda: waxy.Style(size_width=1),  # type: ignore[arg-type]
+            (
+                "expected Length | Percent | Auto | MinContent | MaxContent | FitContent"
+                " | FitContentKeyword | Stretch, got int"
+            ),
+        ),
+        (
+            lambda: waxy.Style(flex_basis="auto"),  # type: ignore[arg-type]
+            (
+                "expected Content | Length | Percent | Auto | MinContent | MaxContent | FitContent"
+                " | FitContentKeyword | Stretch, got str"
+            ),
+        ),
+        (
+            lambda: waxy.Style(grid_template_rows=[1.0]),  # type: ignore[list-item]
+            (
+                "expected Repeat | Length | Percent | Auto | MinContent | MaxContent | Fraction"
+                " | Minmax | FitContent, got float"
+            ),
+        ),
+        (lambda: waxy.Repeat("x", [waxy.AUTO]), "expected AutoFill | AutoFit | int, got str"),  # type: ignore[arg-type]
+        (
+            lambda: waxy.GridPlacement(waxy.Length(1)),  # type: ignore[arg-type]
+            "expected GridLine | GridSpan | NamedGridLine | NamedGridSpan | Auto, got Length",
+        ),
+    ],
+)
+def test_wrong_type_raises_type_error_naming_accepted_types(
+    make: Callable[[], object], message: str
+) -> None:
+    with pytest.raises(TypeError) as excinfo:
+        make()
+    assert str(excinfo.value) == message
+
+
+def test_out_of_range_int_for_nested_int_raises_overflow_error() -> None:
+    with pytest.raises(OverflowError):
+        waxy.Repeat(-1, [waxy.AUTO])

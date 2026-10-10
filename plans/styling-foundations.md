@@ -188,8 +188,9 @@ Remove the `PixelIter`, `RowIter` and `ColumnIter` classes.
 `waxy.Line` is an `f32` interval with the same kind of geometry methods
 (`length`, `contains`, iteration).
 Taffy's own `Line<T>` is a start/end container (it's what `grid_row` and `grid_column` hold),
-but waxy exposes those through `GridPlacement`, and no waxy API takes or returns `waxy.Line`.
-Remove `Line` entirely.
+and `DetailedGridTracksInfo.positions` returns taffy's `Vec<Line<f32>>` as `list[waxy.Line]`.
+Give `Line` the same treatment as `Rect`: remove `length`, `contains`, `__iter__` and `__len__`
+(and the `IntIter` class), and keep its two fields, `__eq__`, `__hash__` and `__repr__`.
 
 Update the stubs, the API docs and `tests/test_geometry.py`,
 and list every removal under `Removed` in the changelog.

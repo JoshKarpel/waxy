@@ -442,3 +442,61 @@ def test_measured_leaf_size_includes_its_padding_and_border() -> None:
     )
     tree.compute_layout(leaf, measure=measure)
     assert tree.layout(leaf).size == waxy.Size(48.0, 30.0)
+
+
+def build_cards(tree: waxy.TaffyTree[str], texts: list[str]) -> waxy.NodeId:
+    """A row of bordered cards, each a column holding one text leaf, which taffy measures often."""
+    card_style = waxy.Style(
+        flex_direction=waxy.FlexDirection.Column,
+        flex_grow=1,
+        border_left=waxy.Length(1),
+        border_right=waxy.Length(1),
+    )
+    cards = [
+        tree.new_with_children(card_style, [tree.new_leaf_with_context(waxy.Style(), text)])
+        for text in texts
+    ]
+    return tree.new_with_children(waxy.Style(size_width=waxy.Length(30)), cards)
+
+
+def measure_text(known: waxy.KnownSize, available: waxy.AvailableSize, text: str) -> waxy.Size:
+    """One cell per character, wrapped to the offered width."""
+    match known.width, available.width:
+        case float() as width, _:
+            pass
+        case None, waxy.Definite(value):
+            width = min(float(len(text)), value)
+        case _:
+            width = float(len(text))
+    return waxy.Size(width, float(-(-len(text) // max(int(width), 1))))
+
+
+def test_measure_called_once_per_distinct_input_per_node() -> None:
+    calls: list[tuple[waxy.KnownSize, waxy.AvailableSize, str]] = []
+
+    def counting_measure(
+        known: waxy.KnownSize, available: waxy.AvailableSize, text: str
+    ) -> waxy.Size:
+        calls.append((known, available, text))
+        return measure_text(known, available, text)
+
+    tree: waxy.TaffyTree[str] = waxy.TaffyTree()
+    root = build_cards(tree, ["a longer piece of text", "short", "medium text"])
+    tree.compute_layout(root, measure=counting_measure)
+
+    assert len(calls) == len(set(calls))
+
+
+def test_measure_memo_keeps_results_separate_per_node() -> None:
+    tree: waxy.TaffyTree[str] = waxy.TaffyTree()
+    # The leaves sit in identical positions, so taffy asks both the same questions.
+    narrow = tree.new_leaf_with_context(waxy.Style(), "ab")
+    wide = tree.new_leaf_with_context(waxy.Style(), "abcdefgh")
+    root = tree.new_with_children(
+        waxy.Style(flex_direction=waxy.FlexDirection.Column, align_items=waxy.AlignItems.Start),
+        [narrow, wide],
+    )
+    tree.compute_layout(root, measure=measure_text)
+
+    assert tree.layout(narrow).size.width == 2
+    assert tree.layout(wide).size.width == 8

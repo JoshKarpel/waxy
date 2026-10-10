@@ -9,7 +9,7 @@ pub struct NodeId {
 
 #[pymethods]
 impl NodeId {
-    fn __repr__(&self) -> String {
+    pub(crate) fn __repr__(&self) -> String {
         let val: u64 = self.inner.into();
         format!("NodeId({val})")
     }

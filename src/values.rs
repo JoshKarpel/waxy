@@ -1,3 +1,4 @@
+use pyo3::exceptions::PyTypeError;
 use pyo3::prelude::*;
 use pyo3::types::PyTuple;
 use taffy::geometry::MinMax;
@@ -595,14 +596,6 @@ impl AutoFit {
     fn __hash__(&self) -> isize {
         7
     }
-}
-
-/// Accepts `int | AutoFill | AutoFit` as a `Repeat` count.
-#[derive(FromPyObject)]
-pub enum RepetitionCountInput {
-    AutoFill(AutoFill),
-    AutoFit(AutoFit),
-    Count(u16),
 }
 
 /// CSS `repeat()` in `grid_template_rows` / `grid_template_columns`.
@@ -1464,18 +1457,153 @@ fn parse_grid_template_areas(rows: &[String]) -> Result<taffy::GridTemplateAreas
 
 // ─── Input enums (FromPyObject, not pyclasses) ─────────────────────────────
 
-/// Accepts `Length | Percent | Auto | MinContent | MaxContent | FitContent | FitContentKeyword
-/// | Stretch` from Python (for `size_*`).
-#[derive(FromPyObject)]
-pub enum DimensionInput {
-    Length(Length),
-    Percent(Percent),
-    Auto(Auto),
-    MinContent(MinContent),
-    MaxContent(MaxContent),
-    FitContent(Py<FitContent>),
-    FitContentKeyword(FitContentKeyword),
-    Stretch(Stretch),
+/// How an input enum's pyclass variant takes its value from an instance of `Class`.
+trait ClassVariant {
+    type Class: pyo3::PyClass + pyo3::PyTypeInfo;
+    fn from_instance(instance: &Bound<'_, Self::Class>) -> Self;
+}
+
+/// Classes that hold Python objects (and so aren't `Clone`) are kept as a new reference.
+impl<T: pyo3::PyClass + pyo3::PyTypeInfo> ClassVariant for Py<T> {
+    type Class = T;
+    fn from_instance(instance: &Bound<'_, T>) -> Self {
+        instance.clone().unbind()
+    }
+}
+
+/// Frozen classes holding plain Rust values are copied out of the instance.
+macro_rules! cloned_class_variants {
+    ($($class:ty),* $(,)?) => {$(
+        impl ClassVariant for $class {
+            type Class = $class;
+            fn from_instance(instance: &Bound<'_, $class>) -> Self {
+                instance.get().clone()
+            }
+        }
+    )*};
+}
+
+cloned_class_variants!(
+    Length,
+    Percent,
+    Auto,
+    MinContent,
+    MaxContent,
+    Stretch,
+    FitContentKeyword,
+    Content,
+    Definite,
+    Fraction,
+    AutoFill,
+    AutoFit,
+    GridLine,
+    GridSpan,
+    NamedGridLine,
+    NamedGridSpan,
+);
+
+/// The Python type names an input accepts, for the error raised when none of them match.
+trait AcceptedTypes {
+    fn accepted_types(py: Python<'_>, names: &mut Vec<String>) -> PyResult<()>;
+}
+
+impl AcceptedTypes for u16 {
+    fn accepted_types(_py: Python<'_>, names: &mut Vec<String>) -> PyResult<()> {
+        names.push("int".to_owned());
+        Ok(())
+    }
+}
+
+/// The `TypeError` for an object that matches none of `T`'s accepted types.
+fn input_type_error<T: AcceptedTypes>(obj: &Bound<'_, PyAny>) -> PyErr {
+    let message = || -> PyResult<String> {
+        let mut names = Vec::new();
+        T::accepted_types(obj.py(), &mut names)?;
+        Ok(format!(
+            "expected {}, got {}",
+            names.join(" | "),
+            obj.get_type().name()?
+        ))
+    };
+    match message() {
+        Ok(message) => PyTypeError::new_err(message),
+        Err(e) => e,
+    }
+}
+
+/// Define an enum of the Python values a field accepts, and its `FromPyObject`.
+///
+/// `classes` variants match an instance of a pyclass; `nested` variants match whatever another
+/// input type accepts. pyo3's derived `FromPyObject` builds a formatted `PyErr` for every variant
+/// it tries and misses, which made extraction cost grow with a variant's position in the enum.
+/// A `cast` that misses builds no error, so every pyclass variant costs the same; a nested
+/// `extract` that misses does build one, so nested variants are tried last.
+macro_rules! input_enum {
+    (
+        $(#[$meta:meta])*
+        pub enum $name:ident {
+            classes { $($class_variant:ident($class_ty:ty)),* $(,)? }
+            $(nested { $($nested_variant:ident($nested_ty:ty)),* $(,)? })?
+        }
+    ) => {
+        $(#[$meta])*
+        pub enum $name {
+            $($class_variant($class_ty),)*
+            $($($nested_variant($nested_ty),)*)?
+        }
+
+        impl AcceptedTypes for $name {
+            fn accepted_types(py: Python<'_>, names: &mut Vec<String>) -> PyResult<()> {
+                $(
+                    let class = <<$class_ty as ClassVariant>::Class as pyo3::PyTypeInfo>::type_object(py);
+                    names.push(class.name()?.to_string());
+                )*
+                $($(<$nested_ty as AcceptedTypes>::accepted_types(py, names)?;)*)?
+                Ok(())
+            }
+        }
+
+        impl<'a, 'py> FromPyObject<'a, 'py> for $name {
+            type Error = PyErr;
+
+            fn extract(obj: pyo3::Borrowed<'a, 'py, PyAny>) -> PyResult<Self> {
+                $(
+                    if let Ok(instance) = obj.cast::<<$class_ty as ClassVariant>::Class>() {
+                        return Ok(Self::$class_variant(<$class_ty as ClassVariant>::from_instance(
+                            &instance,
+                        )));
+                    }
+                )*
+                $($(
+                    match obj.extract::<$nested_ty>().map_err(Into::<PyErr>::into) {
+                        Ok(value) => return Ok(Self::$nested_variant(value)),
+                        // The nested input took the type but not the value (like a negative
+                        // `int` for a `u16`), so its error says more than a list of types would.
+                        Err(e) if !e.is_instance_of::<PyTypeError>(obj.py()) => return Err(e),
+                        Err(_) => {}
+                    }
+                )*)?
+                Err(input_type_error::<Self>(&obj))
+            }
+        }
+    };
+}
+
+input_enum! {
+    /// Accepts `Length | Percent | Auto | MinContent | MaxContent | FitContent | FitContentKeyword
+    /// | Stretch` from Python (for `size_*`).
+    pub enum DimensionInput {
+        classes {
+            Length(Length),
+            Percent(Percent),
+            Auto(Auto),
+            MinContent(MinContent),
+            MaxContent(MaxContent),
+            FitContent(Py<FitContent>),
+            FitContentKeyword(FitContentKeyword),
+            Stretch(Stretch),
+        }
+    }
 }
 
 impl DimensionInput {
@@ -1493,11 +1621,16 @@ impl DimensionInput {
     }
 }
 
-/// Accepts everything [`DimensionInput`] does, plus `Content` (for `flex_basis`).
-#[derive(FromPyObject)]
-pub enum FlexBasisInput {
-    Content(Content),
-    Dimension(DimensionInput),
+input_enum! {
+    /// Accepts everything [`DimensionInput`] does, plus `Content` (for `flex_basis`).
+    pub enum FlexBasisInput {
+        classes {
+            Content(Content),
+        }
+        nested {
+            Dimension(DimensionInput),
+        }
+    }
 }
 
 impl FlexBasisInput {
@@ -1509,11 +1642,14 @@ impl FlexBasisInput {
     }
 }
 
-/// Accepts `Length | Percent` from Python.
-#[derive(FromPyObject)]
-pub enum LengthPercentageInput {
-    Length(Length),
-    Percent(Percent),
+input_enum! {
+    /// Accepts `Length | Percent` from Python.
+    pub enum LengthPercentageInput {
+        classes {
+            Length(Length),
+            Percent(Percent),
+        }
+    }
 }
 
 impl LengthPercentageInput {
@@ -1525,12 +1661,15 @@ impl LengthPercentageInput {
     }
 }
 
-/// Accepts `Length | Percent | Auto` from Python (for margin/inset fields).
-#[derive(FromPyObject)]
-pub enum LengthPercentageAutoInput {
-    Length(Length),
-    Percent(Percent),
-    Auto(Auto),
+input_enum! {
+    /// Accepts `Length | Percent | Auto` from Python (for margin/inset fields).
+    pub enum LengthPercentageAutoInput {
+        classes {
+            Length(Length),
+            Percent(Percent),
+            Auto(Auto),
+        }
+    }
 }
 
 impl LengthPercentageAutoInput {
@@ -1543,12 +1682,15 @@ impl LengthPercentageAutoInput {
     }
 }
 
-/// Accepts `Definite | MinContent | MaxContent` from Python.
-#[derive(FromPyObject)]
-pub enum AvailableSpaceInput {
-    Definite(Definite),
-    MinContent(MinContent),
-    MaxContent(MaxContent),
+input_enum! {
+    /// Accepts `Definite | MinContent | MaxContent` from Python.
+    pub enum AvailableSpaceInput {
+        classes {
+            Definite(Definite),
+            MinContent(MinContent),
+            MaxContent(MaxContent),
+        }
+    }
 }
 
 impl AvailableSpaceInput {
@@ -1561,14 +1703,17 @@ impl AvailableSpaceInput {
     }
 }
 
-/// Accepts `Length | Percent | Auto | MinContent | MaxContent` — min side of minmax().
-#[derive(FromPyObject)]
-pub enum GridTrackMinInput {
-    Length(Length),
-    Percent(Percent),
-    Auto(Auto),
-    MinContent(MinContent),
-    MaxContent(MaxContent),
+input_enum! {
+    /// Accepts `Length | Percent | Auto | MinContent | MaxContent` — min side of minmax().
+    pub enum GridTrackMinInput {
+        classes {
+            Length(Length),
+            Percent(Percent),
+            Auto(Auto),
+            MinContent(MinContent),
+            MaxContent(MaxContent),
+        }
+    }
 }
 
 impl GridTrackMinInput {
@@ -1583,16 +1728,19 @@ impl GridTrackMinInput {
     }
 }
 
-/// Accepts `Length | Percent | Auto | MinContent | MaxContent | Fraction | FitContent` — max side of minmax().
-#[derive(FromPyObject)]
-pub enum GridTrackMaxInput {
-    Length(Length),
-    Percent(Percent),
-    Auto(Auto),
-    MinContent(MinContent),
-    MaxContent(MaxContent),
-    Fraction(Fraction),
-    FitContent(Py<FitContent>),
+input_enum! {
+    /// Accepts `Length | Percent | Auto | MinContent | MaxContent | Fraction | FitContent` — max side of minmax().
+    pub enum GridTrackMaxInput {
+        classes {
+            Length(Length),
+            Percent(Percent),
+            Auto(Auto),
+            MinContent(MinContent),
+            MaxContent(MaxContent),
+            Fraction(Fraction),
+            FitContent(Py<FitContent>),
+        }
+    }
 }
 
 impl GridTrackMaxInput {
@@ -1609,17 +1757,20 @@ impl GridTrackMaxInput {
     }
 }
 
-/// Accepts the full set of grid track values from Python.
-#[derive(FromPyObject)]
-pub enum GridTrackInput {
-    Length(Length),
-    Percent(Percent),
-    Auto(Auto),
-    MinContent(MinContent),
-    MaxContent(MaxContent),
-    Fraction(Fraction),
-    Minmax(Py<Minmax>),
-    FitContent(Py<FitContent>),
+input_enum! {
+    /// Accepts the full set of grid track values from Python.
+    pub enum GridTrackInput {
+        classes {
+            Length(Length),
+            Percent(Percent),
+            Auto(Auto),
+            MinContent(MinContent),
+            MaxContent(MaxContent),
+            Fraction(Fraction),
+            Minmax(Py<Minmax>),
+            FitContent(Py<FitContent>),
+        }
+    }
 }
 
 impl GridTrackInput {
@@ -1658,11 +1809,16 @@ impl GridTrackInput {
     }
 }
 
-/// Accepts a grid track value or a `Repeat` (for `grid_template_rows` / `grid_template_columns`).
-#[derive(FromPyObject)]
-pub enum GridTemplateInput {
-    Repeat(Py<Repeat>),
-    Track(GridTrackInput),
+input_enum! {
+    /// Accepts a grid track value or a `Repeat` (for `grid_template_rows` / `grid_template_columns`).
+    pub enum GridTemplateInput {
+        classes {
+            Repeat(Py<Repeat>),
+        }
+        nested {
+            Track(GridTrackInput),
+        }
+    }
 }
 
 impl GridTemplateInput {
@@ -1676,14 +1832,17 @@ impl GridTemplateInput {
     }
 }
 
-/// Accepts `GridLine | GridSpan | NamedGridLine | NamedGridSpan | Auto` for grid placement.
-#[derive(FromPyObject)]
-pub enum GridPlacementInput {
-    GridLine(GridLine),
-    GridSpan(GridSpan),
-    NamedGridLine(NamedGridLine),
-    NamedGridSpan(NamedGridSpan),
-    Auto(Auto),
+input_enum! {
+    /// Accepts `GridLine | GridSpan | NamedGridLine | NamedGridSpan | Auto` for grid placement.
+    pub enum GridPlacementInput {
+        classes {
+            GridLine(GridLine),
+            GridSpan(GridSpan),
+            NamedGridLine(NamedGridLine),
+            NamedGridSpan(NamedGridSpan),
+            Auto(Auto),
+        }
+    }
 }
 
 impl GridPlacementInput {
@@ -1698,6 +1857,19 @@ impl GridPlacementInput {
                 TaffyGridPlacement::NamedSpan(ns.name.clone(), ns.count)
             }
             GridPlacementInput::Auto(_) => TaffyGridPlacement::Auto,
+        }
+    }
+}
+
+input_enum! {
+    /// Accepts `int | AutoFill | AutoFit` as a `Repeat` count.
+    pub enum RepetitionCountInput {
+        classes {
+            AutoFill(AutoFill),
+            AutoFit(AutoFit),
+        }
+        nested {
+            Count(u16),
         }
     }
 }

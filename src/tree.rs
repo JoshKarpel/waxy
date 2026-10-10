@@ -1,9 +1,12 @@
+use std::collections::HashMap;
+use std::fmt::Write;
+
 use pyo3::prelude::*;
 use taffy::prelude as tp;
 use taffy::TraversePartialTree;
 
 use crate::errors::{catch_node_panic, catch_panic, taffy_error_to_py, ChildIndexOutOfBounds};
-use crate::geometry::{AvailableSize, KnownSize};
+use crate::geometry::{AvailableSize, KnownSize, Point, Size};
 use crate::layout::{DetailedGridInfo, Layout};
 use crate::node::NodeId;
 use crate::style::Style;
@@ -184,8 +187,15 @@ impl TaffyTree {
         self.inner.clear();
     }
 
-    /// Set the style of a node.
+    /// Set the style of a node, marking it dirty only if the style changed.
     fn set_style(&mut self, node: &NodeId, style: &Style) -> PyResult<()> {
+        // taffy's set_style marks the node dirty unconditionally. Compare `inner` rather than the
+        // whole waxy Style, since taffy only ever sees `inner`.
+        let current =
+            catch_node_panic(node, || self.inner.style(node.inner))?.map_err(taffy_error_to_py)?;
+        if *current == style.inner {
+            return Ok(());
+        }
         catch_node_panic(node, || self.inner.set_style(node.inner, style.to_taffy()))?
             .map_err(taffy_error_to_py)
     }
@@ -228,12 +238,17 @@ impl TaffyTree {
             Some(measure_fn) => {
                 // py_err lives outside catch_unwind so it survives a panic unwind.
                 let py_err: std::cell::RefCell<Option<PyErr>> = std::cell::RefCell::new(None);
+                // taffy's per-node cache evicts inputs it asks for again within the same pass, so
+                // answer repeats here instead of calling Python. Dropped when this call returns:
+                // a memo that outlived one pass would need invalidating on every change taffy's
+                // own dirty tracking already sees.
+                let mut memo: HashMap<MeasureKey, taffy::Size<f32>> = HashMap::new();
 
                 let result = catch_panic(|| {
                     self.inner.compute_layout_with_measure(
                         node.inner,
                         avail,
-                        |inputs, _node_id, node_context: Option<&mut Py<PyAny>>, style| {
+                        |inputs, node_id, node_context: Option<&mut Py<PyAny>>, style| {
                             // compute_leaf_layout applies the leaf's own style (padding,
                             // border, min/max size, aspect ratio) around the content size
                             // that the Python measure function reports.
@@ -264,6 +279,11 @@ impl TaffyTree {
                                         return taffy::Size::ZERO;
                                     };
 
+                                    let key = MeasureKey::new(node_id, known, available);
+                                    if let Some(size) = memo.get(&key) {
+                                        return *size;
+                                    }
+
                                     // Convert to Python types and call the measure function.
                                     let py_known = KnownSize::from(known);
                                     let py_avail = AvailableSize::from(available);
@@ -276,18 +296,17 @@ impl TaffyTree {
                                             *py_err.borrow_mut() = Some(e);
                                             taffy::Size::ZERO
                                         }
-                                        Ok(result) => {
-                                            match result.extract::<crate::geometry::Size>(py) {
-                                                Ok(size) => taffy::Size {
-                                                    width: size.width,
-                                                    height: size.height,
-                                                },
-                                                Err(e) => {
-                                                    *py_err.borrow_mut() = Some(e.into());
-                                                    taffy::Size::ZERO
-                                                }
+                                        Ok(result) => match result.extract::<Size>(py) {
+                                            Ok(size) => {
+                                                let size = taffy::Size::from(&size);
+                                                memo.insert(key, size);
+                                                size
                                             }
-                                        }
+                                            Err(e) => {
+                                                *py_err.borrow_mut() = Some(e.into());
+                                                taffy::Size::ZERO
+                                            }
+                                        },
                                     }
                                 },
                             )
@@ -340,6 +359,15 @@ impl TaffyTree {
         catch_node_panic(root, || self.inner.print_tree(root.inner))
     }
 
+    /// An indented dump of the subtree rooted at `root`.
+    fn format_tree(&self, py: Python<'_>, root: &NodeId) -> PyResult<String> {
+        // taffy's print_tree writes to stdout, which corrupts the screen of a running TUI, so
+        // build the string here instead.
+        let mut lines = Vec::new();
+        catch_node_panic(root, || self.format_node(py, root.inner, 0, &mut lines))??;
+        Ok(lines.join("\n"))
+    }
+
     fn __repr__(&self) -> String {
         format!("TaffyTree(nodes={})", self.inner.total_node_count())
     }
@@ -350,6 +378,67 @@ impl TaffyTree {
         _item: &Bound<'_, PyAny>,
     ) -> Py<pyo3::types::PyType> {
         cls.clone().unbind()
+    }
+}
+
+impl TaffyTree {
+    /// Append one line per node of the subtree rooted at `node` to `lines`, in pre-order.
+    fn format_node(
+        &self,
+        py: Python<'_>,
+        node: taffy::NodeId,
+        depth: usize,
+        lines: &mut Vec<String>,
+    ) -> PyResult<()> {
+        let layout = self.inner.layout(node).map_err(taffy_error_to_py)?;
+        // Stored styles have no set-field bitmask, so show the fields that differ from taffy's
+        // defaults instead.
+        let style = self.inner.style(node).map_err(taffy_error_to_py)?;
+        let style = Bound::new(py, Style::with_non_default_fields_set(py, style)?)?;
+        let mut line = "  ".repeat(depth);
+        write!(
+            line,
+            "{} location={} size={} {}",
+            NodeId::from(node).__repr__(),
+            Point::from(layout.location).__repr__(),
+            Size::from(layout.size).__repr__(),
+            style.repr()?
+        )
+        .expect("writing to a String can't fail");
+        lines.push(line);
+        for child in self.inner.children(node).map_err(taffy_error_to_py)? {
+            self.format_node(py, child, depth + 1, lines)?;
+        }
+        Ok(())
+    }
+}
+
+/// A measure call's inputs, with each `f32` keyed by its bits (with `-0.0` normalized to `+0.0`,
+/// as `hash_f32` does) so the key can be hashed.
+#[derive(PartialEq, Eq, Hash)]
+struct MeasureKey {
+    node: taffy::NodeId,
+    known: [Option<u32>; 2],
+    available: [(u8, u32); 2],
+}
+
+impl MeasureKey {
+    fn new(
+        node: taffy::NodeId,
+        known: taffy::Size<Option<f32>>,
+        available: taffy::Size<taffy::AvailableSpace>,
+    ) -> Self {
+        let bits = |v: f32| (v + 0.0).to_bits();
+        let space = |a: taffy::AvailableSpace| match a {
+            taffy::AvailableSpace::Definite(v) => (0, bits(v)),
+            taffy::AvailableSpace::MinContent => (1, 0),
+            taffy::AvailableSpace::MaxContent => (2, 0),
+        };
+        Self {
+            node,
+            known: [known.width.map(bits), known.height.map(bits)],
+            available: [space(available.width), space(available.height)],
+        }
     }
 }
 

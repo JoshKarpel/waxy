@@ -230,10 +230,7 @@ impl DetailedGridTracksInfo {
         self.inner
             .positions
             .iter()
-            .map(|p| Line {
-                start: p.start,
-                end: p.end,
-            })
+            .map(|&p| Line::from(p))
             .collect()
     }
 

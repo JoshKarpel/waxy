@@ -32,6 +32,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - `Layout.content_box_size()`, `content_box_x()`, `content_box_y()`,
   `scroll_width()`, and `scroll_height()`.
 - `TaffyTree.remove_children_range()`.
+- `Style.fields_set`, the names of the explicitly set fields.
+- `TaffyTree.format_tree(root)` returns an indented dump of a subtree
+  (each node's id, location, size, and non-default style fields) as a string,
+  unlike `print_tree`, which writes to stdout.
+- A [performance guide](performance.md) for callers that lay out a tree every frame.
 
 ### Changed
 
@@ -42,6 +47,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   whose `right`/`bottom` are the old width/height.
 - `min_size_*` and `max_size_*` are typed `LengthPercentageAutoValue`,
   since they don't accept the new sizing keywords.
+- `Style` equality and hashing take into account which fields were explicitly set,
+  so two styles are equal only if they also merge identically.
+  Styles can no longer be compared by layout alone:
+  `Style() == Style(display=Display.Flex)` is `False`, though `Flex` is the default.
+  `TaffyTree.style(node)` marks every field set,
+  so it equals the style passed to `set_style` only if that style set every field.
+- `Style(...)` raises `TypeError` for an unknown keyword argument instead of ignoring it.
+- A value of the wrong type for a value union (in `Style`, `AvailableSize`, `Minmax`, `Repeat`,
+  `GridPlacement`, ...) raises a one-line `TypeError` naming the accepted types,
+  e.g. `expected Length | Percent | Auto, got int`.
+- `repr(Style(...))` lists the explicitly set fields, as constructor syntax
+  (`Style(flex_grow=1.0, border_top=Length(1))`).
+- `TaffyTree.set_style` does nothing when the new style's values equal the node's current
+  style, so the node keeps its cached layout.
+  Use `mark_dirty` to force a relayout.
+- `compute_layout` calls the `measure` callback at most once per node for each distinct
+  `(known_size, available_size)` input within one call, reusing the earlier result for repeats.
+  This assumes the callback returns the same size for the same inputs within one layout.
+- `Style` construction and hashing are faster, and release wheels are built with
+  link-time optimization.
+
+### Removed
+
+- `Rect` geometry methods, since taffy's `Rect` holds one value per side
+  (like margin, padding and border) rather than a box:
+  `width`, `height`, `size`, `contains`,
+  `top_left`, `top_right`, `bottom_left`, `bottom_right`, `corners`,
+  `top_edge`, `bottom_edge`, `left_edge`, `right_edge`,
+  `points`, `rows`, `columns`, `intersection`, iteration, and `len()`.
+- `Line.length`, `Line.contains`, iteration, and `len()`.
+  `Line` remains as a start/end pair, as in `DetailedGridTracksInfo.positions`.
 
 ## [0.5.0](https://github.com/JoshKarpel/waxy/compare/v0.4.0...v0.5.0) - 2026-04-03
 

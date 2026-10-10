@@ -13,3 +13,9 @@ all = { level = "deny", priority = -1 }
 [dependencies]
 pyo3 = { version = "0.29", features = ["extension-module"] }
 taffy = "0.14"
+
+[profile.release]
+lto = "fat"
+codegen-units = 1
+# Don't add `panic = "abort"`: InvalidNodeId and the panic-to-TaffyException conversion rely on
+# catch_unwind, which can't catch anything when panics abort.

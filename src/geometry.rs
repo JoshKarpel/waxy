@@ -28,7 +28,7 @@ impl Size {
         Self { width, height }
     }
 
-    fn __repr__(&self) -> String {
+    pub(crate) fn __repr__(&self) -> String {
         format!("Size(width={}, height={})", self.width, self.height)
     }
 
@@ -68,7 +68,10 @@ impl From<&Size> for taffy::Size<f32> {
     }
 }
 
-/// A rectangle with left, right, top, bottom edges.
+/// A value for each of the four sides of a box (left, right, top, bottom).
+///
+/// Mirrors taffy's `Rect<f32>`, which holds per-side values such as margin, padding and border
+/// thicknesses, or the edges of a box.
 #[pyclass(frozen, from_py_object, module = "waxy")]
 #[derive(Clone, Debug)]
 pub struct Rect {
@@ -117,200 +120,6 @@ impl Rect {
         hash_f32(self.bottom, &mut hasher);
         std::hash::Hasher::finish(&hasher)
     }
-
-    /// The width of the rectangle (right - left).
-    #[getter]
-    fn width(&self) -> f32 {
-        self.right - self.left
-    }
-
-    /// The height of the rectangle (bottom - top).
-    #[getter]
-    fn height(&self) -> f32 {
-        self.bottom - self.top
-    }
-
-    /// The size of the rectangle as a Size.
-    #[getter]
-    fn size(&self) -> Size {
-        Size {
-            width: self.right - self.left,
-            height: self.bottom - self.top,
-        }
-    }
-
-    /// Check if a point is inside this rectangle.
-    fn contains(&self, point: &Point) -> bool {
-        point.x >= self.left
-            && point.x <= self.right
-            && point.y >= self.top
-            && point.y <= self.bottom
-    }
-
-    /// The top-left corner point.
-    #[getter]
-    fn top_left(&self) -> Point {
-        Point {
-            x: self.left,
-            y: self.top,
-        }
-    }
-
-    /// The top-right corner point.
-    #[getter]
-    fn top_right(&self) -> Point {
-        Point {
-            x: self.right,
-            y: self.top,
-        }
-    }
-
-    /// The bottom-right corner point.
-    #[getter]
-    fn bottom_right(&self) -> Point {
-        Point {
-            x: self.right,
-            y: self.bottom,
-        }
-    }
-
-    /// The bottom-left corner point.
-    #[getter]
-    fn bottom_left(&self) -> Point {
-        Point {
-            x: self.left,
-            y: self.bottom,
-        }
-    }
-
-    /// Return the four corner points (top-left, top-right, bottom-right, bottom-left).
-    fn corners(&self) -> (Point, Point, Point, Point) {
-        (
-            self.top_left(),
-            self.top_right(),
-            self.bottom_right(),
-            self.bottom_left(),
-        )
-    }
-
-    /// Iterate over integer pixel locations along the top edge.
-    fn top_edge(&self) -> PixelIter {
-        let y = self.top.ceil() as i32;
-        PixelIter {
-            x_start: self.left.ceil() as i32,
-            x_end: self.right.floor() as i32,
-            y_end: y,
-            x: self.left.ceil() as i32,
-            y,
-        }
-    }
-
-    /// Iterate over integer pixel locations along the bottom edge.
-    fn bottom_edge(&self) -> PixelIter {
-        let y = self.bottom.floor() as i32;
-        PixelIter {
-            x_start: self.left.ceil() as i32,
-            x_end: self.right.floor() as i32,
-            y_end: y,
-            x: self.left.ceil() as i32,
-            y,
-        }
-    }
-
-    /// Iterate over integer pixel locations along the left edge.
-    fn left_edge(&self) -> PixelIter {
-        let x = self.left.ceil() as i32;
-        PixelIter {
-            x_start: x,
-            x_end: x,
-            y_end: self.bottom.floor() as i32,
-            x,
-            y: self.top.ceil() as i32,
-        }
-    }
-
-    /// Iterate over integer pixel locations along the right edge.
-    fn right_edge(&self) -> PixelIter {
-        let x = self.right.floor() as i32;
-        PixelIter {
-            x_start: x,
-            x_end: x,
-            y_end: self.bottom.floor() as i32,
-            x,
-            y: self.top.ceil() as i32,
-        }
-    }
-
-    /// Iterate over all integer pixel locations contained within this rectangle.
-    fn points(&self) -> PixelIter {
-        self.__iter__()
-    }
-
-    /// Iterate over rows of integer pixel locations within this rectangle.
-    /// Each row is an iterator of Points with the same y coordinate.
-    fn rows(&self) -> RowIter {
-        RowIter {
-            x_start: self.left.ceil() as i32,
-            x_end: self.right.floor() as i32,
-            y_end: self.bottom.floor() as i32,
-            y: self.top.ceil() as i32,
-        }
-    }
-
-    /// Iterate over columns of integer pixel locations within this rectangle.
-    /// Each column is an iterator of Points with the same x coordinate.
-    fn columns(&self) -> ColumnIter {
-        ColumnIter {
-            x_end: self.right.floor() as i32,
-            y_start: self.top.ceil() as i32,
-            y_end: self.bottom.floor() as i32,
-            x: self.left.ceil() as i32,
-        }
-    }
-
-    /// Iterate over all integer pixel locations contained within this rectangle.
-    fn __iter__(&self) -> PixelIter {
-        let x_start = self.left.ceil() as i32;
-        let x_end = self.right.floor() as i32;
-        let y_start = self.top.ceil() as i32;
-        let y_end = self.bottom.floor() as i32;
-        PixelIter {
-            x_start,
-            x_end,
-            y_end,
-            x: x_start,
-            y: y_start,
-        }
-    }
-
-    fn __len__(&self) -> usize {
-        let x_count = (self.right.floor() as i32) - (self.left.ceil() as i32) + 1;
-        let y_count = (self.bottom.floor() as i32) - (self.top.ceil() as i32) + 1;
-        if x_count <= 0 || y_count <= 0 {
-            0
-        } else {
-            (x_count as usize) * (y_count as usize)
-        }
-    }
-
-    /// Return the intersection of this rectangle with another, or None if they are disjoint.
-    /// Rectangles that only touch at an edge or corner return a degenerate (zero-area) Rect.
-    fn intersection(&self, other: &Rect) -> Option<Rect> {
-        let left = self.left.max(other.left);
-        let right = self.right.min(other.right);
-        let top = self.top.max(other.top);
-        let bottom = self.bottom.min(other.bottom);
-        if left <= right && top <= bottom {
-            Some(Rect {
-                left,
-                right,
-                top,
-                bottom,
-            })
-        } else {
-            None
-        }
-    }
 }
 
 impl From<taffy::Rect<f32>> for Rect {
@@ -353,7 +162,7 @@ impl Point {
         Self { x, y }
     }
 
-    fn __repr__(&self) -> String {
+    pub(crate) fn __repr__(&self) -> String {
         format!("Point(x={}, y={})", self.x, self.y)
     }
 
@@ -420,7 +229,9 @@ impl From<&Point> for taffy::Point<f32> {
     }
 }
 
-/// A line segment with start and end values.
+/// A start and an end value.
+///
+/// Mirrors taffy's `Line<f32>`, e.g. the start and end positions of a grid track.
 #[pyclass(frozen, from_py_object, module = "waxy")]
 #[derive(Clone, Debug)]
 pub struct Line {
@@ -452,151 +263,14 @@ impl Line {
         hash_f32(self.end, &mut hasher);
         std::hash::Hasher::finish(&hasher)
     }
+}
 
-    /// The length of the line segment (end - start).
-    #[getter]
-    fn length(&self) -> f32 {
-        self.end - self.start
-    }
-
-    /// Check if a value is contained within this line segment.
-    fn contains(&self, value: f32) -> bool {
-        value >= self.start && value <= self.end
-    }
-
-    /// Iterate over integer values contained within this line segment.
-    fn __iter__(&self) -> IntIter {
-        IntIter {
-            current: self.start.ceil() as i32,
-            end: self.end.floor() as i32,
+impl From<taffy::Line<f32>> for Line {
+    fn from(l: taffy::Line<f32>) -> Self {
+        Self {
+            start: l.start,
+            end: l.end,
         }
-    }
-
-    fn __len__(&self) -> usize {
-        let count = (self.end.floor() as i32) - (self.start.ceil() as i32) + 1;
-        if count <= 0 {
-            0
-        } else {
-            count as usize
-        }
-    }
-}
-
-/// Iterator over a range of integer values.
-#[pyclass(module = "waxy")]
-struct IntIter {
-    current: i32,
-    end: i32,
-}
-
-#[pymethods]
-impl IntIter {
-    fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
-        slf
-    }
-
-    fn __next__(&mut self) -> Option<f32> {
-        if self.current > self.end {
-            return None;
-        }
-        let val = self.current as f32;
-        self.current += 1;
-        Some(val)
-    }
-}
-
-/// Iterator over integer pixel locations within a Rect.
-#[pyclass(module = "waxy")]
-struct PixelIter {
-    x_start: i32,
-    x_end: i32,
-    y_end: i32,
-    x: i32,
-    y: i32,
-}
-
-#[pymethods]
-impl PixelIter {
-    fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
-        slf
-    }
-
-    fn __next__(&mut self) -> Option<Point> {
-        if self.x > self.x_end || self.y > self.y_end {
-            return None;
-        }
-        let point = Point {
-            x: self.x as f32,
-            y: self.y as f32,
-        };
-        self.x += 1;
-        if self.x > self.x_end {
-            self.x = self.x_start;
-            self.y += 1;
-        }
-        Some(point)
-    }
-}
-
-/// Iterator that yields PixelIter for each row of a Rect.
-#[pyclass(module = "waxy")]
-struct RowIter {
-    x_start: i32,
-    x_end: i32,
-    y_end: i32,
-    y: i32,
-}
-
-#[pymethods]
-impl RowIter {
-    fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
-        slf
-    }
-
-    fn __next__(&mut self) -> Option<PixelIter> {
-        if self.y > self.y_end || self.x_start > self.x_end {
-            return None;
-        }
-        let iter = PixelIter {
-            x_start: self.x_start,
-            x_end: self.x_end,
-            y_end: self.y,
-            x: self.x_start,
-            y: self.y,
-        };
-        self.y += 1;
-        Some(iter)
-    }
-}
-
-/// Iterator that yields PixelIter for each column of a Rect.
-#[pyclass(module = "waxy")]
-struct ColumnIter {
-    x_end: i32,
-    y_start: i32,
-    y_end: i32,
-    x: i32,
-}
-
-#[pymethods]
-impl ColumnIter {
-    fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
-        slf
-    }
-
-    fn __next__(&mut self) -> Option<PixelIter> {
-        if self.x > self.x_end || self.y_start > self.y_end {
-            return None;
-        }
-        let iter = PixelIter {
-            x_start: self.x,
-            x_end: self.x,
-            y_end: self.y_end,
-            x: self.x,
-            y: self.y_start,
-        };
-        self.x += 1;
-        Some(iter)
     }
 }
 

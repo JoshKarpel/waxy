@@ -1,3 +1,5 @@
+import inspect
+import types
 from collections.abc import Callable
 from typing import assert_never
 
@@ -195,11 +197,6 @@ def test_style_or_grid_tracks() -> None:
     result = a | b
     assert len(result.grid_template_columns) == 1
     assert len(result.grid_template_rows) == 1
-
-
-def test_style_repr() -> None:
-    s = waxy.Style()
-    assert "Style" in repr(s)
 
 
 def test_style_eq_default() -> None:
@@ -450,3 +447,224 @@ def test_style_fit_content_limit_clamps_width() -> None:
     )
     tree.compute_layout(root, measure=measure)
     assert tree.layout(child).size.width == 120.0
+
+
+# `Style` typed to take any keywords, for building one from a field name chosen at runtime.
+style_from_keywords: Callable[..., waxy.Style] = waxy.Style
+
+# Every Style property that is a field, i.e. everything but `fields_set`.
+FIELD_NAMES = sorted(
+    name
+    for name in dir(waxy.Style)
+    if isinstance(inspect.getattr_static(waxy.Style, name), types.GetSetDescriptorType)
+    and name not in {"__class__", "fields_set"}
+)
+
+# A value for every field that differs from its default.
+NON_DEFAULT_VALUES: dict[str, object] = {
+    "display": waxy.Display.Grid,
+    "box_sizing": waxy.BoxSizing.ContentBox,
+    "overflow_x": waxy.Overflow.Hidden,
+    "overflow_y": waxy.Overflow.Scroll,
+    "scrollbar_width": 3.0,
+    "position": waxy.Position.Absolute,
+    "direction": waxy.Direction.Rtl,
+    "contain": waxy.Contain.Layout,
+    "float": waxy.Float.Left,
+    "clear": waxy.Clear.Both,
+    "item_is_table": True,
+    "item_is_replaced": True,
+    "inset_left": waxy.Length(1),
+    "inset_right": waxy.Length(2),
+    "inset_top": waxy.Percent(0.25),
+    "inset_bottom": waxy.Length(4),
+    "size_width": waxy.Length(5),
+    "size_height": waxy.STRETCH,
+    "min_size_width": waxy.Length(6),
+    "min_size_height": waxy.Percent(0.125),
+    "max_size_width": waxy.Length(7),
+    "max_size_height": waxy.Length(8),
+    "aspect_ratio": 1.5,
+    "margin_left": waxy.AUTO,
+    "margin_right": waxy.Length(9),
+    "margin_top": waxy.Percent(0.5),
+    "margin_bottom": waxy.Length(10),
+    "padding_left": waxy.Length(11),
+    "padding_right": waxy.Length(12),
+    "padding_top": waxy.Percent(0.375),
+    "padding_bottom": waxy.Length(13),
+    "border_left": waxy.Length(14),
+    "border_right": waxy.Length(15),
+    "border_top": waxy.Length(16),
+    "border_bottom": waxy.Percent(0.0625),
+    "align_items": waxy.AlignItems.Center,
+    "align_self": waxy.AlignItems.End,
+    "justify_items": waxy.AlignItems.Start,
+    "justify_self": waxy.AlignItems.Stretch,
+    "align_content": waxy.AlignContent.SpaceBetween,
+    "justify_content": waxy.AlignContent.Center,
+    "gap_width": waxy.Length(17),
+    "gap_height": waxy.Percent(0.75),
+    "text_align": waxy.TextAlign.LegacyCenter,
+    "flex_direction": waxy.FlexDirection.Column,
+    "flex_wrap": waxy.FlexWrap.Wrap,
+    "flex_basis": waxy.CONTENT,
+    "flex_grow": 2.0,
+    "flex_shrink": 0.5,
+    "flex_line_count": 3,
+    "grid_template_rows": [waxy.Length(18), waxy.Fraction(1)],
+    "grid_template_columns": [waxy.Repeat(2, [waxy.AUTO])],
+    "grid_template_row_names": [["a"], ["b"], ["c"]],
+    "grid_template_column_names": [["x"], ["y"]],
+    "grid_template_areas": waxy.GridTemplateAreas.from_strings(["a b"]),
+    "grid_auto_rows": [waxy.Length(19)],
+    "grid_auto_columns": [waxy.MIN_CONTENT],
+    "grid_auto_flow": waxy.GridAutoFlow.Column,
+    "grid_row": waxy.GridPlacement(waxy.GridLine(1), waxy.GridSpan(2)),
+    "grid_column": waxy.GridPlacement(waxy.NamedGridLine("a")),
+}
+
+
+def test_non_default_values_cover_every_field() -> None:
+    assert set(NON_DEFAULT_VALUES) == set(FIELD_NAMES)
+
+
+@pytest.mark.parametrize("name", FIELD_NAMES)
+def test_style_field_with_default_value_is_set(name: str) -> None:
+    default = getattr(waxy.Style(), name)
+    assert style_from_keywords(**{name: default}).fields_set == {name}
+
+
+@pytest.mark.parametrize("name", FIELD_NAMES)
+def test_style_field_with_non_default_value_round_trips(name: str) -> None:
+    value = NON_DEFAULT_VALUES[name]
+    assert getattr(style_from_keywords(**{name: value}), name) == value
+
+
+@pytest.mark.parametrize("name", FIELD_NAMES)
+def test_style_field_with_non_default_value_survives_merge(name: str) -> None:
+    s = style_from_keywords(**{name: NON_DEFAULT_VALUES[name]})
+    assert waxy.Style() | s == s
+
+
+@pytest.mark.parametrize("name", FIELD_NAMES)
+def test_style_field_with_non_default_value_changes_hash(name: str) -> None:
+    s = style_from_keywords(**{name: NON_DEFAULT_VALUES[name]})
+    assert hash(s) != hash(waxy.Style())
+
+
+def test_style_unknown_keyword_raises_type_error_naming_it() -> None:
+    with pytest.raises(TypeError, match="unexpected keyword argument 'flex_grw'"):
+        waxy.Style(flex_grw=1)  # type: ignore[call-arg]
+
+
+def test_style_unknown_keyword_with_none_raises() -> None:
+    with pytest.raises(TypeError, match="unexpected keyword argument 'flex_grw'"):
+        waxy.Style(flex_grw=None)  # type: ignore[call-arg]
+
+
+def test_style_wrong_value_type_notes_the_keyword() -> None:
+    with pytest.raises(TypeError) as excinfo:
+        waxy.Style(size_width=1)  # type: ignore[arg-type]
+    assert excinfo.value.__notes__ == ["while processing 'size_width'"]
+
+
+@pytest.mark.parametrize(
+    ("a", "b"),
+    [
+        (waxy.Style(), waxy.Style(flex_grow=0)),
+        (waxy.Style(), waxy.Style(display=waxy.Display.Flex)),
+        (waxy.Style(), waxy.Style(align_items=None)),
+        (waxy.Style(flex_grow=3) | waxy.Style(), waxy.Style(flex_grow=3) | waxy.Style(flex_grow=0)),
+    ],
+)
+def test_style_same_values_different_set_fields_are_unequal(a: waxy.Style, b: waxy.Style) -> None:
+    assert a != b
+
+
+@pytest.mark.parametrize(
+    ("a", "b"),
+    [
+        (waxy.Style(flex_grow=1), waxy.Style(flex_grow=1.0)),
+        (waxy.Style(size_width=waxy.AUTO), waxy.Style(size_width=waxy.Auto())),
+        (waxy.Style(align_items=None), waxy.Style(align_items=None)),
+    ],
+)
+def test_style_same_values_same_set_fields_are_equal_and_hash_equal(
+    a: waxy.Style, b: waxy.Style
+) -> None:
+    assert a == b
+    assert hash(a) == hash(b)
+
+
+@pytest.mark.parametrize(
+    ("merged", "direct"),
+    [
+        (waxy.Style(flex_grow=3) | waxy.Style(flex_grow=0), waxy.Style(flex_grow=0)),
+        (
+            waxy.Style(flex_grow=3) | waxy.Style(flex_shrink=2),
+            waxy.Style(flex_grow=3, flex_shrink=2),
+        ),
+        (
+            waxy.Style(align_items=waxy.AlignItems.Center) | waxy.Style(align_items=None),
+            waxy.Style(align_items=None),
+        ),
+    ],
+)
+def test_style_merge_equals_direct_construction(merged: waxy.Style, direct: waxy.Style) -> None:
+    assert merged == direct
+    assert hash(merged) == hash(direct)
+
+
+def test_style_merge_after_hashing_left_operand_hashes_like_direct_construction() -> None:
+    left = waxy.Style(flex_grow=1)
+    hash(left)
+    merged = left | waxy.Style(flex_shrink=2)
+    assert hash(merged) == hash(waxy.Style(flex_grow=1, flex_shrink=2))
+
+
+def test_tree_style_equals_style_with_every_field_passed() -> None:
+    tree: waxy.TaffyTree[object] = waxy.TaffyTree()
+    node = tree.new_leaf(waxy.Style(flex_grow=2))
+    stored = tree.style(node)
+    every_field = style_from_keywords(**{name: getattr(stored, name) for name in FIELD_NAMES})
+    assert stored == every_field
+
+
+def test_style_repr_of_empty_style() -> None:
+    assert repr(waxy.Style()) == "Style()"
+
+
+def test_style_repr_lists_set_fields_in_declaration_order() -> None:
+    s = waxy.Style(border_top=waxy.Length(1), flex_grow=1)
+    assert repr(s) == "Style(border_top=Length(1), flex_grow=1.0)"
+
+
+@pytest.mark.parametrize(
+    "style",
+    [
+        waxy.Style(),
+        waxy.Style(display=waxy.Display.Block, flex_grow=1.5, margin_left=waxy.AUTO),
+        waxy.Style(align_items=None, aspect_ratio=None),
+        waxy.Style(size_width=waxy.FitContent(waxy.Percent(0.5)), flex_basis=waxy.CONTENT),
+        style_from_keywords(**NON_DEFAULT_VALUES),
+    ],
+    ids=repr,
+)
+def test_style_repr_round_trips_through_eval(style: waxy.Style) -> None:
+    assert eval(repr(style), vars(waxy)) == style
+
+
+def test_style_fields_set_matches_keywords() -> None:
+    s = waxy.Style(display=waxy.Display.Grid, align_items=None, flex_grow=0)
+    assert s.fields_set == {"display", "align_items", "flex_grow"}
+
+
+def test_style_fields_set_is_empty_for_empty_style() -> None:
+    assert waxy.Style().fields_set == frozenset()
+
+
+def test_style_fields_set_of_merge_is_union() -> None:
+    a = waxy.Style(display=waxy.Display.Grid, flex_grow=1)
+    b = waxy.Style(flex_grow=2, padding_top=waxy.Length(1))
+    assert (a | b).fields_set == a.fields_set | b.fields_set

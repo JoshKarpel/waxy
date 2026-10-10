@@ -77,7 +77,12 @@ class Size:
         """The area (width * height)."""
 
 class Rect:
-    """A rectangle with left, right, top, bottom edges."""
+    """
+    A value for each of the four sides of a box (left, right, top, bottom).
+
+    Mirrors taffy's `Rect<f32>`: per-side values such as `Layout.margin`, `Layout.padding`
+    and `Layout.border`, or the edges of a box such as `Layout.scrollable_overflow_rect`.
+    """
 
     def __init__(
         self,
@@ -89,8 +94,6 @@ class Rect:
     def __repr__(self) -> str: ...
     def __eq__(self, other: object) -> bool: ...
     def __hash__(self) -> int: ...
-    def __iter__(self) -> Iterator[Point]: ...
-    def __len__(self) -> int: ...
     @property
     def left(self) -> float: ...
     @property
@@ -99,59 +102,6 @@ class Rect:
     def top(self) -> float: ...
     @property
     def bottom(self) -> float: ...
-    @property
-    def width(self) -> float:
-        """The width of the rectangle (right - left)."""
-    @property
-    def height(self) -> float:
-        """The height of the rectangle (bottom - top)."""
-    @property
-    def size(self) -> Size:
-        """The size of the rectangle as a Size."""
-    def contains(self, point: Point) -> bool:
-        """Check if a point is inside this rectangle."""
-    @property
-    def top_left(self) -> Point:
-        """The top-left corner point."""
-    @property
-    def top_right(self) -> Point:
-        """The top-right corner point."""
-    @property
-    def bottom_right(self) -> Point:
-        """The bottom-right corner point."""
-    @property
-    def bottom_left(self) -> Point:
-        """The bottom-left corner point."""
-    def corners(self) -> tuple[Point, Point, Point, Point]:
-        """Return the four corner points (top-left, top-right, bottom-right, bottom-left)."""
-    def top_edge(self) -> Iterator[Point]:
-        """Iterate over integer pixel locations along the top edge."""
-    def bottom_edge(self) -> Iterator[Point]:
-        """Iterate over integer pixel locations along the bottom edge."""
-    def left_edge(self) -> Iterator[Point]:
-        """Iterate over integer pixel locations along the left edge."""
-    def right_edge(self) -> Iterator[Point]:
-        """Iterate over integer pixel locations along the right edge."""
-    def points(self) -> Iterator[Point]:
-        """Iterate over all integer pixel locations contained within this rectangle."""
-    def rows(self) -> Iterator[Iterator[Point]]:
-        """
-        Iterate over rows of integer pixel locations.
-
-        Each row is an iterator of Points with the same y coordinate.
-        """
-    def columns(self) -> Iterator[Iterator[Point]]:
-        """
-        Iterate over columns of integer pixel locations.
-
-        Each column is an iterator of Points with the same x coordinate.
-        """
-    def intersection(self, other: Rect) -> Rect | None:
-        """
-        Return the intersection of this rectangle with another, or None if they are disjoint.
-
-        Rectangles that only touch at an edge or corner return a zero-area Rect.
-        """
 
 class Point:
     """A 2D point with x and y coordinates."""
@@ -172,23 +122,21 @@ class Point:
     def y(self) -> float: ...
 
 class Line:
-    """A line segment with start and end values."""
+    """
+    A start and an end value.
+
+    Mirrors taffy's `Line<f32>`, e.g. the start and end positions of a grid track in
+    `DetailedGridTracksInfo.positions`.
+    """
 
     def __init__(self, start: float = 0.0, end: float = 0.0) -> None: ...
     def __repr__(self) -> str: ...
     def __eq__(self, other: object) -> bool: ...
     def __hash__(self) -> int: ...
-    def __iter__(self) -> Iterator[float]: ...
-    def __len__(self) -> int: ...
     @property
     def start(self) -> float: ...
     @property
     def end(self) -> float: ...
-    @property
-    def length(self) -> float:
-        """The length of the line segment (end - start)."""
-    def contains(self, value: float) -> bool:
-        """Check if a value is contained within this line segment."""
 
 class KnownSize:
     """
@@ -1222,6 +1170,11 @@ class Style:
     All fields are keyword-only. Passing None (or omitting) uses the taffy default.
     Style is immutable — construct a new instance to change fields, or use | to merge.
 
+    A style remembers which fields were explicitly set (see `fields_set`), and `a | b` takes
+    each field set in `b` from `b` and every other field from `a`. Two styles are equal only if
+    they hold the same values *and* set the same fields, since otherwise they would merge
+    differently: `Style() != Style(display=Display.Flex)`, though `Flex` is the default.
+
     See: [taffy `Style`](https://docs.rs/taffy/0.14.0/taffy/struct.Style.html)
     """
 
@@ -1297,7 +1250,8 @@ class Style:
         `grid_template_areas`, where None explicitly clears the field. See each property for
         documentation of individual fields.
 
-        Raises `InvalidFlexLineCount` if `flex_line_count` is 0.
+        Raises `TypeError` for an unknown keyword or a value of the wrong type, and
+        `InvalidFlexLineCount` if `flex_line_count` is 0.
 
         Args:
             display: How the node is laid out (Block, FlowRoot, Flex, Grid, or Nil). [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/display)
@@ -1361,10 +1315,15 @@ class Style:
             grid_row: Row placement of this item in a grid container. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/grid-row)
             grid_column: Column placement of this item in a grid container. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/grid-column)
         """
-    def __repr__(self) -> str: ...
+    def __repr__(self) -> str:
+        """The explicitly set fields, in declaration order, as constructor syntax."""
     def __eq__(self, other: object) -> bool: ...
     def __hash__(self) -> int: ...
-    def __or__(self, other: Style) -> Style: ...
+    def __or__(self, other: Style) -> Style:
+        """Merge two styles: fields set in `other` override `self`, others are kept from `self`."""
+    @property
+    def fields_set(self) -> frozenset[str]:
+        """The names of the explicitly set fields."""
     @property
     def display(self) -> Display:
         """How the node is laid out (Block, FlowRoot, Flex, Grid, or Nil). [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/display)."""
@@ -1613,9 +1572,21 @@ class TaffyTree[NodeContext = object]:
     def clear(self) -> None:
         """Clear all nodes from the tree."""
     def set_style(self, node: NodeId, style: Style) -> None:
-        """Set the style of a node."""
+        """
+        Set the style of a node.
+
+        Marks the node dirty only if the new style's values differ from the stored style's
+        (which fields were explicitly set doesn't matter here), so setting an equal style keeps
+        the node's cached layout. Call `mark_dirty` to force a relayout.
+        """
     def style(self, node: NodeId) -> Style:
-        """Get the style of a node."""
+        """
+        Get the style of a node.
+
+        taffy doesn't store which fields were explicitly set, so every field of the returned
+        style is marked set. It compares equal to the style passed to `set_style` only if that
+        style set every field.
+        """
     def mark_dirty(self, node: NodeId) -> None:
         """Mark a node as dirty (needing re-layout)."""
     def dirty(self, node: NodeId) -> bool:
@@ -1626,7 +1597,13 @@ class TaffyTree[NodeContext = object]:
         available: AvailableSize | None = None,
         measure: Callable[[KnownSize, AvailableSize, NodeContext], Size] | None = None,
     ) -> None:
-        """Compute the layout of a tree rooted at the given node."""
+        """
+        Compute the layout of a tree rooted at the given node.
+
+        `measure` is called for leaves with a context to size their content. It must return the
+        same size for the same inputs within one call: repeated inputs for the same node are
+        answered from the earlier result without calling `measure` again.
+        """
     def layout(self, node: NodeId) -> Layout:
         """Get the computed layout of a node."""
     def unrounded_layout(self, node: NodeId) -> Layout:
@@ -1642,4 +1619,12 @@ class TaffyTree[NodeContext = object]:
     def disable_rounding(self) -> None:
         """Disable rounding of layout values."""
     def print_tree(self, root: NodeId) -> None:
-        """Print the layout tree for debugging."""
+        """Print the layout tree to stdout for debugging."""
+    def format_tree(self, root: NodeId) -> str:
+        """
+        An indented dump of the subtree rooted at `root`, one line per node, for debugging.
+
+        Each line gives the node's id, its computed location and size, and the style fields
+        that differ from taffy's defaults. Unlike `print_tree`, it returns the string rather
+        than writing to stdout.
+        """
