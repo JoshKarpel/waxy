@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ### Added
 
 - [#49](https://github.com/JoshKarpel/waxy/pull/49)
+  Support for Python 3.15, with release wheels built for it.
+- [#49](https://github.com/JoshKarpel/waxy/pull/49)
   `Style` exposes the layout features added in taffy 0.10 through 0.14:
   `direction` (`Direction.Ltr`/`Rtl`),
   `float` and `clear` (`Float`, `Clear`),
