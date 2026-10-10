@@ -1651,7 +1651,12 @@ class TaffyTree[NodeContext = object]:
         """Get the unrounded layout of a node."""
     def absolute_layouts(self, root: NodeId) -> list[tuple[NodeId, Point, Layout]]:
         """
-        Every node in the subtree rooted at `root`, in pre-order, with its absolute position.
+        Every visible node in the subtree under `root`, in pre-order, with its absolute position.
+
+        A node with `display=Display.Nil` is left out along with its whole subtree,
+        since taffy gives those nodes no box, only a zero size at their parent's origin.
+        If `root` or one of its ancestors is hidden, the list is empty.
+        `layout(node)` still returns a hidden node's zero layout.
 
         The position is relative to the top of the tree (the ancestor with no parent):
         the sum of the node's own and all its ancestors' locations. Each `Layout` is the same as

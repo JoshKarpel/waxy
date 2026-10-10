@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased](https://github.com/JoshKarpel/waxy/compare/v0.6.0...HEAD)
 
+### Changed
+
+- `TaffyTree.absolute_layouts(root)` leaves out nodes with `display=Display.Nil`
+  and their whole subtrees, instead of reporting them as zero-sized boxes at their parent's origin.
+  It returns an empty list when `root` or one of its ancestors is hidden.
+  This is a breaking change for callers that expect an entry for every node in the subtree.
+
 ## [0.6.0](https://github.com/JoshKarpel/waxy/compare/v0.5.0...v0.6.0) - 2026-10-10
 
 ### Added
