@@ -1,3 +1,7 @@
+# `sys.UnraisableHookArgs` exists only in typeshed, so the annotations naming it mustn't be
+# evaluated, which Python 3.13 does eagerly without this.
+from __future__ import annotations
+
 import sys
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
