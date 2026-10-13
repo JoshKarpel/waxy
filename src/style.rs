@@ -1,4 +1,4 @@
-use std::cell::OnceCell;
+use std::sync::OnceLock;
 
 use pyo3::exceptions::PyTypeError;
 use pyo3::prelude::*;
@@ -15,7 +15,7 @@ use crate::values::{
     hash_taffy_template_area, hash_taffy_template_component, hash_taffy_track_sizing_function,
     length_percentage_auto_to_py, length_percentage_to_py, DimensionInput, FlexBasisInput,
     GridPlacement, GridTemplateAreas, GridTemplateInput, GridTrackInput, LengthPercentageAutoInput,
-    LengthPercentageInput, Repeat,
+    LengthPercentageInput, NoCalc, Repeat,
 };
 
 // Bit positions for tracking which fields are explicitly set.
@@ -161,15 +161,15 @@ const ALL_FIELDS: u64 = {
 };
 
 /// Style properties for a layout node.
-#[pyclass(unsendable, frozen, from_py_object, module = "waxy")]
+#[pyclass(frozen, from_py_object, module = "waxy")]
 #[derive(Clone, Debug)]
 pub struct Style {
-    pub(crate) inner: taffy::Style,
+    pub(crate) inner: NoCalc<taffy::Style>,
     /// Bitmask tracking which fields have been explicitly set.
     set_fields: u64,
     /// `__hash__`'s result, computed on first use. Only correct because no `Style` is mutated
     /// after `from_parts` builds it.
-    hash: OnceCell<u64>,
+    hash: OnceLock<u64>,
 }
 
 impl Style {
@@ -195,14 +195,14 @@ impl Style {
             "an unset field holds a non-default value"
         );
         Self {
-            inner,
+            inner: NoCalc(inner),
             set_fields,
-            hash: OnceCell::new(),
+            hash: OnceLock::new(),
         }
     }
 
     pub(crate) fn to_taffy(&self) -> taffy::Style {
-        self.inner.clone()
+        self.inner.0.clone()
     }
 
     /// A `Style` holding `inner` whose set fields are the ones that differ from
@@ -274,7 +274,7 @@ impl Style {
             grid_template_row_names,
             grid_row,
             grid_column,
-        } = &self.inner;
+        } = &*self.inner;
 
         self.set_fields.hash(&mut h);
 
@@ -1122,7 +1122,7 @@ impl Style {
     /// Merge two styles: `self | other`. Fields explicitly set in `other` override
     /// those in `self`. Fields not set in `other` are preserved from `self`.
     fn __or__(&self, other: &Style) -> Style {
-        let mut inner = self.inner.clone();
+        let mut inner = self.to_taffy();
         copy_fields(&mut inner, &other.inner, other.set_fields);
         Style::from_parts(inner, self.set_fields | other.set_fields)
     }

@@ -5,7 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## [Unreleased](https://github.com/JoshKarpel/waxy/compare/v0.7.0...HEAD)
+## [Unreleased](https://github.com/JoshKarpel/waxy/compare/v0.7.1...HEAD)
+
+## [0.7.1](https://github.com/JoshKarpel/waxy/compare/v0.7.0...v0.7.1) - 2026-10-13
+
+### Fixed
+
+- [#51](https://github.com/JoshKarpel/waxy/issues/51)
+  `Style` and `TaffyTree` can be used and dropped from any thread.
+  Garbage collecting either one on a thread other than the one that created it
+  no longer reports `RuntimeError: ... is unsendable, but is being dropped on another thread`.
 
 ## [0.7.0](https://github.com/JoshKarpel/waxy/compare/v0.6.0...v0.7.0) - 2026-10-10
 
