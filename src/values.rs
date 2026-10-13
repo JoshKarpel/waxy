@@ -1874,6 +1874,43 @@ input_enum! {
     }
 }
 
+// ─── Thread safety ─────────────────────────────────────────────────────────
+
+/// A taffy value holding no `calc()` lengths, which is what makes it `Send` and `Sync`.
+///
+/// taffy's `CompactLength` stores a `*const ()`, so nothing containing one is `Send` or `Sync`
+/// (DioxusLabs/taffy#823). The pointer is a real pointer only in a `calc()` value, which waxy
+/// never constructs (hence the `unreachable!`s converting taffy values to Python); every other
+/// length packs plain bits into it. Nor does taffy dereference it: it hands a `calc()` pointer to
+/// `LayoutPartialTree::resolve_calc_value`, which `taffy::TaffyTree` implements by ignoring it.
+///
+/// Wrapping just the taffy value, rather than declaring a whole pyclass `Send`, leaves the
+/// compiler checking the pyclass's other fields.
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct NoCalc<T>(pub(crate) T);
+
+impl<T> std::ops::Deref for NoCalc<T> {
+    type Target = T;
+
+    fn deref(&self) -> &T {
+        &self.0
+    }
+}
+
+impl<T> std::ops::DerefMut for NoCalc<T> {
+    fn deref_mut(&mut self) -> &mut T {
+        &mut self.0
+    }
+}
+
+// SAFETY: see `NoCalc`. These are per type rather than for every `T`, so wrapping some other
+// non-`Send` type is still a compile error. On a taffy upgrade, delete them and `cargo check`:
+// every complaint should trace back to `CompactLength`.
+unsafe impl Send for NoCalc<taffy::Style> {}
+unsafe impl Sync for NoCalc<taffy::Style> {}
+unsafe impl Send for NoCalc<taffy::TaffyTree<Py<PyAny>>> {}
+unsafe impl Sync for NoCalc<taffy::TaffyTree<Py<PyAny>>> {}
+
 // ─── Taffy → Python conversion helpers ────────────────────────────────────
 // These helpers bypass the `Length::new()` / `Percent::new()` constructors and
 // construct `Length`/`Percent` directly from Taffy’s internal `CompactLength`

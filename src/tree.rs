@@ -11,11 +11,12 @@ use crate::geometry::{AvailableSize, KnownSize, Point, Size};
 use crate::layout::{DetailedGridInfo, Layout};
 use crate::node::NodeId;
 use crate::style::Style;
+use crate::values::NoCalc;
 
 /// A tree of layout nodes.
-#[pyclass(unsendable, module = "waxy")]
+#[pyclass(module = "waxy")]
 pub struct TaffyTree {
-    inner: tp::TaffyTree<Py<PyAny>>,
+    inner: NoCalc<tp::TaffyTree<Py<PyAny>>>,
     /// Mirrors taffy's rounding setting, which taffy doesn't expose.
     is_rounding_enabled: bool,
     /// `compute_layout`'s memo of measure results, empty between calls. Kept here rather than
@@ -29,7 +30,7 @@ impl TaffyTree {
     #[new]
     fn new() -> Self {
         Self {
-            inner: tp::TaffyTree::new(),
+            inner: NoCalc(tp::TaffyTree::new()),
             is_rounding_enabled: true,
             measure_memo: FxHashMap::default(),
         }
@@ -39,7 +40,7 @@ impl TaffyTree {
     #[staticmethod]
     fn with_capacity(capacity: usize) -> Self {
         Self {
-            inner: tp::TaffyTree::with_capacity(capacity),
+            inner: NoCalc(tp::TaffyTree::with_capacity(capacity)),
             is_rounding_enabled: true,
             measure_memo: FxHashMap::default(),
         }
@@ -203,7 +204,7 @@ impl TaffyTree {
         // whole waxy Style, since taffy only ever sees `inner`.
         let current =
             catch_node_panic(node, || self.inner.style(node.inner))?.map_err(taffy_error_to_py)?;
-        if *current == style.inner {
+        if *current == *style.inner {
             return Ok(());
         }
         catch_node_panic(node, || self.inner.set_style(node.inner, style.to_taffy()))?
