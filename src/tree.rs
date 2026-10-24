@@ -382,9 +382,8 @@ impl TaffyTree {
 
     /// Get the out-of-flow nodes that `node` is the containing block for.
     fn hoisted_children(&self, node: &NodeId) -> PyResult<Vec<NodeId>> {
-        catch_node_panic(node, || self.inner.hoisted_children(node.inner))?
+        catch_node_panic(node, || self.current_hoisted_children(node.inner))?
             .map(|ids| ids.iter().copied().map(NodeId::from).collect())
-            .map_err(taffy_error_to_py)
     }
 
     /// Every visible node in the subtree rooted at `root`, in pre-order, with its absolute
@@ -441,7 +440,7 @@ impl TaffyTree {
         let mut containing_block_positions = FxHashMap::default();
         let mut origin = taffy::Point::ZERO;
         for node in ancestors.into_iter().rev() {
-            origin = self.place(node, origin, &mut containing_block_positions)?;
+            origin = self.place(node, origin, &mut containing_block_positions)?.0;
         }
 
         let mut layouts = Vec::new();
@@ -452,8 +451,8 @@ impl TaffyTree {
             if self.is_hidden(node)? {
                 continue;
             }
-            let position = self.place(node, parent_position, &mut containing_block_positions)?;
-            let layout = self.inner.layout(node).map_err(taffy_error_to_py)?;
+            let (position, layout) =
+                self.place(node, parent_position, &mut containing_block_positions)?;
             layouts.push((
                 NodeId::from(node),
                 Point::from(position),
@@ -466,8 +465,8 @@ impl TaffyTree {
         Ok(layouts)
     }
 
-    /// The absolute position of `node`, given its parent's, recording it as the origin of the
-    /// out-of-flow boxes `node` is the containing block for.
+    /// The absolute position and layout of `node`, given its parent's position, recording the
+    /// position as the origin of the out-of-flow boxes `node` is the containing block for.
     ///
     /// Callers place every ancestor before its descendants, so a hoisted box's containing block
     /// has been placed by the time the box is. The sum of `layout` locations along the chain of
@@ -478,26 +477,34 @@ impl TaffyTree {
         node: taffy::NodeId,
         parent_position: taffy::Point<f32>,
         containing_block_positions: &mut FxHashMap<taffy::NodeId, taffy::Point<f32>>,
-    ) -> PyResult<taffy::Point<f32>> {
+    ) -> PyResult<(taffy::Point<f32>, &tp::Layout)> {
         // In-flow nodes aren't hoisted, and neither is an out-of-flow root of a `compute_layout`
         // call; both have locations relative to their parent.
         let origin = containing_block_positions
             .get(&node)
             .copied()
             .unwrap_or(parent_position);
-        let location = self.inner.layout(node).map_err(taffy_error_to_py)?.location;
+        let layout = self.inner.layout(node).map_err(taffy_error_to_py)?;
         let position = taffy::Point {
-            x: origin.x + location.x,
-            y: origin.y + location.y,
+            x: origin.x + layout.location.x,
+            y: origin.y + layout.location.y,
         };
-        for &hoisted in self
-            .inner
-            .hoisted_children(node)
-            .map_err(taffy_error_to_py)?
-        {
+        for &hoisted in self.current_hoisted_children(node)? {
             containing_block_positions.insert(hoisted, position);
         }
-        Ok(position)
+        Ok((position, layout))
+    }
+
+    /// The out-of-flow boxes `node` was the containing block for in the last layout.
+    ///
+    /// taffy only clears a node's hoisted list when it lays the node out as a container, so a
+    /// node that lost its children (making it a leaf) keeps the list from its last container
+    /// layout, naming boxes that now have another containing block.
+    fn current_hoisted_children(&self, node: taffy::NodeId) -> PyResult<&[taffy::NodeId]> {
+        if self.inner.child_count(node) == 0 {
+            return Ok(&[]);
+        }
+        self.inner.hoisted_children(node).map_err(taffy_error_to_py)
     }
 
     /// Whether `node` is `display: Nil`, which takes it and its subtree out of the layout.

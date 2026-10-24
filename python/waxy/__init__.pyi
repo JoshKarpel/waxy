@@ -1374,7 +1374,7 @@ class Style:
         Construct a Style with the given fields set.
 
         All arguments are keyword-only. Omitting or passing None for a field uses
-        the taffy default value for that field, except `align_*`/`justify_*` and
+        the taffy default value for that field, except `align_self`, `justify_self` and
         `grid_template_areas`, where None explicitly clears the field. See each property for
         documentation of individual fields.
 
