@@ -29,6 +29,10 @@ Issues = "https://github.com/JoshKarpel/waxy/issues"
 
 [tool.uv]
 exclude-newer = "7 days"
+# Security fixes released inside the cooldown, each pinned just past its fixed release:
+# certifi 2026.10.19 (GHSA-6q48-6c7w-9gw2), filelock 4.2.1, virtualenv 21.14.13 (GHSA-cx6f-vjhg-g3cc).
+# These cap the packages, so remove them once the cooldown window passes these dates.
+exclude-newer-package = { certifi = "2026-10-20T03:00:00Z", filelock = "2026-10-17T17:00:00Z", virtualenv = "2026-10-22T21:00:00Z" }
 
 [tool.maturin]
 features = ["pyo3/extension-module"]

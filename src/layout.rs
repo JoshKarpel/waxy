@@ -189,7 +189,7 @@ impl From<&taffy::DetailedGridItemsInfo> for DetailedGridItemInfo {
 }
 
 /// The computed tracks of one axis (rows or columns) of a grid container.
-#[pyclass(frozen, skip_from_py_object, module = "waxy")]
+#[pyclass(frozen, module = "waxy")]
 #[derive(Clone, Debug)]
 pub struct DetailedGridTracksInfo {
     inner: taffy::DetailedGridTracksInfo,
@@ -247,7 +247,7 @@ impl DetailedGridTracksInfo {
 }
 
 /// Detailed results of laying out a grid container: its tracks and item placements.
-#[pyclass(frozen, skip_from_py_object, module = "waxy")]
+#[pyclass(frozen, module = "waxy")]
 #[derive(Clone, Debug)]
 pub struct DetailedGridInfo {
     inner: taffy::DetailedGridInfo,
