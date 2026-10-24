@@ -17,8 +17,6 @@ use crate::values::NoCalc;
 #[pyclass(module = "waxy")]
 pub struct TaffyTree {
     inner: NoCalc<tp::TaffyTree<Py<PyAny>>>,
-    /// Mirrors taffy's rounding setting, which taffy doesn't expose.
-    is_rounding_enabled: bool,
     /// `compute_layout`'s memo of measure results, empty between calls. Kept here rather than
     /// built per call so its allocation is reused across frames.
     measure_memo: FxHashMap<MeasureKey, taffy::Size<f32>>,
@@ -31,7 +29,6 @@ impl TaffyTree {
     fn new() -> Self {
         Self {
             inner: NoCalc(tp::TaffyTree::new()),
-            is_rounding_enabled: true,
             measure_memo: FxHashMap::default(),
         }
     }
@@ -41,7 +38,6 @@ impl TaffyTree {
     fn with_capacity(capacity: usize) -> Self {
         Self {
             inner: NoCalc(tp::TaffyTree::with_capacity(capacity)),
-            is_rounding_enabled: true,
             measure_memo: FxHashMap::default(),
         }
     }
@@ -377,13 +373,18 @@ impl TaffyTree {
     /// Enable rounding of layout values.
     fn enable_rounding(&mut self) {
         self.inner.enable_rounding();
-        self.is_rounding_enabled = true;
     }
 
     /// Disable rounding of layout values.
     fn disable_rounding(&mut self) {
         self.inner.disable_rounding();
-        self.is_rounding_enabled = false;
+    }
+
+    /// Get the out-of-flow nodes that `node` is the containing block for.
+    fn hoisted_children(&self, node: &NodeId) -> PyResult<Vec<NodeId>> {
+        catch_node_panic(node, || self.inner.hoisted_children(node.inner))?
+            .map(|ids| ids.iter().copied().map(NodeId::from).collect())
+            .map_err(taffy_error_to_py)
     }
 
     /// Every visible node in the subtree rooted at `root`, in pre-order, with its absolute
@@ -424,13 +425,9 @@ impl TaffyTree {
         &self,
         root: taffy::NodeId,
     ) -> PyResult<Vec<(NodeId, Point, Layout)>> {
-        // Sum unrounded locations, rounding each position once at the end: taffy 0.14 rounds
-        // each `location` relative to its parent but rounds `size` (and border and padding)
-        // against the running absolute offset, so a sum of rounded locations can disagree with
-        // the rounded sizes (taffy#834, fixed upstream by taffy#1189 after 0.14.0). Rounding the
-        // summed position stays correct after that fix, since fixed rounded locations sum to it.
-        // Sum top-down, in the order taffy's round_layout does, so the f32 sums (and so the
-        // rounding) match it exactly.
+        // An out-of-flow node's location is relative to its containing block, which may be any
+        // ancestor (including one above `root`), so place `root`'s ancestors first, top-down,
+        // recording where each one's hoisted children are measured from.
         let mut ancestors = Vec::new();
         let mut ancestor = self.inner.parent(root);
         while let Some(node) = ancestor {
@@ -441,13 +438,10 @@ impl TaffyTree {
             ancestors.push(node);
             ancestor = self.inner.parent(node);
         }
+        let mut containing_block_positions = FxHashMap::default();
         let mut origin = taffy::Point::ZERO;
         for node in ancestors.into_iter().rev() {
-            let location = self.inner.unrounded_layout(node).location;
-            origin = taffy::Point {
-                x: origin.x + location.x,
-                y: origin.y + location.y,
-            };
+            origin = self.place(node, origin, &mut containing_block_positions)?;
         }
 
         let mut layouts = Vec::new();
@@ -458,29 +452,52 @@ impl TaffyTree {
             if self.is_hidden(node)? {
                 continue;
             }
-            let location = self.inner.unrounded_layout(node).location;
-            let position = taffy::Point {
-                x: parent_position.x + location.x,
-                y: parent_position.y + location.y,
-            };
-            let reported = if self.is_rounding_enabled {
-                taffy::Point {
-                    x: round_like_taffy(position.x),
-                    y: round_like_taffy(position.y),
-                }
-            } else {
-                position
-            };
+            let position = self.place(node, parent_position, &mut containing_block_positions)?;
+            let layout = self.inner.layout(node).map_err(taffy_error_to_py)?;
             layouts.push((
                 NodeId::from(node),
-                Point::from(reported),
-                Layout::from(self.inner.layout(node).map_err(taffy_error_to_py)?),
+                Point::from(position),
+                Layout::from(layout),
             ));
             let children = self.inner.children(node).map_err(taffy_error_to_py)?;
             // Pushed in reverse so the first child is popped (and reported) first.
             pending.extend(children.into_iter().rev().map(|child| (child, position)));
         }
         Ok(layouts)
+    }
+
+    /// The absolute position of `node`, given its parent's, recording it as the origin of the
+    /// out-of-flow boxes `node` is the containing block for.
+    ///
+    /// Callers place every ancestor before its descendants, so a hoisted box's containing block
+    /// has been placed by the time the box is. The sum of `layout` locations along the chain of
+    /// containing blocks is exact with rounding enabled: taffy rounds each location as the
+    /// difference of rounded cumulative positions along that chain, so the sum telescopes.
+    fn place(
+        &self,
+        node: taffy::NodeId,
+        parent_position: taffy::Point<f32>,
+        containing_block_positions: &mut FxHashMap<taffy::NodeId, taffy::Point<f32>>,
+    ) -> PyResult<taffy::Point<f32>> {
+        // In-flow nodes aren't hoisted, and neither is an out-of-flow root of a `compute_layout`
+        // call; both have locations relative to their parent.
+        let origin = containing_block_positions
+            .get(&node)
+            .copied()
+            .unwrap_or(parent_position);
+        let location = self.inner.layout(node).map_err(taffy_error_to_py)?.location;
+        let position = taffy::Point {
+            x: origin.x + location.x,
+            y: origin.y + location.y,
+        };
+        for &hoisted in self
+            .inner
+            .hoisted_children(node)
+            .map_err(taffy_error_to_py)?
+        {
+            containing_block_positions.insert(hoisted, position);
+        }
+        Ok(position)
     }
 
     /// Whether `node` is `display: Nil`, which takes it and its subtree out of the layout.
@@ -518,12 +535,6 @@ impl TaffyTree {
         }
         Ok(())
     }
-}
-
-/// Round half up, as taffy's (crate-private) `round` does; `f32::round` rounds half away from
-/// zero, which disagrees with taffy for negative halves.
-fn round_like_taffy(value: f32) -> f32 {
-    (value + 0.5).floor()
 }
 
 /// A measure call's inputs, with each `f32` keyed by its bits (with `-0.0` normalized to `+0.0`,

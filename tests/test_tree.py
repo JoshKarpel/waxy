@@ -344,25 +344,106 @@ def test_absolute_layouts_rounds_summed_unrounded_locations() -> None:
     assert positions[first].x + tree.layout(first).size.width == 4
 
 
-def test_summed_rounded_locations_disagree_with_rounded_sizes_in_taffy() -> None:
-    """
-    Pin taffy#834, the bug `absolute_layouts` works around, so the upgrade that fixes it fails here.
-
-    taffy 0.14 rounds each `location` relative to its parent, so summing rounded locations gives
-    round(0.4) + round(0.4) = 0, though taffy rounds the leaf's size against its absolute left
-    edge, round(0.8) = 1.
-    """
+def test_summed_rounded_locations_agree_with_absolute_layouts() -> None:
+    """taffy rounds locations in cumulative coordinates (taffy#1189), so they sum exactly."""
     tree: waxy.TaffyTree[object] = waxy.TaffyTree()
     root, parent, first, _ = build_nested_margins(tree)
     summed = tree.layout(root).location + tree.layout(parent).location + tree.layout(first).location
     absolute = {node: position for node, position, _ in tree.absolute_layouts(root)}[first]
+    assert summed == absolute
 
-    assert summed.x != absolute.x, (
-        "taffy now rounds locations in cumulative coordinates (taffy#1189), so summing rounded "
-        "locations is correct: delete this test and the taffy#834 notes in docs/changelog.md, "
-        "docs/performance.md, plans/styling-foundations.md, absolute_layouts' docstring in "
-        "python/waxy/__init__.pyi, and collect_absolute_layouts in src/tree.rs"
+
+def build_hoisting_tree(
+    tree: waxy.TaffyTree[object], middle_position: waxy.Position
+) -> tuple[waxy.NodeId, waxy.NodeId, waxy.NodeId, waxy.NodeId]:
+    """A root, a middle node offset by margins, and an absolute and a fixed leaf inside it."""
+    leaf_style = waxy.Style(
+        inset_left=waxy.Length(3),
+        inset_top=waxy.Length(4),
+        size_width=waxy.Length(10),
+        size_height=waxy.Length(10),
     )
+    absolute = tree.new_leaf(leaf_style | waxy.Style(position=waxy.Position.Absolute))
+    fixed = tree.new_leaf(leaf_style | waxy.Style(position=waxy.Position.Fixed))
+    middle = tree.new_with_children(
+        waxy.Style(
+            position=middle_position,
+            margin_left=waxy.Length(20),
+            margin_top=waxy.Length(30),
+            size_width=waxy.Length(50),
+            size_height=waxy.Length(50),
+        ),
+        [absolute, fixed],
+    )
+    root = tree.new_with_children(
+        waxy.Style(
+            display=waxy.Display.Block,
+            size_width=waxy.Length(200),
+            size_height=waxy.Length(200),
+        ),
+        [middle],
+    )
+    tree.compute_layout(root)
+    return root, middle, absolute, fixed
+
+
+@pytest.mark.parametrize(
+    ("middle_position", "expected"),
+    [
+        (waxy.Position.Static, waxy.Point(3, 4)),
+        (waxy.Position.Relative, waxy.Point(23, 34)),
+    ],
+)
+def test_absolute_layouts_measures_absolute_node_from_containing_block(
+    middle_position: waxy.Position, expected: waxy.Point
+) -> None:
+    tree: waxy.TaffyTree[object] = waxy.TaffyTree()
+    root, _, absolute, _ = build_hoisting_tree(tree, middle_position)
+    positions = {node: position for node, position, _ in tree.absolute_layouts(root)}
+    assert positions[absolute] == expected
+
+
+def test_absolute_layouts_measures_fixed_node_from_root() -> None:
+    tree: waxy.TaffyTree[object] = waxy.TaffyTree()
+    root, _, _, fixed = build_hoisting_tree(tree, waxy.Position.Relative)
+    positions = {node: position for node, position, _ in tree.absolute_layouts(root)}
+    assert positions[fixed] == waxy.Point(3, 4)
+
+
+def test_absolute_layouts_from_subtree_measures_from_containing_block_above_it() -> None:
+    tree: waxy.TaffyTree[object] = waxy.TaffyTree()
+    _, middle, absolute, fixed = build_hoisting_tree(tree, waxy.Position.Static)
+    positions = {node: position for node, position, _ in tree.absolute_layouts(middle)}
+    assert positions == {
+        middle: waxy.Point(20, 30),
+        absolute: waxy.Point(3, 4),
+        fixed: waxy.Point(3, 4),
+    }
+
+
+@pytest.mark.parametrize(
+    ("middle_position", "root_hoists_absolute"),
+    [(waxy.Position.Static, True), (waxy.Position.Relative, False)],
+)
+def test_hoisted_children_lists_nodes_of_each_containing_block(
+    middle_position: waxy.Position, root_hoists_absolute: bool
+) -> None:
+    tree: waxy.TaffyTree[object] = waxy.TaffyTree()
+    root, middle, absolute, fixed = build_hoisting_tree(tree, middle_position)
+    by_root = [absolute, fixed] if root_hoists_absolute else [fixed]
+    by_middle = [] if root_hoists_absolute else [absolute]
+    assert (set(tree.hoisted_children(root)), tree.hoisted_children(middle)) == (
+        set(by_root),
+        by_middle,
+    )
+
+
+def test_hoisted_children_of_removed_node_raises() -> None:
+    tree: waxy.TaffyTree[object] = waxy.TaffyTree()
+    node = tree.new_leaf(waxy.Style())
+    tree.remove(node)
+    with pytest.raises(waxy.InvalidNodeId):
+        tree.hoisted_children(node)
 
 
 def to_f32(value: float) -> float:
