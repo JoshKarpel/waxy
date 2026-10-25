@@ -1050,7 +1050,6 @@ wheels = [
 
 [[package]]
 name = "waxy"
-version = "0.7.1"
 source = { editable = "." }
 
 [package.dev-dependencies]
