@@ -155,7 +155,7 @@ class KnownSize:
     Passed to the measure callback to indicate which dimensions are already known
     from the node's style. If a dimension is None, the measure function must compute it.
 
-    See: [taffy `Size<Option<f32>>`](https://docs.rs/taffy/0.14.0/taffy/geometry/struct.Size.html)
+    See: [taffy `Size<Option<f32>>`](https://docs.rs/taffy/0.15.0/taffy/geometry/struct.Size.html)
     """
 
     def __init__(self, width: float | None = None, height: float | None = None) -> None: ...
@@ -180,7 +180,7 @@ class AvailableSize:
     Passed to the measure callback to indicate how much space is available for layout.
     Each dimension is one of the available-space variants.
 
-    See: [taffy `Size<AvailableSpace>`](https://docs.rs/taffy/0.14.0/taffy/geometry/struct.Size.html)
+    See: [taffy `Size<AvailableSpace>`](https://docs.rs/taffy/0.15.0/taffy/geometry/struct.Size.html)
     """
 
     def __init__(
@@ -209,7 +209,7 @@ class Length:
 
     Raises `InvalidLength` if `value` is NaN.
 
-    See: [taffy `Dimension::Length`](https://docs.rs/taffy/0.14.0/taffy/style/struct.Dimension.html),
+    See: [taffy `Dimension::Length`](https://docs.rs/taffy/0.15.0/taffy/style/struct.Dimension.html),
     [MDN `<length>`](https://developer.mozilla.org/en-US/docs/Web/CSS/length)
     """
 
@@ -231,7 +231,7 @@ class Percent:
     Raises InvalidPercent (a subclass of both WaxyException and ValueError) if value
     is outside the range [0.0, 1.0].
 
-    See: [taffy `Dimension::Percent`](https://docs.rs/taffy/0.14.0/taffy/style/struct.Dimension.html),
+    See: [taffy `Dimension::Percent`](https://docs.rs/taffy/0.15.0/taffy/style/struct.Dimension.html),
     [MDN `<percentage>`](https://developer.mozilla.org/en-US/docs/Web/CSS/percentage)
     """
 
@@ -251,7 +251,7 @@ class Auto:
 
     Used for size, margin, inset, flex-basis, and grid placement fields.
 
-    See: [taffy `Dimension::Auto`](https://docs.rs/taffy/0.14.0/taffy/style/struct.Dimension.html)
+    See: [taffy `Dimension::Auto`](https://docs.rs/taffy/0.15.0/taffy/style/struct.Dimension.html)
     """
 
     def __init__(self) -> None: ...
@@ -267,7 +267,7 @@ class MinContent:
     opportunities taken. Used in `size_*`, `flex_basis`, available space (measure functions),
     and grid track sizing.
 
-    See: [taffy `MinTrackSizingFunction::MinContent`](https://docs.rs/taffy/0.14.0/taffy/style/struct.MinTrackSizingFunction.html),
+    See: [taffy `MinTrackSizingFunction::MinContent`](https://docs.rs/taffy/0.15.0/taffy/style/struct.MinTrackSizingFunction.html),
     [MDN `min-content`](https://developer.mozilla.org/en-US/docs/Web/CSS/min-content)
     """
 
@@ -284,7 +284,7 @@ class MaxContent:
     opportunities taken. Used in `size_*`, `flex_basis`, available space (measure functions),
     and grid track sizing.
 
-    See: [taffy `MinTrackSizingFunction::MaxContent`](https://docs.rs/taffy/0.14.0/taffy/style/struct.MinTrackSizingFunction.html),
+    See: [taffy `MinTrackSizingFunction::MaxContent`](https://docs.rs/taffy/0.15.0/taffy/style/struct.MinTrackSizingFunction.html),
     [MDN `max-content`](https://developer.mozilla.org/en-US/docs/Web/CSS/max-content)
     """
 
@@ -311,7 +311,7 @@ class Stretch:
     Fills the containing block's available space, less the node's margins.
     Used only in `size_*` and `flex_basis`.
 
-    See: [taffy `Dimension::stretch`](https://docs.rs/taffy/0.14.0/taffy/style/struct.Dimension.html),
+    See: [taffy `Dimension::stretch`](https://docs.rs/taffy/0.15.0/taffy/style/struct.Dimension.html),
     [MDN `stretch`](https://developer.mozilla.org/en-US/docs/Web/CSS/width#stretch)
     """
 
@@ -328,7 +328,7 @@ class FitContentKeyword:
     its min-content size and the available space. For an explicit limit, use `FitContent`.
     Used only in `size_*` and `flex_basis`.
 
-    See: [taffy `Dimension::fit_content`](https://docs.rs/taffy/0.14.0/taffy/style/struct.Dimension.html),
+    See: [taffy `Dimension::fit_content`](https://docs.rs/taffy/0.15.0/taffy/style/struct.Dimension.html),
     [MDN `fit-content`](https://developer.mozilla.org/en-US/docs/Web/CSS/fit-content)
     """
 
@@ -344,7 +344,7 @@ class Content:
     Sizes the flex item based on its content, ignoring its `size_*` in the main axis.
     Used only in `flex_basis`.
 
-    See: [taffy `Dimension::content`](https://docs.rs/taffy/0.14.0/taffy/style/struct.Dimension.html),
+    See: [taffy `Dimension::content`](https://docs.rs/taffy/0.15.0/taffy/style/struct.Dimension.html),
     [MDN `flex-basis: content`](https://developer.mozilla.org/en-US/docs/Web/CSS/flex-basis#content)
     """
 
@@ -371,7 +371,7 @@ class Definite:
     Used only in AvailableSize (measure function input) to represent a concrete
     pixel measurement of available space.
 
-    See: [taffy `AvailableSpace::Definite`](https://docs.rs/taffy/0.14.0/taffy/style/enum.AvailableSpace.html)
+    See: [taffy `AvailableSpace::Definite`](https://docs.rs/taffy/0.15.0/taffy/style/enum.AvailableSpace.html)
     """
 
     __match_args__ = ("value",)
@@ -394,7 +394,7 @@ class Fraction:
 
     Used only in grid track sizing (grid_template_*, grid_auto_*).
 
-    See: [taffy `MaxTrackSizingFunction::Fraction`](https://docs.rs/taffy/0.14.0/taffy/style/struct.MaxTrackSizingFunction.html),
+    See: [taffy `MaxTrackSizingFunction::Fraction`](https://docs.rs/taffy/0.15.0/taffy/style/struct.MaxTrackSizingFunction.html),
     [MDN `<flex>` (fr unit)](https://developer.mozilla.org/en-US/docs/Web/CSS/flex_value)
     """
 
@@ -429,7 +429,7 @@ class FitContent:
 
     Used in `size_*`, `flex_basis`, and grid track sizing.
 
-    See: [taffy `MaxTrackSizingFunction::FitContent`](https://docs.rs/taffy/0.14.0/taffy/style/struct.MaxTrackSizingFunction.html),
+    See: [taffy `MaxTrackSizingFunction::FitContent`](https://docs.rs/taffy/0.15.0/taffy/style/struct.MaxTrackSizingFunction.html),
     [MDN `fit-content()`](https://developer.mozilla.org/en-US/docs/Web/CSS/fit-content_function)
     """
 
@@ -454,7 +454,7 @@ class Minmax:
 
     Used only in grid track sizing.
 
-    See: [taffy `TrackSizingFunction`](https://docs.rs/taffy/0.14.0/taffy/style/type.TrackSizingFunction.html),
+    See: [taffy `TrackSizingFunction`](https://docs.rs/taffy/0.15.0/taffy/style/type.TrackSizingFunction.html),
     [MDN `minmax()`](https://developer.mozilla.org/en-US/docs/Web/CSS/minmax)
     """
 
@@ -478,7 +478,7 @@ class AutoFill:
     Repeat as many times as fit in the container without overflowing, keeping empty tracks.
     Used only as the `count` of a `Repeat`.
 
-    See: [taffy `RepetitionCount::AutoFill`](https://docs.rs/taffy/0.14.0/taffy/style/enum.RepetitionCount.html),
+    See: [taffy `RepetitionCount::AutoFill`](https://docs.rs/taffy/0.15.0/taffy/style/enum.RepetitionCount.html),
     [MDN `auto-fill`](https://developer.mozilla.org/en-US/docs/Web/CSS/repeat#auto-fill)
     """
 
@@ -494,7 +494,7 @@ class AutoFit:
     Like `AutoFill`, but empty repeated tracks collapse to zero size.
     Used only as the `count` of a `Repeat`.
 
-    See: [taffy `RepetitionCount::AutoFit`](https://docs.rs/taffy/0.14.0/taffy/style/enum.RepetitionCount.html),
+    See: [taffy `RepetitionCount::AutoFit`](https://docs.rs/taffy/0.15.0/taffy/style/enum.RepetitionCount.html),
     [MDN `auto-fit`](https://developer.mozilla.org/en-US/docs/Web/CSS/repeat#auto-fit)
     """
 
@@ -521,7 +521,7 @@ class Repeat:
     Raises `InvalidRepeat` if `count` is 0, `tracks` is empty, or `line_names` is neither
     empty nor `len(tracks) + 1` long.
 
-    See: [taffy `GridTemplateRepetition`](https://docs.rs/taffy/0.14.0/taffy/style/struct.GridTemplateRepetition.html),
+    See: [taffy `GridTemplateRepetition`](https://docs.rs/taffy/0.15.0/taffy/style/struct.GridTemplateRepetition.html),
     [MDN `repeat()`](https://developer.mozilla.org/en-US/docs/Web/CSS/repeat)
     """
 
@@ -558,7 +558,7 @@ class GridLine:
     Raises `InvalidGridLine` if `index` is 0
     (grid lines are 1-based; negative indices count from the end).
 
-    See: [taffy `GridPlacement::Line`](https://docs.rs/taffy/0.14.0/taffy/style/enum.GridPlacement.html),
+    See: [taffy `GridPlacement::Line`](https://docs.rs/taffy/0.15.0/taffy/style/enum.GridPlacement.html),
     [MDN Line-based placement](https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_grid_layout/Grid_layout_using_line-based_placement)
     """
 
@@ -580,7 +580,7 @@ class GridSpan:
 
     Raises `InvalidGridSpan` if `count` is 0 (must span at least 1 track).
 
-    See: [taffy `GridPlacement::Span`](https://docs.rs/taffy/0.14.0/taffy/style/enum.GridPlacement.html),
+    See: [taffy `GridPlacement::Span`](https://docs.rs/taffy/0.15.0/taffy/style/enum.GridPlacement.html),
     [MDN `grid-column-start` (span)](https://developer.mozilla.org/en-US/docs/Web/CSS/grid-column-start)
     """
 
@@ -596,23 +596,29 @@ class GridSpan:
 
 class NamedGridLine:
     """
-    Place at the `index`th grid line with the given name (counting from the end if negative).
+    Place at a grid line with the given name.
 
-    If no line has that name, the implicit `name-start`/`name-end` lines of a named grid
-    area are tried before falling back to the implicit grid, so `NamedGridLine("header")`
-    in both `start` and `end` places an item in the `header` area.
+    With no `index` (CSS `<custom-ident>`), a start line is the start edge of the named grid
+    area (the line named `name-start`) and an end line is its end edge (`name-end`), so
+    `NamedGridLine("header")` in both `start` and `end` places an item in the `header` area.
+    If there is no such line, it is the first line named `name`.
+
+    With an `index` (CSS `<integer> <custom-ident>`), place at the `index`th line named `name`,
+    counting from the end if negative. Lines past the explicit grid count as having every name,
+    so `NamedGridLine("header", 1)` doesn't match the `header` area's edges: it lands past the
+    explicit grid unless a line is named `header` itself.
 
     Used in GridPlacement.start and GridPlacement.end.
 
     Raises `InvalidGridLine` if `index` is 0.
 
-    See: [taffy `GridPlacement::NamedLine`](https://docs.rs/taffy/0.14.0/taffy/style/enum.GridPlacement.html),
+    See: [taffy `GridPlacement::NamedLine`](https://docs.rs/taffy/0.15.0/taffy/style/enum.GridPlacement.html),
     [MDN `grid-row-start`](https://developer.mozilla.org/en-US/docs/Web/CSS/grid-row-start)
     """
 
     __match_args__ = ("name", "index")
 
-    def __init__(self, name: str, index: int = 1) -> None: ...
+    def __init__(self, name: str, index: int | None = None) -> None: ...
     def __repr__(self) -> str: ...
     def __eq__(self, other: object) -> bool: ...
     def __hash__(self) -> int: ...
@@ -620,8 +626,12 @@ class NamedGridLine:
     def name(self) -> str:
         """The line name."""
     @property
-    def index(self) -> int:
-        """Which line with that name, 1-based (negative counts from the end)."""
+    def index(self) -> int | None:
+        """
+        Which line with that name, 1-based (negative counts from the end).
+
+        `None` means a grid area edge.
+        """
 
 class NamedGridSpan:
     """
@@ -631,7 +641,7 @@ class NamedGridSpan:
 
     Raises `InvalidGridSpan` if `count` is 0.
 
-    See: [taffy `GridPlacement::NamedSpan`](https://docs.rs/taffy/0.14.0/taffy/style/enum.GridPlacement.html),
+    See: [taffy `GridPlacement::NamedSpan`](https://docs.rs/taffy/0.15.0/taffy/style/enum.GridPlacement.html),
     [MDN `grid-row-start` (span)](https://developer.mozilla.org/en-US/docs/Web/CSS/grid-row-start)
     """
 
@@ -665,12 +675,30 @@ class Display:
     """Block layout that always establishes an independent formatting context."""
 
 class Position:
-    """How the node should be positioned."""
+    """
+    How the node should be positioned.
 
+    An `Absolute` or `Fixed` node is laid out by its containing block, which may be an ancestor
+    above its parent: for `Absolute`, the nearest ancestor that isn't `Static` (or the root of
+    the `compute_layout` call if there is none); for `Fixed`, that root. Its `Layout.location`
+    is relative to the containing block. `TaffyTree.hoisted_children` lists the nodes a
+    containing block lays out this way.
+    """
+
+    Static: Position
+    """Positioned according to normal flow; insets have no effect. The default."""
     Relative: Position
-    """Positioned according to normal flow, then offset."""
+    """Positioned according to normal flow, then offset by its insets."""
     Absolute: Position
     """Removed from normal flow and positioned relative to its containing block."""
+    Fixed: Position
+    """Removed from normal flow and positioned relative to the root of the layout."""
+    Sticky: Position
+    """
+    Laid out like `Static`, but a containing block for `Absolute` descendants.
+
+    taffy doesn't apply sticky offsets, which depend on scroll position: apply them yourself.
+    """
 
 class FlexDirection:
     """The direction of a flex container's main axis."""
@@ -707,8 +735,14 @@ class AlignItems:
     Alignment of items along the cross axis.
 
     The `Safe*` members are the CSS `safe` variants: an item that would overflow its
-    alignment container is aligned as if `Start` instead.
+    alignment container is aligned as if `Start` instead. The `Unsafe*` members are the CSS
+    `unsafe` variants, which differ from the bare members only for absolutely positioned
+    nodes: with a bare member, such a node is shifted to reduce its overflow of its
+    containing block.
     """
+
+    Normal: AlignItems
+    """The layout mode's default alignment: usually `Stretch`, but `Start` in some cases."""
 
     Start: AlignItems
     """Align to the start of the cross axis."""
@@ -742,14 +776,32 @@ class AlignItems:
     """`safe self-start`."""
     SafeSelfEnd: AlignItems
     """`safe self-end`."""
+    UnsafeStart: AlignItems
+    """`unsafe start`."""
+    UnsafeEnd: AlignItems
+    """`unsafe end`."""
+    UnsafeFlexStart: AlignItems
+    """`unsafe flex-start`."""
+    UnsafeFlexEnd: AlignItems
+    """`unsafe flex-end`."""
+    UnsafeCenter: AlignItems
+    """`unsafe center`."""
+    UnsafeSelfStart: AlignItems
+    """`unsafe self-start`."""
+    UnsafeSelfEnd: AlignItems
+    """`unsafe self-end`."""
 
 class AlignContent:
     """
     Alignment of content within the container.
 
     The `Safe*` members are the CSS `safe` variants: content that would overflow the
-    container is aligned as if `Start` instead.
+    container is aligned as if `Start` instead. The `Unsafe*` members are the CSS `unsafe`
+    variants.
     """
+
+    Normal: AlignContent
+    """The layout mode's default alignment."""
 
     Start: AlignContent
     """Pack lines to the start of the container."""
@@ -779,6 +831,16 @@ class AlignContent:
     """`safe flex-end`."""
     SafeCenter: AlignContent
     """`safe center`."""
+    UnsafeStart: AlignContent
+    """`unsafe start`."""
+    UnsafeEnd: AlignContent
+    """`unsafe end`."""
+    UnsafeFlexStart: AlignContent
+    """`unsafe flex-start`."""
+    UnsafeFlexEnd: AlignContent
+    """`unsafe flex-end`."""
+    UnsafeCenter: AlignContent
+    """`unsafe center`."""
 
 class Overflow:
     """How content overflows its container."""
@@ -881,7 +943,7 @@ class GridPlacement:
     (GridLine | GridSpan | NamedGridLine | NamedGridSpan | Auto).
     Defaults both to Auto (the CSS default for unplaced items).
 
-    See: [taffy `Line<GridPlacement>`](https://docs.rs/taffy/0.14.0/taffy/geometry/struct.Line.html),
+    See: [taffy `Line<GridPlacement>`](https://docs.rs/taffy/0.15.0/taffy/geometry/struct.Line.html),
     [MDN `grid-row`](https://developer.mozilla.org/en-US/docs/Web/CSS/grid-row),
     [MDN `grid-column`](https://developer.mozilla.org/en-US/docs/Web/CSS/grid-column)
     """
@@ -911,7 +973,7 @@ class GridTemplateArea:
     Raises `InvalidGridTemplateArea` if a start line is 0 or an end line is not after its
     start line.
 
-    See: [taffy `GridTemplateArea`](https://docs.rs/taffy/0.14.0/taffy/style/struct.GridTemplateArea.html),
+    See: [taffy `GridTemplateArea`](https://docs.rs/taffy/0.15.0/taffy/style/struct.GridTemplateArea.html),
     [MDN `grid-template-areas`](https://developer.mozilla.org/en-US/docs/Web/CSS/grid-template-areas)
     """
 
@@ -958,7 +1020,7 @@ class GridTemplateAreas:
     Raises `InvalidGridTemplateAreas` if an area extends past `row_count`/`column_count`,
     or if two areas share a name.
 
-    See: [taffy `GridTemplateAreas`](https://docs.rs/taffy/0.14.0/taffy/style/struct.GridTemplateAreas.html),
+    See: [taffy `GridTemplateAreas`](https://docs.rs/taffy/0.15.0/taffy/style/struct.GridTemplateAreas.html),
     [MDN `grid-template-areas`](https://developer.mozilla.org/en-US/docs/Web/CSS/grid-template-areas)
     """
 
@@ -1016,10 +1078,15 @@ class Layout:
       and not absolute/viewport coordinates). This means a child inside a parent with
       padding or border will have its location offset by the parent's padding + border
       widths. A child's own margin also offsets its location outward from siblings.
+      An `Absolute` or `Fixed` node's location is relative to its **containing block's**
+      border box origin instead, which may be an ancestor above its parent
+      (see [`Position`][waxy.Position]).
     - [`size`][waxy.Layout.size] is the **border box** size: it includes border + padding + content,
       but excludes margin.
-    - To compute absolute positions, accumulate [`location`][waxy.Layout.location] values
-      from the root down to the node.
+    - To compute absolute positions, call
+      [`TaffyTree.absolute_layouts`][waxy.TaffyTree.absolute_layouts], or accumulate
+      [`location`][waxy.Layout.location] values from the root down to the node
+      through each node's parent or containing block.
     - To compute the content box, subtract [`border`][waxy.Layout.border]
       and [`padding`][waxy.Layout.padding] from [`size`][waxy.Layout.size]
       (or use [`content_box_width()`][waxy.Layout.content_box_width]
@@ -1046,7 +1113,11 @@ class Layout:
         """Topological paint order computed by taffy. Higher values are painted on top."""
     @property
     def location(self) -> Point:
-        """Position of this node's border box origin, relative to the parent's border box origin."""
+        """
+        Position of this node's border box origin, relative to the parent's border box origin.
+
+        For an `Absolute` or `Fixed` node, it's relative to the containing block's instead.
+        """
     @property
     def size(self) -> Size:
         """Border box dimensions (includes border + padding + content, excludes margin)."""
@@ -1130,6 +1201,21 @@ class DetailedGridTracksInfo:
 
         Positions account for the container's border and padding, gaps, content alignment,
         and collapsed tracks.
+        """
+    @property
+    def collapsed_tracks(self) -> list[range]:
+        """
+        The runs of collapsed `auto-fit` tracks, as sorted, disjoint ranges of track indices.
+
+        A collapsed track has zero size, and the gaps on either side of it collapse into one.
+        """
+    @property
+    def empty_axis_line(self) -> float | None:
+        """
+        The position of the axis' only grid line when it has no tracks, else `None`.
+
+        An axis with no tracks still has one grid line, placed by content alignment
+        and relative to the container's border box.
         """
     @property
     def line_names(self) -> list[list[str]]:
@@ -1216,7 +1302,7 @@ class Style:
     they hold the same values *and* set the same fields, since otherwise they would merge
     differently: `Style() != Style(display=Display.Flex)`, though `Flex` is the default.
 
-    See: [taffy `Style`](https://docs.rs/taffy/0.14.0/taffy/struct.Style.html)
+    See: [taffy `Style`](https://docs.rs/taffy/0.15.0/taffy/struct.Style.html)
     """
 
     def __init__(
@@ -1234,6 +1320,7 @@ class Style:
         clear: Clear | None = None,
         item_is_table: bool | None = None,
         item_is_replaced: bool | None = None,
+        item_is_compressible_replaced: bool | None = None,
         inset_left: LengthPercentageAutoValue | None = None,
         inset_right: LengthPercentageAutoValue | None = None,
         inset_top: LengthPercentageAutoValue | None = None,
@@ -1287,7 +1374,7 @@ class Style:
         Construct a Style with the given fields set.
 
         All arguments are keyword-only. Omitting or passing None for a field uses
-        the taffy default value for that field, except `align_*`/`justify_*` and
+        the taffy default value for that field, except `align_self`, `justify_self` and
         `grid_template_areas`, where None explicitly clears the field. See each property for
         documentation of individual fields.
 
@@ -1307,6 +1394,7 @@ class Style:
             clear: Which preceding floats the node is moved below. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/clear)
             item_is_table: Whether the node is a table, which block layout sizes differently.
             item_is_replaced: Whether the node is a replaced element (like an image). [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/Replaced_element)
+            item_is_compressible_replaced: Whether the node is a form control. [CSS Sizing](https://drafts.csswg.org/css-sizing-3/#compressible)
             inset_left: Left offset for absolutely-positioned nodes. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/left)
             inset_right: Right offset for absolutely-positioned nodes. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/right)
             inset_top: Top offset for absolutely-positioned nodes. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/top)
@@ -1402,6 +1490,16 @@ class Style:
     def item_is_replaced(self) -> bool:
         """Whether the node is a replaced element (like an image). [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/Replaced_element)."""
     @property
+    def item_is_compressible_replaced(self) -> bool:
+        """
+        Whether the node is a form control, which sizes like a replaced element. [CSS Sizing](https://drafts.csswg.org/css-sizing-3/#compressible).
+
+        A compressible replaced element that isn't a replaced element. As with
+        `item_is_replaced`, block layout sizes an `auto` width to its intrinsic size rather
+        than stretching it. Unlike it, an absolutely positioned node with `auto` size still
+        stretches between its insets.
+        """
+    @property
     def inset_left(self) -> LengthPercentageAutoValue:
         """Left offset for absolutely-positioned nodes. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/left)."""
     @property
@@ -1471,22 +1569,22 @@ class Style:
     def border_bottom(self) -> LengthPercentageValue:
         """Bottom border width. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/border-bottom-width)."""
     @property
-    def align_items(self) -> AlignItems | None:
+    def align_items(self) -> AlignItems:
         """Default alignment of children along the cross axis. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/align-items)."""
     @property
     def align_self(self) -> AlignItems | None:
         """Override alignment of this node along the parent's cross axis. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/align-self)."""
     @property
-    def justify_items(self) -> AlignItems | None:
+    def justify_items(self) -> AlignItems:
         """Default alignment of children along the main axis. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/justify-items)."""
     @property
     def justify_self(self) -> AlignItems | None:
         """Override alignment of this node along the parent's main axis. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/justify-self)."""
     @property
-    def align_content(self) -> AlignContent | None:
+    def align_content(self) -> AlignContent:
         """Alignment of rows/columns when there is extra space in the cross axis. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/align-content)."""
     @property
-    def justify_content(self) -> AlignContent | None:
+    def justify_content(self) -> AlignContent:
         """Distribution of children along the main axis. [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/justify-content)."""
     @property
     def gap_width(self) -> LengthPercentageValue:
@@ -1659,14 +1757,19 @@ class TaffyTree[NodeContext = object]:
         `layout(node)` still returns a hidden node's zero layout.
 
         The position is relative to the top of the tree (the ancestor with no parent):
-        the sum of the node's own and all its ancestors' locations. Each `Layout` is the same as
-        `layout(node)` returns, so its `location` stays relative to the node's parent.
+        the node's location plus the position of whatever that location is relative to,
+        its parent or, for an `Absolute` or `Fixed` node, its containing block.
+        Each `Layout` is the same as `layout(node)` returns, so its `location` stays relative
+        to the node's parent or containing block.
 
-        Like `layout`, this follows the tree's rounding setting. With rounding enabled, the
-        position is the sum of the unrounded locations, rounded once, which is where taffy's
-        rounded `size` assumes the node starts. In taffy 0.14, summing the rounded locations
-        instead can be off by a pixel, since it rounds each location relative to its parent
-        ([taffy#834](https://github.com/DioxusLabs/taffy/issues/834)).
+        Like `layout`, this follows the tree's rounding setting.
+        """
+    def hoisted_children(self, node: NodeId) -> list[NodeId]:
+        """
+        The `Absolute` and `Fixed` nodes for which `node` is the containing block.
+
+        This reflects the last `compute_layout`. Their `Layout.location` is relative to `node`,
+        which may be an ancestor above their parent.
         """
     def detailed_layout_info(self, node: NodeId) -> DetailedGridInfo | None:
         """

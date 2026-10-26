@@ -1,6 +1,7 @@
 use pyo3::prelude::*;
 
 use pyo3::exceptions::PyIndexError;
+use pyo3::types::PyRange;
 
 use crate::enums::Direction;
 use crate::geometry::{hash_f32, Line, Point, Rect, Size};
@@ -235,6 +236,20 @@ impl DetailedGridTracksInfo {
     }
 
     #[getter]
+    fn collapsed_tracks<'py>(&self, py: Python<'py>) -> PyResult<Vec<Bound<'py, PyRange>>> {
+        self.inner
+            .collapsed_tracks
+            .iter()
+            .map(|r| PyRange::new(py, r.start as isize, r.end as isize))
+            .collect()
+    }
+
+    #[getter]
+    fn empty_axis_line(&self) -> Option<f32> {
+        self.inner.empty_axis_line
+    }
+
+    #[getter]
     fn line_names(&self) -> Vec<Vec<String>> {
         (0..=self.inner.positions.len())
             .map(|i| self.inner.names_for_line(i).to_vec())
@@ -258,8 +273,8 @@ impl DetailedGridInfo {
     fn __repr__(&self) -> String {
         format!(
             "DetailedGridInfo(rows={:?}, columns={:?}, items={})",
-            self.inner.grid_template_rows(),
-            self.inner.grid_template_columns(),
+            self.inner.grid_template_rows(1.0),
+            self.inner.grid_template_columns(1.0),
             self.inner.items.len()
         )
     }
@@ -292,11 +307,11 @@ impl DetailedGridInfo {
     }
 
     fn grid_template_rows(&self) -> String {
-        self.inner.grid_template_rows()
+        self.inner.grid_template_rows(1.0)
     }
 
     fn grid_template_columns(&self) -> String {
-        self.inner.grid_template_columns()
+        self.inner.grid_template_columns(1.0)
     }
 
     fn item_grid_area(&self, item_index: usize) -> PyResult<(Point, Size)> {

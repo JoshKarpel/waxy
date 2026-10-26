@@ -121,8 +121,8 @@ def test_repeat_auto_fill_fits_container() -> None:
 # --- Named lines ---
 
 
-def test_named_grid_line_defaults_index_to_1() -> None:
-    assert waxy.NamedGridLine("a").index == 1
+def test_named_grid_line_defaults_index_to_none() -> None:
+    assert waxy.NamedGridLine("a").index is None
 
 
 def test_named_grid_span_defaults_count_to_1() -> None:
@@ -133,6 +133,7 @@ def test_named_grid_span_defaults_count_to_1() -> None:
     ("value", "expected"),
     [
         (waxy.NamedGridLine("a", -2), "NamedGridLine('a', -2)"),
+        (waxy.NamedGridLine("a"), "NamedGridLine('a')"),
         (waxy.NamedGridSpan("b", 3), "NamedGridSpan('b', 3)"),
     ],
 )
@@ -339,6 +340,25 @@ def test_item_placed_into_named_area() -> None:
     assert (layout.location, layout.size) == (waxy.Point(30.0, 10.0), waxy.Size(70.0, 60.0))
 
 
+def test_indexed_named_line_skips_grid_area_edges() -> None:
+    """`1 main` counts lines named `main` itself, so it lands past the explicit grid."""
+    tree: waxy.TaffyTree[object] = waxy.TaffyTree()
+    child = tree.new_leaf(
+        waxy.Style(grid_column=waxy.GridPlacement(waxy.NamedGridLine("main", 1), waxy.GridSpan(1)))
+    )
+    root = tree.new_with_children(
+        waxy.Style(
+            display=waxy.Display.Grid,
+            grid_template_columns=[L(30.0), L(70.0)],
+            grid_template_areas=waxy.GridTemplateAreas.from_strings(["nav main"]),
+        ),
+        [child],
+    )
+    tree.compute_layout(root)
+    # Not at x=30, the `main` area's start edge, but past the explicit grid's end at x=100.
+    assert tree.layout(child).location.x == 100.0
+
+
 # --- Detailed layout info ---
 
 
@@ -406,6 +426,57 @@ def test_detailed_layout_info_positions_include_padding_and_gaps() -> None:
         waxy.Line(13.0, 33.0),
         waxy.Line(35.0, 65.0),
     ]
+
+
+def test_detailed_layout_info_collapsed_tracks() -> None:
+    tree: waxy.TaffyTree[object] = waxy.TaffyTree()
+    root = tree.new_with_children(
+        waxy.Style(
+            display=waxy.Display.Grid,
+            size_width=L(100.0),
+            grid_template_columns=[waxy.Repeat(waxy.AUTO_FIT, [L(20.0)])],
+        ),
+        [tree.new_leaf(waxy.Style())],
+    )
+    tree.compute_layout(root)
+    info = tree.detailed_layout_info(root)
+    assert info is not None
+    assert info.columns.collapsed_tracks == [range(1, 5)]
+
+
+def test_detailed_layout_info_collapsed_tracks_empty_without_auto_fit() -> None:
+    tree, root, _ = grid_with_two_items()
+    info = tree.detailed_layout_info(root)
+    assert info is not None
+    assert info.columns.collapsed_tracks == []
+
+
+def test_detailed_layout_info_empty_axis_line_follows_content_alignment() -> None:
+    """An absolute child creates no tracks, leaving each axis one line placed by alignment."""
+    tree: waxy.TaffyTree[object] = waxy.TaffyTree()
+    root = tree.new_with_children(
+        waxy.Style(
+            display=waxy.Display.Grid,
+            size_width=L(100.0),
+            size_height=L(40.0),
+            padding_left=L(3.0),
+            padding_top=L(2.0),
+            justify_content=waxy.AlignContent.End,
+            align_content=waxy.AlignContent.Center,
+        ),
+        [tree.new_leaf(waxy.Style(position=waxy.Position.Absolute))],
+    )
+    tree.compute_layout(root)
+    info = tree.detailed_layout_info(root)
+    assert info is not None
+    assert (info.columns.empty_axis_line, info.rows.empty_axis_line) == (100.0, 21.0)
+
+
+def test_detailed_layout_info_empty_axis_line_none_with_tracks() -> None:
+    tree, root, _ = grid_with_two_items()
+    info = tree.detailed_layout_info(root)
+    assert info is not None
+    assert (info.columns.empty_axis_line, info.rows.empty_axis_line) == (None, None)
 
 
 def test_detailed_layout_info_line_names() -> None:
