@@ -17,3 +17,10 @@ When adding support for a new Python version (e.g., Python 3.16):
    ```
 
 4. **Update `pyproject.toml`**: Verify that `requires-python` includes the new version (e.g., `>=3.13` already covers 3.16), and add a `Programming Language :: Python :: 3.X` classifier for it.
+
+## Releasing
+
+To release, set `version` in `Cargo.toml`, which maturin gives the wheels and sdist too
+(`pyproject.toml` declares the version `dynamic`, so there's no second copy to forget),
+add its entry to `docs/changelog.md`, then publish a GitHub release tagged `v<version>`.
+`release.yml` refuses to publish anything whose version isn't the tag's.
