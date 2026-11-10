@@ -11,7 +11,7 @@ import waxy
 def test_style_default() -> None:
     s = waxy.Style()
     assert s.display == waxy.Display.Flex  # taffy default
-    assert s.position == waxy.Position.Relative
+    assert s.position == waxy.Position.Static
     assert s.flex_grow == 0.0
     assert s.flex_shrink == 1.0
 
@@ -78,10 +78,16 @@ def test_style_alignment() -> None:
     assert s.justify_content == waxy.AlignContent.SpaceBetween
 
 
-def test_style_alignment_none() -> None:
+def test_style_alignment_defaults_to_normal() -> None:
     s = waxy.Style()
-    assert s.align_items is None
-    assert s.align_content is None
+    assert s.align_items == waxy.AlignItems.Normal
+    assert s.align_content == waxy.AlignContent.Normal
+
+
+def test_style_self_alignment_defaults_to_auto() -> None:
+    s = waxy.Style()
+    assert s.align_self is None
+    assert s.justify_self is None
 
 
 def test_style_grid() -> None:
@@ -173,10 +179,10 @@ def test_style_or_default_value_overrides_when_explicit() -> None:
 
 def test_style_or_explicit_none_clears_field() -> None:
     """Passing None explicitly should clear the field in the merged result."""
-    a = waxy.Style(align_items=waxy.AlignItems.Center)
-    b = waxy.Style(align_items=None)
+    a = waxy.Style(align_self=waxy.AlignItems.Center)
+    b = waxy.Style(align_self=None)
     result = a | b
-    assert result.align_items is None
+    assert result.align_self is None
 
 
 def test_style_or_explicit_none_aspect_ratio() -> None:
@@ -474,6 +480,7 @@ NON_DEFAULT_VALUES: dict[str, object] = {
     "clear": waxy.Clear.Both,
     "item_is_table": True,
     "item_is_replaced": True,
+    "item_is_compressible_replaced": True,
     "inset_left": waxy.Length(1),
     "inset_right": waxy.Length(2),
     "inset_top": waxy.Percent(0.25),
@@ -574,7 +581,7 @@ def test_style_wrong_value_type_notes_the_keyword() -> None:
     [
         (waxy.Style(), waxy.Style(flex_grow=0)),
         (waxy.Style(), waxy.Style(display=waxy.Display.Flex)),
-        (waxy.Style(), waxy.Style(align_items=None)),
+        (waxy.Style(), waxy.Style(align_self=None)),
         (waxy.Style(flex_grow=3) | waxy.Style(), waxy.Style(flex_grow=3) | waxy.Style(flex_grow=0)),
     ],
 )
@@ -587,7 +594,7 @@ def test_style_same_values_different_set_fields_are_unequal(a: waxy.Style, b: wa
     [
         (waxy.Style(flex_grow=1), waxy.Style(flex_grow=1.0)),
         (waxy.Style(size_width=waxy.AUTO), waxy.Style(size_width=waxy.Auto())),
-        (waxy.Style(align_items=None), waxy.Style(align_items=None)),
+        (waxy.Style(align_self=None), waxy.Style(align_self=None)),
     ],
 )
 def test_style_same_values_same_set_fields_are_equal_and_hash_equal(
@@ -606,8 +613,8 @@ def test_style_same_values_same_set_fields_are_equal_and_hash_equal(
             waxy.Style(flex_grow=3, flex_shrink=2),
         ),
         (
-            waxy.Style(align_items=waxy.AlignItems.Center) | waxy.Style(align_items=None),
-            waxy.Style(align_items=None),
+            waxy.Style(align_self=waxy.AlignItems.Center) | waxy.Style(align_self=None),
+            waxy.Style(align_self=None),
         ),
     ],
 )
@@ -645,7 +652,7 @@ def test_style_repr_lists_set_fields_in_declaration_order() -> None:
     [
         waxy.Style(),
         waxy.Style(display=waxy.Display.Block, flex_grow=1.5, margin_left=waxy.AUTO),
-        waxy.Style(align_items=None, aspect_ratio=None),
+        waxy.Style(align_self=None, aspect_ratio=None),
         waxy.Style(size_width=waxy.FitContent(waxy.Percent(0.5)), flex_basis=waxy.CONTENT),
         style_from_keywords(**NON_DEFAULT_VALUES),
     ],
@@ -656,8 +663,8 @@ def test_style_repr_round_trips_through_eval(style: waxy.Style) -> None:
 
 
 def test_style_fields_set_matches_keywords() -> None:
-    s = waxy.Style(display=waxy.Display.Grid, align_items=None, flex_grow=0)
-    assert s.fields_set == {"display", "align_items", "flex_grow"}
+    s = waxy.Style(display=waxy.Display.Grid, align_self=None, flex_grow=0)
+    assert s.fields_set == {"display", "align_self", "flex_grow"}
 
 
 def test_style_fields_set_is_empty_for_empty_style() -> None:

@@ -20,7 +20,7 @@ use crate::errors::{
 /// Used for `size_*`, `min_size_*`, `max_size_*`, `flex_basis`, `padding_*`,
 /// `border_*`, `gap_*`, `margin_*`, `inset_*`, and grid track sizing.
 ///
-/// See: [taffy `Dimension::Length`](https://docs.rs/taffy/0.14.0/taffy/style/struct.Dimension.html),
+/// See: [taffy `Dimension::Length`](https://docs.rs/taffy/0.15.0/taffy/style/struct.Dimension.html),
 /// [MDN `<length>`](https://developer.mozilla.org/en-US/docs/Web/CSS/length)
 #[pyclass(frozen, from_py_object, module = "waxy")]
 #[derive(Clone, Debug, PartialEq)]
@@ -65,7 +65,7 @@ impl Length {
 /// Raises [`InvalidPercent`] (a subclass of both [`WaxyException`] and `ValueError`)
 /// if `value` is outside the range `[0.0, 1.0]`.
 ///
-/// See: [taffy `Dimension::Percent`](https://docs.rs/taffy/0.14.0/taffy/style/struct.Dimension.html),
+/// See: [taffy `Dimension::Percent`](https://docs.rs/taffy/0.15.0/taffy/style/struct.Dimension.html),
 /// [MDN `<percentage>`](https://developer.mozilla.org/en-US/docs/Web/CSS/percentage)
 #[pyclass(frozen, from_py_object, module = "waxy")]
 #[derive(Clone, Debug, PartialEq)]
@@ -109,7 +109,7 @@ impl Percent {
 /// Used for `size_*`, `min_size_*`, `max_size_*`, `flex_basis`, `margin_*`,
 /// `inset_*`, and grid track and placement contexts.
 ///
-/// See: [taffy `Dimension::Auto`](https://docs.rs/taffy/0.14.0/taffy/style/struct.Dimension.html)
+/// See: [taffy `Dimension::Auto`](https://docs.rs/taffy/0.15.0/taffy/style/struct.Dimension.html)
 #[pyclass(frozen, from_py_object, module = "waxy")]
 #[derive(Clone, Debug, PartialEq)]
 pub struct Auto {}
@@ -141,7 +141,7 @@ impl Auto {
 ///
 /// Used in available space (measure functions) and grid track sizing.
 ///
-/// See: [taffy `MinTrackSizingFunction::MinContent`](https://docs.rs/taffy/0.14.0/taffy/style/struct.MinTrackSizingFunction.html),
+/// See: [taffy `MinTrackSizingFunction::MinContent`](https://docs.rs/taffy/0.15.0/taffy/style/struct.MinTrackSizingFunction.html),
 /// [MDN `min-content`](https://developer.mozilla.org/en-US/docs/Web/CSS/min-content)
 #[pyclass(frozen, from_py_object, module = "waxy")]
 #[derive(Clone, Debug, PartialEq)]
@@ -174,7 +174,7 @@ impl MinContent {
 ///
 /// Used in available space (measure functions) and grid track sizing.
 ///
-/// See: [taffy `MinTrackSizingFunction::MaxContent`](https://docs.rs/taffy/0.14.0/taffy/style/struct.MinTrackSizingFunction.html),
+/// See: [taffy `MinTrackSizingFunction::MaxContent`](https://docs.rs/taffy/0.15.0/taffy/style/struct.MinTrackSizingFunction.html),
 /// [MDN `max-content`](https://developer.mozilla.org/en-US/docs/Web/CSS/max-content)
 #[pyclass(frozen, from_py_object, module = "waxy")]
 #[derive(Clone, Debug, PartialEq)]
@@ -208,7 +208,7 @@ impl MaxContent {
 ///
 /// Used only in `size_*` and `flex_basis`.
 ///
-/// See: [taffy `Dimension::stretch`](https://docs.rs/taffy/0.14.0/taffy/style/struct.Dimension.html),
+/// See: [taffy `Dimension::stretch`](https://docs.rs/taffy/0.15.0/taffy/style/struct.Dimension.html),
 /// [MDN `stretch`](https://developer.mozilla.org/en-US/docs/Web/CSS/width#stretch)
 #[pyclass(frozen, from_py_object, module = "waxy")]
 #[derive(Clone, Debug, PartialEq)]
@@ -241,7 +241,7 @@ impl Stretch {
 ///
 /// Used only in `size_*` and `flex_basis`.
 ///
-/// See: [taffy `Dimension::fit_content`](https://docs.rs/taffy/0.14.0/taffy/style/struct.Dimension.html),
+/// See: [taffy `Dimension::fit_content`](https://docs.rs/taffy/0.15.0/taffy/style/struct.Dimension.html),
 /// [MDN `fit-content`](https://developer.mozilla.org/en-US/docs/Web/CSS/fit-content)
 #[pyclass(frozen, from_py_object, module = "waxy")]
 #[derive(Clone, Debug, PartialEq)]
@@ -273,7 +273,7 @@ impl FitContentKeyword {
 ///
 /// Used only in `flex_basis`.
 ///
-/// See: [taffy `Dimension::content`](https://docs.rs/taffy/0.14.0/taffy/style/struct.Dimension.html),
+/// See: [taffy `Dimension::content`](https://docs.rs/taffy/0.15.0/taffy/style/struct.Dimension.html),
 /// [MDN `flex-basis: content`](https://developer.mozilla.org/en-US/docs/Web/CSS/flex-basis#content)
 #[pyclass(frozen, from_py_object, module = "waxy")]
 #[derive(Clone, Debug, PartialEq)]
@@ -306,7 +306,7 @@ impl Content {
 /// Used only in `AvailableSize` (measure function input) to represent
 /// a concrete pixel measurement of available space.
 ///
-/// See: [taffy `AvailableSpace::Definite`](https://docs.rs/taffy/0.14.0/taffy/style/enum.AvailableSpace.html)
+/// See: [taffy `AvailableSpace::Definite`](https://docs.rs/taffy/0.15.0/taffy/style/enum.AvailableSpace.html)
 #[pyclass(frozen, from_py_object, module = "waxy")]
 #[derive(Clone, Debug, PartialEq)]
 pub struct Definite {
@@ -349,7 +349,7 @@ impl Definite {
 ///
 /// Used only in grid track sizing (`grid_template_*`, `grid_auto_*`).
 ///
-/// See: [taffy `MaxTrackSizingFunction::Fraction`](https://docs.rs/taffy/0.14.0/taffy/style/struct.MaxTrackSizingFunction.html),
+/// See: [taffy `MaxTrackSizingFunction::Fraction`](https://docs.rs/taffy/0.15.0/taffy/style/struct.MaxTrackSizingFunction.html),
 /// [MDN `<flex>` (`fr` unit)](https://developer.mozilla.org/en-US/docs/Web/CSS/flex_value)
 #[pyclass(frozen, from_py_object, module = "waxy")]
 #[derive(Clone, Debug, PartialEq)]
@@ -391,7 +391,7 @@ impl Fraction {
 ///
 /// Used only in grid track sizing.
 ///
-/// See: [taffy `MaxTrackSizingFunction::FitContent`](https://docs.rs/taffy/0.14.0/taffy/style/struct.MaxTrackSizingFunction.html),
+/// See: [taffy `MaxTrackSizingFunction::FitContent`](https://docs.rs/taffy/0.15.0/taffy/style/struct.MaxTrackSizingFunction.html),
 /// [MDN `fit-content()`](https://developer.mozilla.org/en-US/docs/Web/CSS/fit-content_function)
 #[pyclass(frozen, module = "waxy")]
 #[derive(Debug)]
@@ -468,7 +468,7 @@ impl FitContent {
 ///
 /// Used only in grid track sizing.
 ///
-/// See: [taffy `TrackSizingFunction`](https://docs.rs/taffy/0.14.0/taffy/style/type.TrackSizingFunction.html),
+/// See: [taffy `TrackSizingFunction`](https://docs.rs/taffy/0.15.0/taffy/style/type.TrackSizingFunction.html),
 /// [MDN `minmax()`](https://developer.mozilla.org/en-US/docs/Web/CSS/minmax)
 #[pyclass(frozen, module = "waxy")]
 #[derive(Debug)]
@@ -542,7 +542,7 @@ impl Minmax {
 ///
 /// Used only as the `count` of a `Repeat`.
 ///
-/// See: [taffy `RepetitionCount::AutoFill`](https://docs.rs/taffy/0.14.0/taffy/style/enum.RepetitionCount.html),
+/// See: [taffy `RepetitionCount::AutoFill`](https://docs.rs/taffy/0.15.0/taffy/style/enum.RepetitionCount.html),
 /// [MDN `auto-fill`](https://developer.mozilla.org/en-US/docs/Web/CSS/repeat#auto-fill)
 #[pyclass(frozen, from_py_object, module = "waxy")]
 #[derive(Clone, Debug, PartialEq)]
@@ -572,7 +572,7 @@ impl AutoFill {
 ///
 /// Used only as the `count` of a `Repeat`.
 ///
-/// See: [taffy `RepetitionCount::AutoFit`](https://docs.rs/taffy/0.14.0/taffy/style/enum.RepetitionCount.html),
+/// See: [taffy `RepetitionCount::AutoFit`](https://docs.rs/taffy/0.15.0/taffy/style/enum.RepetitionCount.html),
 /// [MDN `auto-fit`](https://developer.mozilla.org/en-US/docs/Web/CSS/repeat#auto-fit)
 #[pyclass(frozen, from_py_object, module = "waxy")]
 #[derive(Clone, Debug, PartialEq)]
@@ -604,7 +604,7 @@ impl AutoFit {
 /// positionally: entry `i` names the line before `tracks[i]`, and the final entry names the
 /// line after the last track (so it has `len(tracks) + 1` entries).
 ///
-/// See: [taffy `GridTemplateRepetition`](https://docs.rs/taffy/0.14.0/taffy/style/struct.GridTemplateRepetition.html),
+/// See: [taffy `GridTemplateRepetition`](https://docs.rs/taffy/0.15.0/taffy/style/struct.GridTemplateRepetition.html),
 /// [MDN `repeat()`](https://developer.mozilla.org/en-US/docs/Web/CSS/repeat)
 #[pyclass(frozen, module = "waxy")]
 #[derive(Debug)]
@@ -778,7 +778,7 @@ impl Repeat {
 ///
 /// Used in grid placement (`GridPlacement.start`, `GridPlacement.end`).
 ///
-/// See: [taffy `GridPlacement::Line`](https://docs.rs/taffy/0.14.0/taffy/style/enum.GridPlacement.html),
+/// See: [taffy `GridPlacement::Line`](https://docs.rs/taffy/0.15.0/taffy/style/enum.GridPlacement.html),
 /// [MDN Line-based placement](https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_grid_layout/Grid_layout_using_line-based_placement)
 #[pyclass(frozen, from_py_object, module = "waxy")]
 #[derive(Clone, Debug, PartialEq)]
@@ -821,7 +821,7 @@ impl GridLine {
 ///
 /// Used in grid placement (`GridPlacement.start`, `GridPlacement.end`).
 ///
-/// See: [taffy `GridPlacement::Span`](https://docs.rs/taffy/0.14.0/taffy/style/enum.GridPlacement.html),
+/// See: [taffy `GridPlacement::Span`](https://docs.rs/taffy/0.15.0/taffy/style/enum.GridPlacement.html),
 /// [MDN `grid-column-start` (span)](https://developer.mozilla.org/en-US/docs/Web/CSS/grid-column-start)
 #[pyclass(frozen, from_py_object, module = "waxy")]
 #[derive(Clone, Debug, PartialEq)]
@@ -868,14 +868,17 @@ fn str_repr(py: Python<'_>, s: &str) -> PyResult<String> {
         .to_owned())
 }
 
-/// Place at the `index`th grid line with the given name (counting from the end if negative).
+/// Place at a grid line with the given name.
 ///
-/// If no line has that name, `name-start`/`name-end` (the implicit lines of a named grid area)
-/// are tried before falling back to the implicit grid.
+/// With no `index` (CSS `<custom-ident>`), a start line is the start edge of the grid area with
+/// that name (the line named `name-start`) and an end line its end edge (`name-end`), falling
+/// back to the first line named `name`. With an `index` (CSS `<integer> <custom-ident>`), place
+/// at the `index`th line named `name`, counting from the end if negative; lines past the
+/// explicit grid count as having every name.
 ///
 /// Used in grid placement (`GridPlacement.start`, `GridPlacement.end`).
 ///
-/// See: [taffy `GridPlacement::NamedLine`](https://docs.rs/taffy/0.14.0/taffy/style/enum.GridPlacement.html),
+/// See: [taffy `GridPlacement::NamedLine`](https://docs.rs/taffy/0.15.0/taffy/style/enum.GridPlacement.html),
 /// [MDN `grid-row-start`](https://developer.mozilla.org/en-US/docs/Web/CSS/grid-row-start)
 #[pyclass(frozen, from_py_object, module = "waxy")]
 #[derive(Clone, Debug, PartialEq)]
@@ -883,15 +886,15 @@ pub struct NamedGridLine {
     #[pyo3(get)]
     pub name: String,
     #[pyo3(get)]
-    pub index: i16,
+    pub index: Option<i16>,
 }
 
 #[pymethods]
 impl NamedGridLine {
     #[new]
-    #[pyo3(signature = (name, index=1))]
-    pub fn new(name: String, index: i16) -> PyResult<Self> {
-        if index == 0 {
+    #[pyo3(signature = (name, index=None))]
+    pub fn new(name: String, index: Option<i16>) -> PyResult<Self> {
+        if index == Some(0) {
             return Err(InvalidGridLine::new_err(
                 "NamedGridLine index must not be 0 (lines are counted from 1, or from -1 at the end)",
             ));
@@ -905,11 +908,11 @@ impl NamedGridLine {
     }
 
     fn __repr__(&self, py: Python<'_>) -> PyResult<String> {
-        Ok(format!(
-            "NamedGridLine({}, {})",
-            str_repr(py, &self.name)?,
-            self.index
-        ))
+        let name = str_repr(py, &self.name)?;
+        Ok(match self.index {
+            Some(index) => format!("NamedGridLine({name}, {index})"),
+            None => format!("NamedGridLine({name})"),
+        })
     }
 
     fn __eq__(&self, other: &NamedGridLine) -> bool {
@@ -929,7 +932,7 @@ impl NamedGridLine {
 ///
 /// Used in grid placement (`GridPlacement.start`, `GridPlacement.end`).
 ///
-/// See: [taffy `GridPlacement::NamedSpan`](https://docs.rs/taffy/0.14.0/taffy/style/enum.GridPlacement.html),
+/// See: [taffy `GridPlacement::NamedSpan`](https://docs.rs/taffy/0.15.0/taffy/style/enum.GridPlacement.html),
 /// [MDN `grid-row-start` (span)](https://developer.mozilla.org/en-US/docs/Web/CSS/grid-row-start)
 #[pyclass(frozen, from_py_object, module = "waxy")]
 #[derive(Clone, Debug, PartialEq)]
@@ -1069,7 +1072,7 @@ pub(crate) fn hash_taffy_template_area<H: std::hash::Hasher>(
 /// Each of `start` and `end` is a `GridLine | GridSpan | NamedGridLine | NamedGridSpan | Auto`
 /// value. Defaults both to `Auto` (the CSS default for unplaced items).
 ///
-/// See: [taffy `Line<GridPlacement>`](https://docs.rs/taffy/0.14.0/taffy/geometry/struct.Line.html),
+/// See: [taffy `Line<GridPlacement>`](https://docs.rs/taffy/0.15.0/taffy/geometry/struct.Line.html),
 /// [MDN `grid-row`](https://developer.mozilla.org/en-US/docs/Web/CSS/grid-row),
 /// [MDN `grid-column`](https://developer.mozilla.org/en-US/docs/Web/CSS/grid-column)
 #[pyclass(frozen, from_py_object, module = "waxy")]
@@ -1146,7 +1149,7 @@ impl From<&GridPlacement> for taffy::Line<TaffyGridPlacement> {
 /// Raises [`InvalidGridTemplateArea`] if a start line is 0 or an end line is not after its
 /// start line.
 ///
-/// See: [taffy `GridTemplateArea`](https://docs.rs/taffy/0.14.0/taffy/style/struct.GridTemplateArea.html),
+/// See: [taffy `GridTemplateArea`](https://docs.rs/taffy/0.15.0/taffy/style/struct.GridTemplateArea.html),
 /// [MDN `grid-template-areas`](https://developer.mozilla.org/en-US/docs/Web/CSS/grid-template-areas)
 #[pyclass(frozen, from_py_object, module = "waxy")]
 #[derive(Clone, Debug, PartialEq)]
@@ -1253,7 +1256,7 @@ impl GridTemplateArea {
 /// Raises [`InvalidGridTemplateAreas`] if an area extends past `row_count` / `column_count`,
 /// or if two areas share a name.
 ///
-/// See: [taffy `GridTemplateAreas`](https://docs.rs/taffy/0.14.0/taffy/style/struct.GridTemplateAreas.html),
+/// See: [taffy `GridTemplateAreas`](https://docs.rs/taffy/0.15.0/taffy/style/struct.GridTemplateAreas.html),
 /// [MDN `grid-template-areas`](https://developer.mozilla.org/en-US/docs/Web/CSS/grid-template-areas)
 #[pyclass(frozen, from_py_object, module = "waxy")]
 #[derive(Clone, Debug, PartialEq)]
@@ -1851,7 +1854,8 @@ impl GridPlacementInput {
             GridPlacementInput::GridLine(gl) => TaffyGridPlacement::from_line_index(gl.index),
             GridPlacementInput::GridSpan(gs) => TaffyGridPlacement::Span(gs.count),
             GridPlacementInput::NamedGridLine(nl) => {
-                TaffyGridPlacement::NamedLine(nl.name.clone(), nl.index)
+                // taffy represents an absent index as 0, which NamedGridLine rejects.
+                TaffyGridPlacement::NamedLine(nl.name.clone(), nl.index.unwrap_or(0))
             }
             GridPlacementInput::NamedGridSpan(ns) => {
                 TaffyGridPlacement::NamedSpan(ns.name.clone(), ns.count)
@@ -1950,7 +1954,7 @@ pub fn dimension_to_py(py: Python<'_>, d: taffy::Dimension) -> PyResult<Py<PyAny
         E::FitContent => into_py_any(py, FitContentKeyword {}),
         E::Stretch => into_py_any(py, Stretch {}),
         E::Content => into_py_any(py, Content {}),
-        E::Calc(_) => unreachable!("waxy never constructs calc() values"),
+        E::Calc(_) | E::FitContentCalc(_) => unreachable!("waxy never constructs calc() values"),
     }
 }
 
@@ -2007,7 +2011,7 @@ fn grid_track_max_to_py(py: Python<'_>, max: MaxTrackSizingFunction) -> PyResult
         E::FitContentPx(value) => fit_content_to_py(py, Length { value }),
         E::FitContentPercent(value) => fit_content_to_py(py, Percent { value }),
         E::Fr(value) => into_py_any(py, Fraction { value }),
-        E::Calc(_) => unreachable!("waxy never constructs calc() values"),
+        E::Calc(_) | E::FitContentCalc(_) => unreachable!("waxy never constructs calc() values"),
     }
 }
 
@@ -2107,6 +2111,7 @@ pub fn grid_placement_to_py(py: Python<'_>, gp: TaffyGridPlacement) -> PyResult<
         }
         TaffyGridPlacement::Span(count) => Ok(Py::new(py, GridSpan { count })?.into_any()),
         TaffyGridPlacement::NamedLine(name, index) => {
+            let index = (index != 0).then_some(index);
             into_py_any(py, NamedGridLine { name, index })
         }
         TaffyGridPlacement::NamedSpan(name, count) => {

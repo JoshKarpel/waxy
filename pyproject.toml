@@ -115,6 +115,7 @@ addopts = [
 
 [dependency-groups]
 dev = [
+    "hypothesis>=6.170.1",
     "maturin>=1.12.0",
     "mkdocs>=1.6.0",
     "mkdocs-material>=9.6.0",

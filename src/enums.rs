@@ -42,6 +42,9 @@ impl From<&Display> for taffy::Display {
 pub enum Position {
     Relative = 0,
     Absolute = 1,
+    Static = 2,
+    Fixed = 3,
+    Sticky = 4,
 }
 
 impl From<taffy::Position> for Position {
@@ -49,6 +52,9 @@ impl From<taffy::Position> for Position {
         match p {
             taffy::Position::Relative => Position::Relative,
             taffy::Position::Absolute => Position::Absolute,
+            taffy::Position::Static => Position::Static,
+            taffy::Position::Fixed => Position::Fixed,
+            taffy::Position::Sticky => Position::Sticky,
         }
     }
 }
@@ -58,6 +64,9 @@ impl From<&Position> for taffy::Position {
         match p {
             Position::Relative => taffy::Position::Relative,
             Position::Absolute => taffy::Position::Absolute,
+            Position::Static => taffy::Position::Static,
+            Position::Fixed => taffy::Position::Fixed,
+            Position::Sticky => taffy::Position::Sticky,
         }
     }
 }
@@ -131,8 +140,11 @@ impl From<&FlexWrap> for taffy::FlexWrap {
 
 /// Alignment of items along the cross axis.
 ///
-/// The `Safe*` members are the `safe` overflow-position variants: an item that would
-/// overflow its alignment container is aligned as if `Start` instead.
+/// `Normal` is the layout mode's default alignment (usually `Stretch`). The `Safe*` members are
+/// the `safe` overflow-position variants: an item that would overflow its alignment container is
+/// aligned as if `Start` instead. The `Unsafe*` members are the explicit `unsafe` variants, which
+/// differ from the bare members only for absolutely positioned boxes: a bare member lets taffy
+/// shift such a box to reduce overflow of its containing block, an `Unsafe*` member doesn't.
 #[pyclass(eq, eq_int, from_py_object, module = "waxy")]
 #[derive(Clone, Debug, PartialEq)]
 pub enum AlignItems {
@@ -152,6 +164,14 @@ pub enum AlignItems {
     SafeCenter = 13,
     SafeSelfStart = 14,
     SafeSelfEnd = 15,
+    Normal = 16,
+    UnsafeStart = 17,
+    UnsafeEnd = 18,
+    UnsafeFlexStart = 19,
+    UnsafeFlexEnd = 20,
+    UnsafeCenter = 21,
+    UnsafeSelfStart = 22,
+    UnsafeSelfEnd = 23,
 }
 
 impl From<taffy::AlignItems> for AlignItems {
@@ -159,15 +179,16 @@ impl From<taffy::AlignItems> for AlignItems {
         use taffy::style::AlignItemsKeyword as K;
         use taffy::style::AlignmentSafety as S;
         match (a.keyword, a.safety) {
-            (K::Start, S::Unsafe) => AlignItems::Start,
-            (K::End, S::Unsafe) => AlignItems::End,
-            (K::FlexStart, S::Unsafe) => AlignItems::FlexStart,
-            (K::FlexEnd, S::Unsafe) => AlignItems::FlexEnd,
-            (K::Center, S::Unsafe) => AlignItems::Center,
-            (K::Baseline, S::Unsafe) => AlignItems::Baseline,
-            (K::Stretch, S::Unsafe) => AlignItems::Stretch,
-            (K::SelfStart, S::Unsafe) => AlignItems::SelfStart,
-            (K::SelfEnd, S::Unsafe) => AlignItems::SelfEnd,
+            (K::Normal, S::Default) => AlignItems::Normal,
+            (K::Start, S::Default) => AlignItems::Start,
+            (K::End, S::Default) => AlignItems::End,
+            (K::FlexStart, S::Default) => AlignItems::FlexStart,
+            (K::FlexEnd, S::Default) => AlignItems::FlexEnd,
+            (K::Center, S::Default) => AlignItems::Center,
+            (K::Baseline, S::Default) => AlignItems::Baseline,
+            (K::Stretch, S::Default) => AlignItems::Stretch,
+            (K::SelfStart, S::Default) => AlignItems::SelfStart,
+            (K::SelfEnd, S::Default) => AlignItems::SelfEnd,
             (K::Start, S::Safe) => AlignItems::SafeStart,
             (K::End, S::Safe) => AlignItems::SafeEnd,
             (K::FlexStart, S::Safe) => AlignItems::SafeFlexStart,
@@ -175,10 +196,20 @@ impl From<taffy::AlignItems> for AlignItems {
             (K::Center, S::Safe) => AlignItems::SafeCenter,
             (K::SelfStart, S::Safe) => AlignItems::SafeSelfStart,
             (K::SelfEnd, S::Safe) => AlignItems::SafeSelfEnd,
-            // CSS has no `safe baseline` or `safe stretch` (taffy has no constant for them),
-            // and only waxy writes these fields.
-            (K::Baseline | K::Stretch, S::Safe) => {
-                unreachable!("waxy never constructs safe {:?} alignment", a.keyword)
+            (K::Start, S::Unsafe) => AlignItems::UnsafeStart,
+            (K::End, S::Unsafe) => AlignItems::UnsafeEnd,
+            (K::FlexStart, S::Unsafe) => AlignItems::UnsafeFlexStart,
+            (K::FlexEnd, S::Unsafe) => AlignItems::UnsafeFlexEnd,
+            (K::Center, S::Unsafe) => AlignItems::UnsafeCenter,
+            (K::SelfStart, S::Unsafe) => AlignItems::UnsafeSelfStart,
+            (K::SelfEnd, S::Unsafe) => AlignItems::UnsafeSelfEnd,
+            // CSS has no overflow position for `normal`, `baseline` or `stretch` (taffy has no
+            // constant for one), and only waxy writes these fields.
+            (K::Normal | K::Baseline | K::Stretch, S::Safe | S::Unsafe) => {
+                unreachable!(
+                    "waxy never constructs {:?} {:?} alignment",
+                    a.safety, a.keyword
+                )
             }
         }
     }
@@ -186,7 +217,9 @@ impl From<taffy::AlignItems> for AlignItems {
 
 impl From<&AlignItems> for taffy::AlignItems {
     fn from(a: &AlignItems) -> Self {
+        use taffy::style::AlignmentSafety::Unsafe;
         match a {
+            AlignItems::Normal => taffy::AlignItems::NORMAL,
             AlignItems::Start => taffy::AlignItems::START,
             AlignItems::End => taffy::AlignItems::END,
             AlignItems::FlexStart => taffy::AlignItems::FLEX_START,
@@ -203,14 +236,23 @@ impl From<&AlignItems> for taffy::AlignItems {
             AlignItems::SafeCenter => taffy::AlignItems::SAFE_CENTER,
             AlignItems::SafeSelfStart => taffy::AlignItems::SAFE_SELF_START,
             AlignItems::SafeSelfEnd => taffy::AlignItems::SAFE_SELF_END,
+            // taffy has no UNSAFE_* constants.
+            AlignItems::UnsafeStart => taffy::AlignItems::START.with_safety(Unsafe),
+            AlignItems::UnsafeEnd => taffy::AlignItems::END.with_safety(Unsafe),
+            AlignItems::UnsafeFlexStart => taffy::AlignItems::FLEX_START.with_safety(Unsafe),
+            AlignItems::UnsafeFlexEnd => taffy::AlignItems::FLEX_END.with_safety(Unsafe),
+            AlignItems::UnsafeCenter => taffy::AlignItems::CENTER.with_safety(Unsafe),
+            AlignItems::UnsafeSelfStart => taffy::AlignItems::SELF_START.with_safety(Unsafe),
+            AlignItems::UnsafeSelfEnd => taffy::AlignItems::SELF_END.with_safety(Unsafe),
         }
     }
 }
 
 /// Alignment of content within the container.
 ///
-/// The `Safe*` members are the `safe` overflow-position variants: content that would
-/// overflow the container is aligned as if `Start` instead.
+/// `Normal` is the layout mode's default alignment. The `Safe*` members are the `safe`
+/// overflow-position variants: content that would overflow the container is aligned as if
+/// `Start` instead. The `Unsafe*` members are the explicit `unsafe` variants.
 #[pyclass(eq, eq_int, from_py_object, module = "waxy")]
 #[derive(Clone, Debug, PartialEq)]
 pub enum AlignContent {
@@ -228,6 +270,12 @@ pub enum AlignContent {
     SafeFlexStart = 11,
     SafeFlexEnd = 12,
     SafeCenter = 13,
+    Normal = 14,
+    UnsafeStart = 15,
+    UnsafeEnd = 16,
+    UnsafeFlexStart = 17,
+    UnsafeFlexEnd = 18,
+    UnsafeCenter = 19,
 }
 
 impl From<taffy::AlignContent> for AlignContent {
@@ -235,24 +283,36 @@ impl From<taffy::AlignContent> for AlignContent {
         use taffy::style::AlignContentKeyword as K;
         use taffy::style::AlignmentSafety as S;
         match (a.keyword, a.safety) {
-            (K::Start, S::Unsafe) => AlignContent::Start,
-            (K::End, S::Unsafe) => AlignContent::End,
-            (K::FlexStart, S::Unsafe) => AlignContent::FlexStart,
-            (K::FlexEnd, S::Unsafe) => AlignContent::FlexEnd,
-            (K::Center, S::Unsafe) => AlignContent::Center,
-            (K::Stretch, S::Unsafe) => AlignContent::Stretch,
-            (K::SpaceBetween, S::Unsafe) => AlignContent::SpaceBetween,
-            (K::SpaceEvenly, S::Unsafe) => AlignContent::SpaceEvenly,
-            (K::SpaceAround, S::Unsafe) => AlignContent::SpaceAround,
+            (K::Normal, S::Default) => AlignContent::Normal,
+            (K::Start, S::Default) => AlignContent::Start,
+            (K::End, S::Default) => AlignContent::End,
+            (K::FlexStart, S::Default) => AlignContent::FlexStart,
+            (K::FlexEnd, S::Default) => AlignContent::FlexEnd,
+            (K::Center, S::Default) => AlignContent::Center,
+            (K::Stretch, S::Default) => AlignContent::Stretch,
+            (K::SpaceBetween, S::Default) => AlignContent::SpaceBetween,
+            (K::SpaceEvenly, S::Default) => AlignContent::SpaceEvenly,
+            (K::SpaceAround, S::Default) => AlignContent::SpaceAround,
             (K::Start, S::Safe) => AlignContent::SafeStart,
             (K::End, S::Safe) => AlignContent::SafeEnd,
             (K::FlexStart, S::Safe) => AlignContent::SafeFlexStart,
             (K::FlexEnd, S::Safe) => AlignContent::SafeFlexEnd,
             (K::Center, S::Safe) => AlignContent::SafeCenter,
-            // CSS has no safe distributed alignment (taffy has no constant for it), and only
-            // waxy writes these fields.
-            (K::Stretch | K::SpaceBetween | K::SpaceEvenly | K::SpaceAround, S::Safe) => {
-                unreachable!("waxy never constructs safe {:?} alignment", a.keyword)
+            (K::Start, S::Unsafe) => AlignContent::UnsafeStart,
+            (K::End, S::Unsafe) => AlignContent::UnsafeEnd,
+            (K::FlexStart, S::Unsafe) => AlignContent::UnsafeFlexStart,
+            (K::FlexEnd, S::Unsafe) => AlignContent::UnsafeFlexEnd,
+            (K::Center, S::Unsafe) => AlignContent::UnsafeCenter,
+            // CSS has no overflow position for `normal` or distributed alignment (taffy has no
+            // constant for one), and only waxy writes these fields.
+            (
+                K::Normal | K::Stretch | K::SpaceBetween | K::SpaceEvenly | K::SpaceAround,
+                S::Safe | S::Unsafe,
+            ) => {
+                unreachable!(
+                    "waxy never constructs {:?} {:?} alignment",
+                    a.safety, a.keyword
+                )
             }
         }
     }
@@ -260,7 +320,9 @@ impl From<taffy::AlignContent> for AlignContent {
 
 impl From<&AlignContent> for taffy::AlignContent {
     fn from(a: &AlignContent) -> Self {
+        use taffy::style::AlignmentSafety::Unsafe;
         match a {
+            AlignContent::Normal => taffy::AlignContent::NORMAL,
             AlignContent::Start => taffy::AlignContent::START,
             AlignContent::End => taffy::AlignContent::END,
             AlignContent::FlexStart => taffy::AlignContent::FLEX_START,
@@ -275,6 +337,12 @@ impl From<&AlignContent> for taffy::AlignContent {
             AlignContent::SafeFlexStart => taffy::AlignContent::SAFE_FLEX_START,
             AlignContent::SafeFlexEnd => taffy::AlignContent::SAFE_FLEX_END,
             AlignContent::SafeCenter => taffy::AlignContent::SAFE_CENTER,
+            // taffy has no UNSAFE_* constants.
+            AlignContent::UnsafeStart => taffy::AlignContent::START.with_safety(Unsafe),
+            AlignContent::UnsafeEnd => taffy::AlignContent::END.with_safety(Unsafe),
+            AlignContent::UnsafeFlexStart => taffy::AlignContent::FLEX_START.with_safety(Unsafe),
+            AlignContent::UnsafeFlexEnd => taffy::AlignContent::FLEX_END.with_safety(Unsafe),
+            AlignContent::UnsafeCenter => taffy::AlignContent::CENTER.with_safety(Unsafe),
         }
     }
 }

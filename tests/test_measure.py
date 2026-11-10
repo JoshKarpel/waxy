@@ -1,4 +1,6 @@
 import textwrap
+import weakref
+from collections.abc import Callable
 from dataclasses import dataclass
 from unittest.mock import MagicMock
 
@@ -151,6 +153,30 @@ def test_set_node_context_clear() -> None:
     node = tree.new_leaf_with_context(waxy.Style(), TextContent("hello"))
     tree.set_node_context(node, None)
     assert tree.get_node_context(node) is None
+
+
+class Referent:
+    """A context that can be weakly referenced, to observe when the tree releases it."""
+
+
+@pytest.mark.parametrize(
+    "release",
+    [
+        lambda tree, node: tree.remove(node),
+        lambda tree, node: tree.clear(),
+    ],
+    ids=["remove", "clear"],
+)
+def test_removing_node_releases_its_context(
+    release: Callable[[waxy.TaffyTree[Referent], waxy.NodeId], object],
+) -> None:
+    tree = waxy.TaffyTree[Referent]()
+    context = Referent()
+    alive = weakref.ref(context)
+    node = tree.new_leaf_with_context(waxy.Style(), context)
+    del context
+    release(tree, node)
+    assert alive() is None
 
 
 # --- Measure functions ---
