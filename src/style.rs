@@ -79,6 +79,7 @@ const F_ITEM_IS_REPLACED: u64 = 1 << 56;
 const F_GRID_TEMPLATE_ROW_NAMES: u64 = 1 << 57;
 const F_GRID_TEMPLATE_COLUMN_NAMES: u64 = 1 << 58;
 const F_GRID_TEMPLATE_AREAS: u64 = 1 << 59;
+const F_ITEM_IS_COMPRESSIBLE_REPLACED: u64 = 1 << 60;
 
 /// Every field's keyword name and flag, in declaration order.
 ///
@@ -99,6 +100,10 @@ const FIELDS: &[(&str, u64)] = &[
     ("clear", F_CLEAR),
     ("item_is_table", F_ITEM_IS_TABLE),
     ("item_is_replaced", F_ITEM_IS_REPLACED),
+    (
+        "item_is_compressible_replaced",
+        F_ITEM_IS_COMPRESSIBLE_REPLACED,
+    ),
     ("inset_left", F_INSET_LEFT),
     ("inset_right", F_INSET_RIGHT),
     ("inset_top", F_INSET_TOP),
@@ -234,6 +239,7 @@ impl Style {
             display,
             item_is_table,
             item_is_replaced,
+            item_is_compressible_replaced,
             box_sizing,
             direction,
             overflow,
@@ -294,21 +300,31 @@ impl Style {
         // taffy's Contain is a bitset struct, so hash the enum it maps to.
         (Contain::from(*contain) as u8).hash(&mut h);
 
-        // Option<alignment> fields — taffy's alignment types are (keyword, safety) structs.
-        for alignment in [align_items, align_self, justify_items, justify_self] {
+        // Alignment fields — taffy's alignment types are (keyword, safety) structs.
+        for alignment in [align_items, justify_items] {
+            (
+                discriminant(&alignment.keyword),
+                discriminant(&alignment.safety),
+            )
+                .hash(&mut h);
+        }
+        for alignment in [align_self, justify_self] {
             alignment
                 .map(|v| (discriminant(&v.keyword), discriminant(&v.safety)))
                 .hash(&mut h);
         }
         for alignment in [align_content, justify_content] {
-            alignment
-                .map(|v| (discriminant(&v.keyword), discriminant(&v.safety)))
+            (
+                discriminant(&alignment.keyword),
+                discriminant(&alignment.safety),
+            )
                 .hash(&mut h);
         }
 
         // Plain bool and integer fields.
         item_is_table.hash(&mut h);
         item_is_replaced.hash(&mut h);
+        item_is_compressible_replaced.hash(&mut h);
         flex_line_count.hash(&mut h);
 
         // Plain f32 fields — normalize -0.0 (consistent with f32's IEEE
@@ -416,6 +432,10 @@ fn copy_fields(dst: &mut taffy::Style, src: &taffy::Style, mask: u64) {
     copy!(F_CLEAR, clear);
     copy!(F_ITEM_IS_TABLE, item_is_table);
     copy!(F_ITEM_IS_REPLACED, item_is_replaced);
+    copy!(
+        F_ITEM_IS_COMPRESSIBLE_REPLACED,
+        item_is_compressible_replaced
+    );
 
     // Inset
     copy!(F_INSET_LEFT, inset.left);
@@ -493,22 +513,6 @@ fn note_keyword(py: Python<'_>, name: &str, error: impl Into<PyErr>) -> PyErr {
     // Like pyo3, keep the original error if adding the note fails.
     let _ = error.value(py).call_method1("add_note", (note,));
     error
-}
-
-fn opt_align_items_from_taffy(v: Option<taffy::AlignItems>) -> Option<AlignItems> {
-    v.map(|a| a.into())
-}
-
-fn opt_align_items_to_taffy(v: &Option<AlignItems>) -> Option<taffy::AlignItems> {
-    v.as_ref().map(|a| a.into())
-}
-
-fn opt_align_content_from_taffy(v: Option<taffy::AlignContent>) -> Option<AlignContent> {
-    v.map(|a| a.into())
-}
-
-fn opt_align_content_to_taffy(v: &Option<AlignContent>) -> Option<taffy::AlignContent> {
-    v.as_ref().map(|a| a.into())
 }
 
 fn tracks_to_taffy(
@@ -610,6 +614,11 @@ impl Style {
                 "item_is_replaced" => {
                     field!(F_ITEM_IS_REPLACED, |v: bool| { style.item_is_replaced = v })
                 }
+                "item_is_compressible_replaced" => {
+                    field!(F_ITEM_IS_COMPRESSIBLE_REPLACED, |v: bool| {
+                        style.item_is_compressible_replaced = v
+                    })
+                }
 
                 // Inset
                 "inset_left" => field!(F_INSET_LEFT, |v: LengthPercentageAutoInput| {
@@ -688,24 +697,24 @@ impl Style {
                     style.border.bottom = v.to_taffy()
                 }),
 
-                // Alignment (these accept None to explicitly clear)
-                "align_items" => opt_field!(F_ALIGN_ITEMS, |v: AlignItems| {
-                    style.align_items = opt_align_items_to_taffy(&v)
+                // Alignment (`align_self` and `justify_self` accept None to explicitly mean `auto`)
+                "align_items" => field!(F_ALIGN_ITEMS, |v: AlignItems| {
+                    style.align_items = (&v).into()
                 }),
                 "align_self" => opt_field!(F_ALIGN_SELF, |v: AlignItems| {
-                    style.align_self = opt_align_items_to_taffy(&v)
+                    style.align_self = v.as_ref().map(Into::into)
                 }),
-                "justify_items" => opt_field!(F_JUSTIFY_ITEMS, |v: AlignItems| {
-                    style.justify_items = opt_align_items_to_taffy(&v)
+                "justify_items" => field!(F_JUSTIFY_ITEMS, |v: AlignItems| {
+                    style.justify_items = (&v).into()
                 }),
                 "justify_self" => opt_field!(F_JUSTIFY_SELF, |v: AlignItems| {
-                    style.justify_self = opt_align_items_to_taffy(&v)
+                    style.justify_self = v.as_ref().map(Into::into)
                 }),
-                "align_content" => opt_field!(F_ALIGN_CONTENT, |v: AlignContent| {
-                    style.align_content = opt_align_content_to_taffy(&v)
+                "align_content" => field!(F_ALIGN_CONTENT, |v: AlignContent| {
+                    style.align_content = (&v).into()
                 }),
-                "justify_content" => opt_field!(F_JUSTIFY_CONTENT, |v: AlignContent| {
-                    style.justify_content = opt_align_content_to_taffy(&v)
+                "justify_content" => field!(F_JUSTIFY_CONTENT, |v: AlignContent| {
+                    style.justify_content = (&v).into()
                 }),
 
                 // Gap
@@ -864,6 +873,11 @@ impl Style {
         self.inner.item_is_replaced
     }
 
+    #[getter]
+    fn get_item_is_compressible_replaced(&self) -> bool {
+        self.inner.item_is_compressible_replaced
+    }
+
     // Inset
     #[getter]
     fn get_inset_left(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
@@ -969,33 +983,33 @@ impl Style {
 
     // Alignment
     #[getter]
-    fn get_align_items(&self) -> Option<AlignItems> {
-        opt_align_items_from_taffy(self.inner.align_items)
+    fn get_align_items(&self) -> AlignItems {
+        self.inner.align_items.into()
     }
 
     #[getter]
     fn get_align_self(&self) -> Option<AlignItems> {
-        opt_align_items_from_taffy(self.inner.align_self)
+        self.inner.align_self.map(Into::into)
     }
 
     #[getter]
-    fn get_justify_items(&self) -> Option<AlignItems> {
-        opt_align_items_from_taffy(self.inner.justify_items)
+    fn get_justify_items(&self) -> AlignItems {
+        self.inner.justify_items.into()
     }
 
     #[getter]
     fn get_justify_self(&self) -> Option<AlignItems> {
-        opt_align_items_from_taffy(self.inner.justify_self)
+        self.inner.justify_self.map(Into::into)
     }
 
     #[getter]
-    fn get_align_content(&self) -> Option<AlignContent> {
-        opt_align_content_from_taffy(self.inner.align_content)
+    fn get_align_content(&self) -> AlignContent {
+        self.inner.align_content.into()
     }
 
     #[getter]
-    fn get_justify_content(&self) -> Option<AlignContent> {
-        opt_align_content_from_taffy(self.inner.justify_content)
+    fn get_justify_content(&self) -> AlignContent {
+        self.inner.justify_content.into()
     }
 
     // Gap

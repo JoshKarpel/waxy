@@ -1,3 +1,5 @@
+import pytest
+
 import waxy
 
 
@@ -236,3 +238,65 @@ def test_absolute_positioning() -> None:
     assert layout.location.x == 10.0
     assert layout.location.y == 10.0
     assert layout.size.width == 50.0
+
+
+@pytest.mark.parametrize(
+    ("position", "expected_x"),
+    [
+        (waxy.Position.Static, 0.0),
+        (waxy.Position.Relative, 5.0),
+        (waxy.Position.Sticky, 0.0),
+    ],
+)
+def test_insets_apply_only_to_relative_in_flow_nodes(
+    position: waxy.Position, expected_x: float
+) -> None:
+    tree = waxy.TaffyTree()
+    child = tree.new_leaf(
+        waxy.Style(
+            position=position,
+            inset_left=waxy.Length(5.0),
+            size_width=waxy.Length(10.0),
+            size_height=waxy.Length(10.0),
+        )
+    )
+    root = tree.new_with_children(
+        waxy.Style(size_width=waxy.Length(50.0), size_height=waxy.Length(50.0)), [child]
+    )
+    tree.compute_layout(root)
+    assert tree.layout(child).location.x == expected_x
+
+
+@pytest.mark.parametrize(
+    ("alignment", "expected_x"),
+    [
+        (waxy.AlignItems.Center, 0.0),
+        (waxy.AlignItems.UnsafeCenter, -25.0),
+        (waxy.AlignItems.SafeCenter, 0.0),
+    ],
+)
+def test_bare_alignment_keeps_overflowing_absolute_node_inside_containing_block(
+    alignment: waxy.AlignItems, expected_x: float
+) -> None:
+    """Only `unsafe` centers a 100px absolute node over its 50px containing block."""
+    tree = waxy.TaffyTree()
+    child = tree.new_leaf(
+        waxy.Style(
+            position=waxy.Position.Absolute,
+            inset_left=waxy.Length(0.0),
+            inset_right=waxy.Length(0.0),
+            size_width=waxy.Length(100.0),
+            size_height=waxy.Length(10.0),
+            justify_self=alignment,
+        )
+    )
+    root = tree.new_with_children(
+        waxy.Style(
+            display=waxy.Display.Grid,
+            size_width=waxy.Length(50.0),
+            size_height=waxy.Length(50.0),
+        ),
+        [child],
+    )
+    tree.compute_layout(root)
+    assert tree.layout(child).location.x == expected_x

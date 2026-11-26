@@ -4,7 +4,7 @@ import waxy
 
 ENUM_VARIANTS: list[tuple[type, list[str]]] = [
     (waxy.Display, ["Block", "Flex", "Grid", "Nil", "FlowRoot"]),
-    (waxy.Position, ["Relative", "Absolute"]),
+    (waxy.Position, ["Static", "Relative", "Absolute", "Fixed", "Sticky"]),
     (waxy.FlexDirection, ["Row", "Column", "RowReverse", "ColumnReverse"]),
     (waxy.FlexWrap, ["NoWrap", "Wrap", "WrapReverse", "Balance", "BalanceReverse"]),
     (
@@ -26,6 +26,14 @@ ENUM_VARIANTS: list[tuple[type, list[str]]] = [
             "SafeCenter",
             "SafeSelfStart",
             "SafeSelfEnd",
+            "Normal",
+            "UnsafeStart",
+            "UnsafeEnd",
+            "UnsafeFlexStart",
+            "UnsafeFlexEnd",
+            "UnsafeCenter",
+            "UnsafeSelfStart",
+            "UnsafeSelfEnd",
         ],
     ),
     (
@@ -45,6 +53,12 @@ ENUM_VARIANTS: list[tuple[type, list[str]]] = [
             "SafeFlexStart",
             "SafeFlexEnd",
             "SafeCenter",
+            "Normal",
+            "UnsafeStart",
+            "UnsafeEnd",
+            "UnsafeFlexStart",
+            "UnsafeFlexEnd",
+            "UnsafeCenter",
         ],
     ),
     (waxy.Overflow, ["Visible", "Clip", "Hidden", "Scroll"]),
@@ -113,8 +127,12 @@ def test_align_content_round_trips_through_style(field: str, member: str) -> Non
     assert getattr(waxy.Style(**{field: value}), field) == value
 
 
-def test_style_hash_distinguishes_safe_alignment() -> None:
-    unsafe = waxy.Style(align_items=waxy.AlignItems.Center)
-    safe = waxy.Style(align_items=waxy.AlignItems.SafeCenter)
-    assert unsafe != safe
-    assert hash(unsafe) != hash(safe)
+@pytest.mark.parametrize(
+    "other",
+    [waxy.AlignItems.SafeCenter, waxy.AlignItems.UnsafeCenter],
+)
+def test_style_hash_distinguishes_alignment_safety(other: waxy.AlignItems) -> None:
+    bare = waxy.Style(align_items=waxy.AlignItems.Center)
+    explicit = waxy.Style(align_items=other)
+    assert bare != explicit
+    assert hash(bare) != hash(explicit)

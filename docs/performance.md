@@ -45,9 +45,8 @@ and merge them per frame rather than constructing new ones.
 To read every visible node's layout and absolute position,
 call `absolute_layouts(root)` instead of recursing with `layout` and `children`.
 On the dashboard-shaped tree it costs about a third as much as the recursion in Python,
-and with rounding enabled its positions match taffy's rounded sizes,
-which a sum of rounded `location`s can miss by a pixel in taffy 0.14
-([taffy#834](https://github.com/DioxusLabs/taffy/issues/834)).
+and it measures each `Absolute` or `Fixed` node's `location` from its containing block,
+which a recursion that adds each parent's position gets wrong.
 
 ## Reuse immutable values
 
