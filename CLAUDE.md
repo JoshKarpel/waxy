@@ -4,7 +4,7 @@ A Python wrapper around the Rust `taffy` UI layout library, built with PyO3/matu
 
 ## Key Files
 
-- `plans/` — Design documents: `initial-concept.md` (project goals, tooling, design decisions), `measure-functions.md` (measure function design), `ergonomic-value-types.md` (value type refactor).
+- `plans/` — Design documents: `initial-concept.md` (project goals, tooling, design decisions), `measure-functions.md` (measure function design), `ergonomic-value-types.md` (value type refactor), `taffy-upgrade.md` (taffy upgrade steps, status, and open questions).
 - `benchmarks/` — Timing suite and build-vs-build comparison for hot-path changes; its `README.md` covers the workflow (release builds, comparing builds rather than runs, profiling).
 - `docs/performance.md` — Performance tips, each stated as a ratio with its reason rather than in nanoseconds (which change with the machine and every release), and each measured by `benchmarks/tips.py`. Re-run it after a change that could shift a ratio.
 
