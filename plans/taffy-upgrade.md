@@ -1,5 +1,7 @@
 # Plan: Upgrade taffy (PR #56)
 
+Artifact: https://claude.ai/code/artifact/e88a6c50-ae02-4186-9b75-43b55a36637c
+
 **Status: In progress.** On taffy 0.16.0; merge waits on [taffy#1354](https://github.com/DioxusLabs/taffy/issues/1354).
 
 This covers moving waxy from taffy 0.14 to 0.16 in [#56](https://github.com/JoshKarpel/waxy/pull/56): the steps an upgrade takes, what the PR has done, what's left, and the questions still open.
