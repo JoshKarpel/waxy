@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased](https://github.com/JoshKarpel/waxy/compare/v0.8.0...HEAD)
 
+### Changed
+
+- [#56](https://github.com/JoshKarpel/waxy/pull/56)
+  Upgraded taffy from 0.15 to 0.16, which fixes layout bugs in block, float, flexbox, and grid
+  layout and so can change computed layouts.
+  See [taffy's changelog](https://github.com/DioxusLabs/taffy/blob/main/CHANGELOG.md).
+- [#56](https://github.com/JoshKarpel/waxy/pull/56)
+  `Layout.scrollable_overflow_rect` keeps the negative overflow of reversed flex containers
+  (`row-reverse`, `column-reverse`, `wrap-reverse`), which scrolling reaches from the end edge,
+  and a scroll container's rectangle omits overflow that scrolling can't reach.
+
 ## [0.8.0](https://github.com/JoshKarpel/waxy/compare/v0.7.1...v0.8.0) - 2026-10-24
 
 ### Added

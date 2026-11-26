@@ -100,5 +100,5 @@ Docstrings for the API reference come from **`python/waxy/__init__.pyi`**, not f
 
 ## Taffy Version
 
-Pinned to taffy **0.15.x**. The taffy source can be inspected at:
-`~/.cargo/registry/src/index.crates.io-*/taffy-0.15.*/`
+Pinned to taffy **0.16.x**. The taffy source can be inspected at:
+`~/.cargo/registry/src/index.crates.io-*/taffy-0.16.*/`

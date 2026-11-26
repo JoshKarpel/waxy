@@ -527,7 +527,7 @@ NEST_CONTAINING_BLOCK_IN_ITS_BOX = """
 @pytest.mark.xfail(
     strict=True,
     reason=(
-        "taffy#1354: taffy 0.15 leaves a stale hoisted list on a node that skips the "
+        "taffy#1354: taffy leaves a stale hoisted list on a node that skips the "
         "out-of-flow pass, and its rounding pass recurses through it until the stack overflows"
     ),
 )
@@ -551,7 +551,7 @@ def test_compute_layout_survives_nesting_a_containing_block_in_its_box(
     strict=True,
     raises=waxy.InvalidNodeId,
     reason=(
-        "taffy#1354: taffy 0.15 leaves a stale hoisted list naming the deleted box, and its "
+        "taffy#1354: taffy leaves a stale hoisted list naming the deleted box, and its "
         "rounding pass looks the box up"
     ),
 )
@@ -597,7 +597,7 @@ def build_box_in_one_of_two_relatives(
 @pytest.mark.xfail(
     strict=True,
     reason=(
-        "taffy#1354: taffy 0.15 leaves a stale hoisted list on a node left a leaf, and its "
+        "taffy#1354: taffy leaves a stale hoisted list on a node left a leaf, and its "
         "rounding pass rounds the box again from that node"
     ),
 )

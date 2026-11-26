@@ -38,10 +38,10 @@ impl Layout {
             l.location.y,
             l.size.width,
             l.size.height,
-            l.scrollable_overflow_rect.left,
-            l.scrollable_overflow_rect.right,
-            l.scrollable_overflow_rect.top,
-            l.scrollable_overflow_rect.bottom,
+            l.scrollable_overflow_rect.left(),
+            l.scrollable_overflow_rect.right(),
+            l.scrollable_overflow_rect.top(),
+            l.scrollable_overflow_rect.bottom(),
             l.scrollbar_size.width,
             l.scrollbar_size.height,
             l.border.left,
@@ -79,7 +79,7 @@ impl Layout {
 
     #[getter]
     fn scrollable_overflow_rect(&self) -> Rect {
-        self.inner.scrollable_overflow_rect.into()
+        self.inner.scrollable_overflow_rect.rect().into()
     }
 
     #[getter]

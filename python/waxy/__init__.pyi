@@ -155,7 +155,7 @@ class KnownSize:
     Passed to the measure callback to indicate which dimensions are already known
     from the node's style. If a dimension is None, the measure function must compute it.
 
-    See: [taffy `Size<Option<f32>>`](https://docs.rs/taffy/0.15.0/taffy/geometry/struct.Size.html)
+    See: [taffy `Size<Option<f32>>`](https://docs.rs/taffy/0.16.0/taffy/geometry/struct.Size.html)
     """
 
     def __init__(self, width: float | None = None, height: float | None = None) -> None: ...
@@ -180,7 +180,7 @@ class AvailableSize:
     Passed to the measure callback to indicate how much space is available for layout.
     Each dimension is one of the available-space variants.
 
-    See: [taffy `Size<AvailableSpace>`](https://docs.rs/taffy/0.15.0/taffy/geometry/struct.Size.html)
+    See: [taffy `Size<AvailableSpace>`](https://docs.rs/taffy/0.16.0/taffy/geometry/struct.Size.html)
     """
 
     def __init__(
@@ -209,7 +209,7 @@ class Length:
 
     Raises `InvalidLength` if `value` is NaN.
 
-    See: [taffy `Dimension::Length`](https://docs.rs/taffy/0.15.0/taffy/style/struct.Dimension.html),
+    See: [taffy `Dimension::Length`](https://docs.rs/taffy/0.16.0/taffy/style/struct.Dimension.html),
     [MDN `<length>`](https://developer.mozilla.org/en-US/docs/Web/CSS/length)
     """
 
@@ -231,7 +231,7 @@ class Percent:
     Raises InvalidPercent (a subclass of both WaxyException and ValueError) if value
     is outside the range [0.0, 1.0].
 
-    See: [taffy `Dimension::Percent`](https://docs.rs/taffy/0.15.0/taffy/style/struct.Dimension.html),
+    See: [taffy `Dimension::Percent`](https://docs.rs/taffy/0.16.0/taffy/style/struct.Dimension.html),
     [MDN `<percentage>`](https://developer.mozilla.org/en-US/docs/Web/CSS/percentage)
     """
 
@@ -251,7 +251,7 @@ class Auto:
 
     Used for size, margin, inset, flex-basis, and grid placement fields.
 
-    See: [taffy `Dimension::Auto`](https://docs.rs/taffy/0.15.0/taffy/style/struct.Dimension.html)
+    See: [taffy `Dimension::Auto`](https://docs.rs/taffy/0.16.0/taffy/style/struct.Dimension.html)
     """
 
     def __init__(self) -> None: ...
@@ -267,7 +267,7 @@ class MinContent:
     opportunities taken. Used in `size_*`, `flex_basis`, available space (measure functions),
     and grid track sizing.
 
-    See: [taffy `MinTrackSizingFunction::MinContent`](https://docs.rs/taffy/0.15.0/taffy/style/struct.MinTrackSizingFunction.html),
+    See: [taffy `MinTrackSizingFunction::MinContent`](https://docs.rs/taffy/0.16.0/taffy/style/struct.MinTrackSizingFunction.html),
     [MDN `min-content`](https://developer.mozilla.org/en-US/docs/Web/CSS/min-content)
     """
 
@@ -284,7 +284,7 @@ class MaxContent:
     opportunities taken. Used in `size_*`, `flex_basis`, available space (measure functions),
     and grid track sizing.
 
-    See: [taffy `MinTrackSizingFunction::MaxContent`](https://docs.rs/taffy/0.15.0/taffy/style/struct.MinTrackSizingFunction.html),
+    See: [taffy `MinTrackSizingFunction::MaxContent`](https://docs.rs/taffy/0.16.0/taffy/style/struct.MinTrackSizingFunction.html),
     [MDN `max-content`](https://developer.mozilla.org/en-US/docs/Web/CSS/max-content)
     """
 
@@ -311,7 +311,7 @@ class Stretch:
     Fills the containing block's available space, less the node's margins.
     Used only in `size_*` and `flex_basis`.
 
-    See: [taffy `Dimension::stretch`](https://docs.rs/taffy/0.15.0/taffy/style/struct.Dimension.html),
+    See: [taffy `Dimension::stretch`](https://docs.rs/taffy/0.16.0/taffy/style/struct.Dimension.html),
     [MDN `stretch`](https://developer.mozilla.org/en-US/docs/Web/CSS/width#stretch)
     """
 
@@ -328,7 +328,7 @@ class FitContentKeyword:
     its min-content size and the available space. For an explicit limit, use `FitContent`.
     Used only in `size_*` and `flex_basis`.
 
-    See: [taffy `Dimension::fit_content`](https://docs.rs/taffy/0.15.0/taffy/style/struct.Dimension.html),
+    See: [taffy `Dimension::fit_content`](https://docs.rs/taffy/0.16.0/taffy/style/struct.Dimension.html),
     [MDN `fit-content`](https://developer.mozilla.org/en-US/docs/Web/CSS/fit-content)
     """
 
@@ -344,7 +344,7 @@ class Content:
     Sizes the flex item based on its content, ignoring its `size_*` in the main axis.
     Used only in `flex_basis`.
 
-    See: [taffy `Dimension::content`](https://docs.rs/taffy/0.15.0/taffy/style/struct.Dimension.html),
+    See: [taffy `Dimension::content`](https://docs.rs/taffy/0.16.0/taffy/style/struct.Dimension.html),
     [MDN `flex-basis: content`](https://developer.mozilla.org/en-US/docs/Web/CSS/flex-basis#content)
     """
 
@@ -371,7 +371,7 @@ class Definite:
     Used only in AvailableSize (measure function input) to represent a concrete
     pixel measurement of available space.
 
-    See: [taffy `AvailableSpace::Definite`](https://docs.rs/taffy/0.15.0/taffy/style/enum.AvailableSpace.html)
+    See: [taffy `AvailableSpace::Definite`](https://docs.rs/taffy/0.16.0/taffy/style/enum.AvailableSpace.html)
     """
 
     __match_args__ = ("value",)
@@ -394,7 +394,7 @@ class Fraction:
 
     Used only in grid track sizing (grid_template_*, grid_auto_*).
 
-    See: [taffy `MaxTrackSizingFunction::Fraction`](https://docs.rs/taffy/0.15.0/taffy/style/struct.MaxTrackSizingFunction.html),
+    See: [taffy `MaxTrackSizingFunction::Fraction`](https://docs.rs/taffy/0.16.0/taffy/style/struct.MaxTrackSizingFunction.html),
     [MDN `<flex>` (fr unit)](https://developer.mozilla.org/en-US/docs/Web/CSS/flex_value)
     """
 
@@ -429,7 +429,7 @@ class FitContent:
 
     Used in `size_*`, `flex_basis`, and grid track sizing.
 
-    See: [taffy `MaxTrackSizingFunction::FitContent`](https://docs.rs/taffy/0.15.0/taffy/style/struct.MaxTrackSizingFunction.html),
+    See: [taffy `MaxTrackSizingFunction::FitContent`](https://docs.rs/taffy/0.16.0/taffy/style/struct.MaxTrackSizingFunction.html),
     [MDN `fit-content()`](https://developer.mozilla.org/en-US/docs/Web/CSS/fit-content_function)
     """
 
@@ -454,7 +454,7 @@ class Minmax:
 
     Used only in grid track sizing.
 
-    See: [taffy `TrackSizingFunction`](https://docs.rs/taffy/0.15.0/taffy/style/type.TrackSizingFunction.html),
+    See: [taffy `TrackSizingFunction`](https://docs.rs/taffy/0.16.0/taffy/style/type.TrackSizingFunction.html),
     [MDN `minmax()`](https://developer.mozilla.org/en-US/docs/Web/CSS/minmax)
     """
 
@@ -478,7 +478,7 @@ class AutoFill:
     Repeat as many times as fit in the container without overflowing, keeping empty tracks.
     Used only as the `count` of a `Repeat`.
 
-    See: [taffy `RepetitionCount::AutoFill`](https://docs.rs/taffy/0.15.0/taffy/style/enum.RepetitionCount.html),
+    See: [taffy `RepetitionCount::AutoFill`](https://docs.rs/taffy/0.16.0/taffy/style/enum.RepetitionCount.html),
     [MDN `auto-fill`](https://developer.mozilla.org/en-US/docs/Web/CSS/repeat#auto-fill)
     """
 
@@ -494,7 +494,7 @@ class AutoFit:
     Like `AutoFill`, but empty repeated tracks collapse to zero size.
     Used only as the `count` of a `Repeat`.
 
-    See: [taffy `RepetitionCount::AutoFit`](https://docs.rs/taffy/0.15.0/taffy/style/enum.RepetitionCount.html),
+    See: [taffy `RepetitionCount::AutoFit`](https://docs.rs/taffy/0.16.0/taffy/style/enum.RepetitionCount.html),
     [MDN `auto-fit`](https://developer.mozilla.org/en-US/docs/Web/CSS/repeat#auto-fit)
     """
 
@@ -521,7 +521,7 @@ class Repeat:
     Raises `InvalidRepeat` if `count` is 0, `tracks` is empty, or `line_names` is neither
     empty nor `len(tracks) + 1` long.
 
-    See: [taffy `GridTemplateRepetition`](https://docs.rs/taffy/0.15.0/taffy/style/struct.GridTemplateRepetition.html),
+    See: [taffy `GridTemplateRepetition`](https://docs.rs/taffy/0.16.0/taffy/style/struct.GridTemplateRepetition.html),
     [MDN `repeat()`](https://developer.mozilla.org/en-US/docs/Web/CSS/repeat)
     """
 
@@ -558,7 +558,7 @@ class GridLine:
     Raises `InvalidGridLine` if `index` is 0
     (grid lines are 1-based; negative indices count from the end).
 
-    See: [taffy `GridPlacement::Line`](https://docs.rs/taffy/0.15.0/taffy/style/enum.GridPlacement.html),
+    See: [taffy `GridPlacement::Line`](https://docs.rs/taffy/0.16.0/taffy/style/enum.GridPlacement.html),
     [MDN Line-based placement](https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_grid_layout/Grid_layout_using_line-based_placement)
     """
 
@@ -580,7 +580,7 @@ class GridSpan:
 
     Raises `InvalidGridSpan` if `count` is 0 (must span at least 1 track).
 
-    See: [taffy `GridPlacement::Span`](https://docs.rs/taffy/0.15.0/taffy/style/enum.GridPlacement.html),
+    See: [taffy `GridPlacement::Span`](https://docs.rs/taffy/0.16.0/taffy/style/enum.GridPlacement.html),
     [MDN `grid-column-start` (span)](https://developer.mozilla.org/en-US/docs/Web/CSS/grid-column-start)
     """
 
@@ -612,7 +612,7 @@ class NamedGridLine:
 
     Raises `InvalidGridLine` if `index` is 0.
 
-    See: [taffy `GridPlacement::NamedLine`](https://docs.rs/taffy/0.15.0/taffy/style/enum.GridPlacement.html),
+    See: [taffy `GridPlacement::NamedLine`](https://docs.rs/taffy/0.16.0/taffy/style/enum.GridPlacement.html),
     [MDN `grid-row-start`](https://developer.mozilla.org/en-US/docs/Web/CSS/grid-row-start)
     """
 
@@ -641,7 +641,7 @@ class NamedGridSpan:
 
     Raises `InvalidGridSpan` if `count` is 0.
 
-    See: [taffy `GridPlacement::NamedSpan`](https://docs.rs/taffy/0.15.0/taffy/style/enum.GridPlacement.html),
+    See: [taffy `GridPlacement::NamedSpan`](https://docs.rs/taffy/0.16.0/taffy/style/enum.GridPlacement.html),
     [MDN `grid-row-start` (span)](https://developer.mozilla.org/en-US/docs/Web/CSS/grid-row-start)
     """
 
@@ -943,7 +943,7 @@ class GridPlacement:
     (GridLine | GridSpan | NamedGridLine | NamedGridSpan | Auto).
     Defaults both to Auto (the CSS default for unplaced items).
 
-    See: [taffy `Line<GridPlacement>`](https://docs.rs/taffy/0.15.0/taffy/geometry/struct.Line.html),
+    See: [taffy `Line<GridPlacement>`](https://docs.rs/taffy/0.16.0/taffy/geometry/struct.Line.html),
     [MDN `grid-row`](https://developer.mozilla.org/en-US/docs/Web/CSS/grid-row),
     [MDN `grid-column`](https://developer.mozilla.org/en-US/docs/Web/CSS/grid-column)
     """
@@ -973,7 +973,7 @@ class GridTemplateArea:
     Raises `InvalidGridTemplateArea` if a start line is 0 or an end line is not after its
     start line.
 
-    See: [taffy `GridTemplateArea`](https://docs.rs/taffy/0.15.0/taffy/style/struct.GridTemplateArea.html),
+    See: [taffy `GridTemplateArea`](https://docs.rs/taffy/0.16.0/taffy/style/struct.GridTemplateArea.html),
     [MDN `grid-template-areas`](https://developer.mozilla.org/en-US/docs/Web/CSS/grid-template-areas)
     """
 
@@ -1020,7 +1020,7 @@ class GridTemplateAreas:
     Raises `InvalidGridTemplateAreas` if an area extends past `row_count`/`column_count`,
     or if two areas share a name.
 
-    See: [taffy `GridTemplateAreas`](https://docs.rs/taffy/0.15.0/taffy/style/struct.GridTemplateAreas.html),
+    See: [taffy `GridTemplateAreas`](https://docs.rs/taffy/0.16.0/taffy/style/struct.GridTemplateAreas.html),
     [MDN `grid-template-areas`](https://developer.mozilla.org/en-US/docs/Web/CSS/grid-template-areas)
     """
 
@@ -1126,8 +1126,11 @@ class Layout:
         """
         The extent of the node's scrollable overflow, relative to its padding box origin.
 
-        `left`/`top` are `<= 0` (overflow before the scroll origin, which scrolling can't
-        reach) and `right`/`bottom` are `>= 0` (the reachable extent of the content).
+        `left`/`top` are `<= 0` (overflow before the padding box's start edge) and
+        `right`/`bottom` are `>= 0`. Reversed flex containers (`row-reverse`,
+        `column-reverse`, `wrap-reverse`) keep their negative overflow, which scrolling
+        reaches from the end edge. A scroll container clips overflow that scrolling can't
+        reach.
         """
     @property
     def scrollbar_size(self) -> Size:
@@ -1302,7 +1305,7 @@ class Style:
     they hold the same values *and* set the same fields, since otherwise they would merge
     differently: `Style() != Style(display=Display.Flex)`, though `Flex` is the default.
 
-    See: [taffy `Style`](https://docs.rs/taffy/0.15.0/taffy/struct.Style.html)
+    See: [taffy `Style`](https://docs.rs/taffy/0.16.0/taffy/struct.Style.html)
     """
 
     def __init__(
